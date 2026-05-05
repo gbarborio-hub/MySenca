@@ -334,33 +334,54 @@ function renderApp() {
 }
 
 
+function parsePost(p) {
+  var titolo = p.titolo || "";
+  var stato = p.stato || "Bozza";
+  var data = (p.data || "").split("T")[0].split(" ")[0];
+  var canali = [];
+  var rawCanali = p.canali || "";
+  if(typeof rawCanali === "string" && rawCanali) {
+    canali = rawCanali.replace(/[\[\]"]/g,"").split(",").map(function(c){return c.trim();}).filter(Boolean);
+  } else if(Array.isArray(rawCanali)) {
+    canali = rawCanali.map(function(c){ return typeof c === "string" ? c : (c.name||""); }).filter(Boolean);
+  }
+  var pubIG = p.pubIG === true || p.pubIG === "__YES__";
+  var pubFB = p.pubFB === true || p.pubFB === "__YES__";
+  var pubLI = p.pubLI === true || p.pubLI === "__YES__";
+  return {titolo:titolo, stato:stato, canali:canali, data:data, pubIG:pubIG, pubFB:pubFB, pubLI:pubLI};
+}
+
 function fetchPosts() {
   S.posts = [];
   S.loading = true;
   render();
-  fetch(DATI_URL, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({action: "get_posts"})})
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if(Array.isArray(data)) {
-      S.posts = data.map(function(p) {
-        return {
-          titolo: p.titolo || "",
-          stato: p.stato || "Bozza",
-          canali: typeof p.canali === "string" ? p.canali.replace(/[\[\]"]/g,"").split(",").map(function(c){return c.trim();}).filter(Boolean) : (p.canali || []),
-          data: (p.data || "").split("T")[0].split(" ")[0],
-          pubIG: p.pubIG === true || p.pubIG === "__YES__",
-          pubFB: p.pubFB === true || p.pubFB === "__YES__",
-          pubLI: p.pubLI === true || p.pubLI === "__YES__"
-        };
-      });
-    } else {
-      S.posts = POSTS;
+  // Make manda una risposta per bundle - facciamo una chiamata e prendiamo quello che arriva
+  fetch(DATI_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({action: "get_posts"})
+  })
+  .then(function(r) { return r.text(); })
+  .then(function(text) {
+    // Prova a parsare come JSON
+    try {
+      var data = JSON.parse(text);
+      if(Array.isArray(data)) {
+        S.posts = data.map(parsePost).filter(function(p){ return p.titolo; });
+      } else if(data && data.titolo) {
+        S.posts = [parsePost(data)];
+      }
+    } catch(e) {
+      // Prova a estrarre tutti i JSON dal testo (nel caso di bundle multipli)
+      var matches = text.match(/\{[^{}]+\}/g) || [];
+      S.posts = matches.map(function(m) {
+        try { return parsePost(JSON.parse(m)); } catch(e) { return null; }
+      }).filter(function(p){ return p && p.titolo; });
     }
     S.loading = false;
     render();
   })
   .catch(function() {
-    S.posts = POSTS;
     S.loading = false;
     render();
   });
