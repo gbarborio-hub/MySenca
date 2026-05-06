@@ -334,63 +334,30 @@ function renderApp() {
 }
 
 
-function parsePost(p) {
-  var titolo = p.titolo || "";
+function parsePost(item) {
+  var p = item.properties_value || item;
 
-  // Stato: arriva come stringa JSON o stringa semplice
+  // Titolo
+  var titolo = "";
+  if(p.Titolo && p.Titolo[0]) titolo = p.Titolo[0].plain_text || "";
+
+  // Stato
   var stato = "Bozza";
-  if(p.stato) {
-    if(typeof p.stato === "string" && p.stato.indexOf("{") >= 0) {
-      try { stato = JSON.parse(p.stato).name || "Bozza"; } catch(e) { stato = p.stato; }
-    } else if(typeof p.stato === "object" && p.stato.name) {
-      stato = p.stato.name;
-    } else {
-      stato = p.stato;
-    }
-  }
+  if(p.Stato && p.Stato.name) stato = p.Stato.name;
 
-  // Data: arriva come oggetto con start
+  // Data
   var data = "";
-  if(p.data) {
-    if(typeof p.data === "string" && p.data.indexOf("{") >= 0) {
-      try { data = JSON.parse(p.data).start || ""; } catch(e) { data = p.data; }
-    } else if(typeof p.data === "object" && p.data.start) {
-      data = p.data.start;
-    } else {
-      data = p.data;
-    }
-    data = data.split("T")[0].split(" ")[0];
+  if(p["Publish date"] && p["Publish date"].start) {
+    data = p["Publish date"].start.split("T")[0].split(" ")[0];
   }
 
-  // Canali: arriva come stringa JSON o array
+  // Canali
   var canali = [];
-  if(p.canali) {
-    var rawC = p.canali;
-    if(typeof rawC === "string" && rawC.indexOf("{") >= 0) {
-      // Singolo canale come oggetto JSON stringa
-      try {
-        var obj = JSON.parse(rawC);
-        if(obj.name) canali = [obj.name];
-      } catch(e) {}
-    } else if(typeof rawC === "string" && rawC.indexOf("[") >= 0) {
-      // Array di canali come stringa JSON
-      try {
-        var arr = JSON.parse(rawC);
-        canali = arr.map(function(c){ return typeof c === "string" ? c : (c.name||""); }).filter(Boolean);
-      } catch(e) {}
-    } else if(typeof rawC === "string") {
-      canali = rawC.replace(/[\[\]"]/g,"").split(",").map(function(c){return c.trim();}).filter(Boolean);
-    } else if(Array.isArray(rawC)) {
-      canali = rawC.map(function(c){ return typeof c === "string" ? c : (c.name||""); }).filter(Boolean);
-    } else if(typeof rawC === "object" && rawC.name) {
-      canali = [rawC.name];
-    }
+  if(p.Canali && Array.isArray(p.Canali)) {
+    canali = p.Canali.map(function(c){ return c.name || ""; }).filter(Boolean);
   }
 
-  var pubIG = p.pubIG === true || p.pubIG === "__YES__";
-  var pubFB = p.pubFB === true || p.pubFB === "__YES__";
-  var pubLI = p.pubLI === true || p.pubLI === "__YES__";
-  return {titolo:titolo, stato:stato, canali:canali, data:data, pubIG:pubIG, pubFB:pubFB, pubLI:pubLI};
+  return {titolo:titolo, stato:stato, canali:canali, data:data};
 }
 
 function fetchPosts() {
