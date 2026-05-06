@@ -404,21 +404,19 @@ function fetchPosts() {
     body: JSON.stringify({action: "get_posts"})
   })
   .then(function(r) { return r.text(); })
-  .then(function(text) {
-    // Prova a parsare come JSON
+.then(function(text) {
     try {
       var data = JSON.parse(text);
-      if(Array.isArray(data)) {
-        S.posts = data.map(parsePost).filter(function(p){ return p.titolo; });
-      } else if(data && data.titolo) {
-        S.posts = [parsePost(data)];
-      }
+      var raw = Array.isArray(data) ? data : [data];
+      S.posts = raw.map(parsePost).filter(function(p){ return p.titolo; });
     } catch(e) {
-      // Prova a estrarre tutti i JSON dal testo (nel caso di bundle multipli)
-      var matches = text.match(/\{[^{}]+\}/g) || [];
-      S.posts = matches.map(function(m) {
-        try { return parsePost(JSON.parse(m)); } catch(e) { return null; }
-      }).filter(function(p){ return p && p.titolo; });
+      S.posts = text.split("\n")
+        .map(function(line){ return line.trim(); })
+        .filter(Boolean)
+        .map(function(line){
+          try { return parsePost(JSON.parse(line)); } catch(e){ return null; }
+        })
+        .filter(function(p){ return p && p.titolo; });
     }
     S.loading = false;
     render();
