@@ -372,18 +372,17 @@ function fetchPosts() {
   })
   .then(function(r) { return r.text(); })
 .then(function(text) {
+    console.log("RISPOSTA RAW:", text.substring(0, 500));
     try {
       var data = JSON.parse(text);
+      console.log("PARSED OK, tipo:", Array.isArray(data) ? "array" : typeof data, "lunghezza:", Array.isArray(data) ? data.length : "n/a");
+      console.log("PRIMO ELEMENTO:", JSON.stringify(data[0]).substring(0, 200));
       var raw = Array.isArray(data) ? data : [data];
       S.posts = raw.map(parsePost).filter(function(p){ return p.titolo; });
+      console.log("POST PARSATI:", S.posts.length, S.posts[0]);
     } catch(e) {
-      S.posts = text.split("\n")
-        .map(function(line){ return line.trim(); })
-        .filter(Boolean)
-        .map(function(line){
-          try { return parsePost(JSON.parse(line)); } catch(e){ return null; }
-        })
-        .filter(function(p){ return p && p.titolo; });
+      console.log("ERRORE PARSE:", e.message);
+      S.posts = [];
     }
     S.loading = false;
     render();
