@@ -259,7 +259,8 @@ function renderApp() {
       m += "<div class=\"piano-chip\" style=\"background:#888;color:white\" onclick=\"setView('privacy');S.privacySection='incaricati';\"><span class=\"chip-count\">" + nonInviati + "</span>Non inviati</div>";
       m += "</div>";
     }
-    m += "<button class=\"update-btn\" onclick=\"fetchPosts();fetchIncaricati()\">Aggiorna tutto</button>";
+      m += "<button class=\"update-btn\" onclick=\"fetchPosts();fetchIncaricati()\">Aggiorna tutto</button>";
+  }
   else if(S.view==="lista") {
     var posts = [];
     for(var j=0;j<p.length;j++) {
