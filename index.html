@@ -459,40 +459,26 @@ function fetchIncaricati() {
 }
 
 function parseIncaricato(item) {
-  var p = item["properties_value"] || item;
-
-  // Nome - array rich text: [{type:"text", text:{content:"Pippo",...}}]
+  var p = (item && item.properties_value) ? item.properties_value : item;
   var nome = "";
-  if(Array.isArray(p.Nome) && p.Nome[0]) {
-    nome = (p.Nome[0].text && p.Nome[0].text.content) || (p.Nome[0].plain_text) || "";
+  if(p.Nome && Array.isArray(p.Nome) && p.Nome.length > 0) {
+    var n0 = p.Nome[0];
+    if(n0 && n0.text && n0.text.content) nome = n0.text.content;
+    else if(n0 && n0.plain_text) nome = n0.plain_text;
   }
-
-  // Cognome - stesso formato
   var cognome = "";
-  if(Array.isArray(p.Cognome) && p.Cognome[0]) {
-    cognome = (p.Cognome[0].text && p.Cognome[0].text.content) || (p.Cognome[0].plain_text) || "";
+  if(p.Cognome && Array.isArray(p.Cognome) && p.Cognome.length > 0) {
+    var c0 = p.Cognome[0];
+    if(c0 && c0.text && c0.text.content) cognome = c0.text.content;
+    else if(c0 && c0.plain_text) cognome = c0.plain_text;
   }
-
-  // Email - stringa diretta
   var email = p.Email || "";
-
-  // Mansione - oggetto {id, name, color}
-  var mansione = (p.Mansione && p.Mansione.name) || "";
-
-  // Tipo di contratto - stringa diretta
+  var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : (typeof p.Mansione === "string" ? p.Mansione : "");
   var contratto = p["Tipo di contratto"] || "";
-
-  // Nomina - oggetto {id, name, color}
-  var nomina = (p.Nomina && p.Nomina.name) || "Non inviata";
-
-  // Data invio - oggetto {start, end, time_zone}
-  var dataInvio = (p["Data invio"] && p["Data invio"].start) || "";
-
-  // Data firma - oggetto {start, end, time_zone}
-  var dataFirma = (p["Data firma"] && p["Data firma"].start) || "";
-
+  var nomina = (p.Nomina && p.Nomina.name) ? p.Nomina.name : (typeof p.Nomina === "string" ? p.Nomina : "Non inviata");
+  var dataInvio = (p["Data invio"] && p["Data invio"].start) ? p["Data invio"].start : "";
+  var dataFirma = (p["Data firma"] && p["Data firma"].start) ? p["Data firma"].start : "";
   var pageId = item.id || "";
-
   return {nome:nome, cognome:cognome, email:email, mansione:mansione, contratto:contratto, nomina:nomina, dataInvio:dataInvio, dataFirma:dataFirma, pageId:pageId};
 }
 function azioneNomina(pageId, email, nome, cognome, stato) {
