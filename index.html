@@ -637,6 +637,9 @@ function renderDipTimbra() {
   h += "</div>";
   h += "<button class='update-btn' onclick=\"fetchTimbrature()\" style='margin-top:0.75rem'>Aggiorna timbrature</button>";
   return h;
+}
+
+function doTimbraEntrata() {
   var strutId = S.timbraStruttura;
   if(!strutId) {
     S.timbraMsg = "⚠️ Seleziona una struttura prima di timbrare.";
