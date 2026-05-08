@@ -439,10 +439,7 @@ function fetchIncaricati() {
       console.log("INCARICATI PARSED:", JSON.stringify(data).substring(0, 500));
       var raw = Array.isArray(data) ? data : [data];
       // Gestisci sia dati piatti che wrappati in "Properties Value"
-     INCARICATI = raw.map(function(item){
-  return parseIncaricato(item);
-}).filter(function(p){ return p.nome || p.cognome; });
-      }).filter(function(p){ return p.nome; });
+   INCARICATI = raw.map(parseIncaricato).filter(function(p){ return p.nome || p.cognome; });
       console.log("INCARICATI FINALI:", INCARICATI.length, INCARICATI[0]);
     } catch(e){ 
       console.log("ERRORE PARSE INCARICATI:", e.message);
