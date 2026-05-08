@@ -475,7 +475,12 @@ function parseIncaricato(item) {
   var nomina = (p.Nomina && p.Nomina.name) ? p.Nomina.name : (typeof p.Nomina === "string" ? p.Nomina : "Non inviata");
   var dataInvio = (p["Data invio"] && p["Data invio"].start) ? p["Data invio"].start : "";
   var dataFirma = (p["Data firma"] && p["Data firma"].start) ? p["Data firma"].start : "";
-var pageId = item.id || (item.properties_value && item.properties_value.id) || "";
+var pv = item.properties_value || {};
+  var pageId = item.id || "";
+  if(!pageId && pv.url) {
+    pageId = pv.url.replace("https://www.notion.so/","").replace(/-/g,"");
+  }
+  console.log("pageId:", pageId);
   console.log("PAGE ID:", pageId, "ITEM:", JSON.stringify(item).substring(0,200));
 return {nome:nome, cognome:cognome, email:email, mansione:mansione, contratto:contratto, nomina:nomina, dataInvio:dataInvio, dataFirma:dataFirma, pageId:pageId};
 }
