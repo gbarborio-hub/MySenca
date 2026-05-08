@@ -439,8 +439,9 @@ function fetchIncaricati() {
       console.log("INCARICATI PARSED:", JSON.stringify(data).substring(0, 500));
       var raw = Array.isArray(data) ? data : [data];
       // Gestisci sia dati piatti che wrappati in "Properties Value"
-      INCARICATI = raw.map(function(item){
-        return parseIncaricato(item["Properties Value"] || item);
+     INCARICATI = raw.map(function(item){
+  return parseIncaricato(item);
+}).filter(function(p){ return p.nome || p.cognome; });
       }).filter(function(p){ return p.nome; });
       console.log("INCARICATI FINALI:", INCARICATI.length, INCARICATI[0]);
     } catch(e){ 
@@ -460,35 +461,35 @@ function fetchIncaricati() {
 function parseIncaricato(item) {
   var p = item["properties_value"] || item;
 
-  // Nome - array di rich text
+  // Nome - array rich text: [{type:"text", text:{content:"Pippo",...}}]
   var nome = "";
-  if(Array.isArray(p.Nome) && p.Nome[0] && p.Nome[0].text) nome = p.Nome[0].text.content || "";
+  if(Array.isArray(p.Nome) && p.Nome[0]) {
+    nome = (p.Nome[0].text && p.Nome[0].text.content) || (p.Nome[0].plain_text) || "";
+  }
 
-  // Cognome - array di rich text
+  // Cognome - stesso formato
   var cognome = "";
-  if(Array.isArray(p.Cognome) && p.Cognome[0] && p.Cognome[0].text) cognome = p.Cognome[0].text.content || "";
+  if(Array.isArray(p.Cognome) && p.Cognome[0]) {
+    cognome = (p.Cognome[0].text && p.Cognome[0].text.content) || (p.Cognome[0].plain_text) || "";
+  }
 
   // Email - stringa diretta
   var email = p.Email || "";
 
-  // Mansione - oggetto con .name
-  var mansione = "";
-  if(p.Mansione && p.Mansione.name) mansione = p.Mansione.name;
+  // Mansione - oggetto {id, name, color}
+  var mansione = (p.Mansione && p.Mansione.name) || "";
 
   // Tipo di contratto - stringa diretta
   var contratto = p["Tipo di contratto"] || "";
 
-  // Nomina - oggetto con .name
-  var nomina = "Non inviata";
-  if(p.Nomina && p.Nomina.name) nomina = p.Nomina.name;
+  // Nomina - oggetto {id, name, color}
+  var nomina = (p.Nomina && p.Nomina.name) || "Non inviata";
 
-  // Data invio - oggetto con .start
-  var dataInvio = "";
-  if(p["Data invio"] && p["Data invio"].start) dataInvio = p["Data invio"].start;
+  // Data invio - oggetto {start, end, time_zone}
+  var dataInvio = (p["Data invio"] && p["Data invio"].start) || "";
 
-  // Data firma - oggetto con .start
-  var dataFirma = "";
-  if(p["Data firma"] && p["Data firma"].start) dataFirma = p["Data firma"].start;
+  // Data firma - oggetto {start, end, time_zone}
+  var dataFirma = (p["Data firma"] && p["Data firma"].start) || "";
 
   var pageId = item.id || "";
 
