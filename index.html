@@ -146,6 +146,7 @@ var DATI_URL = "https://hook.eu1.make.com/y882re16wkatcqdk7zevhr24uknk78v4";
 var PRIVACY_URL = "https://hook.eu1.make.com/dmdvislgavso2dhh7ccp5iy4pa69vuox";
 var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
 var TIMBRA_URL = "https://hook.eu1.make.com/ovyaryk28yqdcl6q2a2v1sasxo5hktj1";
+var STRUTTURE_URL = "https://hook.eu1.make.com/xw0j4gjineix3dbogtdayeu0jm4tv6wq";
 
 var LOGO_IMG = "<img src='https://raw.githubusercontent.com/gbarborio-hub/senca-hub/main/www_senca_it.svg' style='width:100%;height:100%;object-fit:contain'/>";
 
@@ -153,12 +154,41 @@ var POSTS = [];
 var INCARICATI = [];
 var TURNI_DIP = [];
 
-// Strutture di esempio (verranno caricate da Make in futuro)
-var STRUTTURE = [
-  {id:"1", nome:"Struttura 1", lat:45.4654, lng:9.1866, raggio:200},
-  {id:"2", nome:"Struttura 2", lat:45.4719, lng:9.1925, raggio:200},
-  {id:"3", nome:"Struttura 3", lat:45.4668, lng:9.1840, raggio:200}
-];
+// Strutture — caricate da Notion
+var STRUTTURE = [];
+
+function fetchStrutture() {
+  fetch(STRUTTURE_URL, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({action:"get_strutture"})
+  })
+  .then(function(r){ return r.text(); })
+  .then(function(text){
+    try {
+      var data = JSON.parse(text);
+      var raw = Array.isArray(data) ? data : [data];
+      STRUTTURE = raw.map(function(item) {
+        var p = (item && item.properties_value) ? item.properties_value : item;
+        var nome = "";
+        if(p["Nome struttura"] && Array.isArray(p["Nome struttura"]) && p["Nome struttura"][0]) {
+          nome = p["Nome struttura"][0].plain_text || p["Nome struttura"][0].text && p["Nome struttura"][0].text.content || "";
+        } else if(typeof p["Nome struttura"] === "string") {
+          nome = p["Nome struttura"];
+        }
+        var lat = p.Latitudine || 0;
+        var lng = p.Longitudine || 0;
+        var raggio = p["Raggio GPS (metri)"] || 200;
+        var id = item["Page ID"] || item.id || nome;
+        return {id:id, nome:nome, lat:lat, lng:lng, raggio:raggio};
+      }).filter(function(s){ return s.nome; });
+      render();
+    } catch(e) {
+      console.log("Errore fetch strutture:", e);
+    }
+  })
+  .catch(function(e){ console.log("Errore fetch strutture:", e); });
+}
 
 var S = {
   loggedIn:false, user:null,
@@ -235,6 +265,7 @@ function doLogin() {
       S.loggedIn = true;
       S.user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
       if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
+      if(isDipendente()) { fetchStrutture(); }
       render();
     } else {
       err.textContent = "Credenziali non valide. Riprova.";
@@ -430,10 +461,14 @@ function renderDipTimbra() {
   h += "<div class=\"timbra-card\">";
   h += "<div class=\"timbra-title\">Seleziona struttura</div>";
   h += "<select class=\"struttura-select\" id=\"sel-struttura\" onchange=\"S.timbraStruttura=this.value\">";
-  h += "<option value=''>-- Seleziona --</option>";
-  for(var i=0; i<STRUTTURE.length; i++) {
-    var sel = S.timbraStruttura===STRUTTURE[i].id ? "selected" : "";
-    h += "<option value='" + STRUTTURE[i].id + "' " + sel + ">" + STRUTTURE[i].nome + "</option>";
+  if(STRUTTURE.length === 0) {
+    h += "<option value=''>⏳ Caricamento strutture...</option>";
+  } else {
+    h += "<option value=''>-- Seleziona struttura --</option>";
+    for(var i=0; i<STRUTTURE.length; i++) {
+      var sel = S.timbraStruttura===STRUTTURE[i].id ? "selected" : "";
+      h += "<option value='" + STRUTTURE[i].id + "' " + sel + ">" + STRUTTURE[i].nome + "</option>";
+    }
   }
   h += "</select>";
   if(!S.timbratoEntrata) {
