@@ -148,6 +148,71 @@ var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
 var TIMBRA_URL = "https://hook.eu1.make.com/ovyaryk28yqdcl6q2a2v1sasxo5hktj1";
 var STRUTTURE_URL = "https://hook.eu1.make.com/xw0j4gjineix3dbogtdayeu0jm4tv6wq";
 var TURNI_URL = "https://hook.eu1.make.com/asyef6nu2ll64d3u7ed5qdjpk4w9aneh";
+var TIMBRATURE_READ_URL = "https://hook.eu1.make.com/jsjc97nwzuleo7tjo9k37oejuptyhbbh";
+
+var TIMBRATURE_DIP = [];
+
+function fetchTimbrature() {
+  fetch(TIMBRATURE_READ_URL, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({nome: S.user.nome})
+  })
+  .then(function(r){ return r.text(); })
+  .then(function(text){
+    try {
+      var data = JSON.parse(text);
+      var raw = Array.isArray(data) ? data : [data];
+      TIMBRATURE_DIP = raw.map(function(item) {
+        var p = (item && item.properties_value) ? item.properties_value : item;
+        var struttura = typeof p.Struttura === "string" ? p.Struttura : "";
+        var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : "";
+        var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
+        var oraEntrata = typeof p["Ora entrata"] === "string" ? p["Ora entrata"] : "";
+        var oraUscita = typeof p["Ora uscita"] === "string" ? p["Ora uscita"] : "";
+        var oreTotali = p["Ore totali"] || 0;
+        var stato = (p.Stato && p.Stato.name) ? p.Stato.name : "";
+        return {struttura:struttura, dipendente:dipendente, data:data2, oraEntrata:oraEntrata, oraUscita:oraUscita, oreTotali:parseFloat(oreTotali)||0, stato:stato};
+      }).filter(function(t){ return t.data; });
+      render();
+    } catch(e) {
+      console.log("Errore fetch timbrature:", e);
+    }
+  })
+  .catch(function(e){ console.log("Errore fetch timbrature:", e); });
+}
+
+function calcOreSettimana() {
+  var oggi = new Date();
+  var lunedi = new Date(oggi);
+  lunedi.setDate(oggi.getDate() - (oggi.getDay()===0 ? 6 : oggi.getDay()-1));
+  var lunediStr = lunedi.toISOString().split("T")[0];
+  var domenicaStr = oggi.toISOString().split("T")[0];
+  return TIMBRATURE_DIP.filter(function(t){
+    return t.data >= lunediStr && t.data <= domenicaStr;
+  }).reduce(function(acc, t){ return acc + t.oreTotali; }, 0);
+}
+
+function calcOreMese() {
+  var oggi = new Date();
+  var meseStr = oggi.getFullYear() + "-" + String(oggi.getMonth()+1).padStart(2,"0");
+  return TIMBRATURE_DIP.filter(function(t){
+    return t.data && t.data.startsWith(meseStr);
+  }).reduce(function(acc, t){ return acc + t.oreTotali; }, 0);
+}
+
+function calcOrePrevisteMese() {
+  var oggi = new Date();
+  var meseStr = oggi.getFullYear() + "-" + String(oggi.getMonth()+1).padStart(2,"0");
+  return TURNI_DIP.filter(function(t){
+    return t.data && t.data.startsWith(meseStr);
+  }).reduce(function(acc, t){
+    if(!t.oraInizio || !t.oraFine) return acc;
+    var ini = t.oraInizio.split(":"); var fin = t.oraFine.split(":");
+    var ore = (parseInt(fin[0])*60 + parseInt(fin[1]) - parseInt(ini[0])*60 - parseInt(ini[1])) / 60;
+    return acc + (ore > 0 ? ore : 0);
+  }, 0);
+}
 
 var LOGO_IMG = "<img src='https://raw.githubusercontent.com/gbarborio-hub/senca-hub/main/www_senca_it.svg' style='width:100%;height:100%;object-fit:contain'/>";
 
@@ -305,7 +370,7 @@ function doLogin() {
       S.loggedIn = true;
       S.user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
       if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
-      if(isDipendente()) { fetchStrutture(); fetchTurni(); }
+      if(isDipendente()) { fetchStrutture(); fetchTurni(); fetchTimbrature(); }
       render();
     } else {
       err.textContent = "Credenziali non valide. Riprova.";
@@ -477,15 +542,22 @@ function renderDipFerie() {
 function renderDipInfo() {
   var oggi = new Date().toISOString().split("T")[0];
   var prossimo = TURNI_DIP.find(function(t){ return t.data >= oggi; });
+  var oreSettimana = calcOreSettimana();
+  var oreMese = calcOreMese();
+  var orePreviste = calcOrePrevisteMese();
+  var oreResidue = Math.max(0, orePreviste - oreMese);
+
   var h = "";
   h += "<div class='stat-card'><div class='stat-card-orb'></div>";
   h += "<div class='stat-label'>Ore lavorate questa settimana</div>";
-  h += "<div class='stat-number'>—</div>";
+  h += "<div class='stat-number'>" + oreSettimana.toFixed(1) + "</div>";
+  h += "<div class='stat-sub'>" + oreMese.toFixed(1) + " ore questo mese</div>";
   h += "</div>";
 
   h += "<div class='stat-card' style='background:var(--cyan)'><div class='stat-card-orb'></div>";
-  h += "<div class='stat-label'>Ore residue</div>";
-  h += "<div class='stat-number'>—</div>";
+  h += "<div class='stat-label'>Ore residue questo mese</div>";
+  h += "<div class='stat-number'>" + oreResidue.toFixed(1) + "</div>";
+  h += "<div class='stat-sub'>" + orePreviste.toFixed(1) + " ore previste totali</div>";
   h += "</div>";
 
   h += "<div class='stat-card' style='background:var(--coral)'><div class='stat-card-orb'></div>";
@@ -499,7 +571,7 @@ function renderDipInfo() {
   }
   h += "</div>";
 
-  h += "<button class='update-btn' onclick=\"fetchTurni()\">Aggiorna</button>";
+  h += "<button class='update-btn' onclick=\"fetchTurni();fetchTimbrature()\">Aggiorna</button>";
   return h;
 }
 
