@@ -165,12 +165,28 @@ function fetchTimbrature() {
       var raw = Array.isArray(data) ? data : [data];
       TIMBRATURE_DIP = raw.map(function(item) {
         var p = (item && item.properties_value) ? item.properties_value : item;
-        var struttura = typeof p.Struttura === "string" ? p.Struttura : "";
-        var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : "";
+        // Struttura - testo semplice
+        var struttura = "";
+        if(typeof p.Struttura === "string") struttura = p.Struttura;
+        else if(p.Struttura && Array.isArray(p.Struttura) && p.Struttura[0]) struttura = p.Struttura[0].plain_text || p.Struttura[0].text && p.Struttura[0].text.content || "";
+        else if(p.Struttura && p.Struttura.name) struttura = p.Struttura.name;
+        // Dipendente
+        var dipendente = "";
+        if(typeof p.Dipendente === "string") dipendente = p.Dipendente;
+        else if(p.Dipendente && Array.isArray(p.Dipendente) && p.Dipendente[0]) dipendente = p.Dipendente[0].plain_text || "";
+        // Data
         var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
-        var oraEntrata = typeof p["Ora entrata"] === "string" ? p["Ora entrata"] : "";
-        var oraUscita = typeof p["Ora uscita"] === "string" ? p["Ora uscita"] : "";
+        // Ora entrata
+        var oraEntrata = "";
+        if(typeof p["Ora entrata"] === "string") oraEntrata = p["Ora entrata"];
+        else if(p["Ora entrata"] && Array.isArray(p["Ora entrata"]) && p["Ora entrata"][0]) oraEntrata = p["Ora entrata"][0].plain_text || p["Ora entrata"][0].text && p["Ora entrata"][0].text.content || "";
+        // Ora uscita
+        var oraUscita = "";
+        if(typeof p["Ora uscita"] === "string") oraUscita = p["Ora uscita"];
+        else if(p["Ora uscita"] && Array.isArray(p["Ora uscita"]) && p["Ora uscita"][0]) oraUscita = p["Ora uscita"][0].plain_text || p["Ora uscita"][0].text && p["Ora uscita"][0].text.content || "";
+        // Ore totali
         var oreTotali = p["Ore totali"] || 0;
+        // Stato
         var stato = (p.Stato && p.Stato.name) ? p.Stato.name : "";
         return {struttura:struttura, dipendente:dipendente, data:data2, oraEntrata:oraEntrata, oraUscita:oraUscita, oreTotali:parseFloat(oreTotali)||0, stato:stato};
       }).filter(function(t){ return t.data; });
@@ -619,10 +635,8 @@ function renderDipTimbra() {
     }
   }
   h += "</div>";
+  h += "<button class='update-btn' onclick=\"fetchTimbrature()\" style='margin-top:0.75rem'>Aggiorna timbrature</button>";
   return h;
-}
-
-function doTimbraEntrata() {
   var strutId = S.timbraStruttura;
   if(!strutId) {
     S.timbraMsg = "⚠️ Seleziona una struttura prima di timbrare.";
