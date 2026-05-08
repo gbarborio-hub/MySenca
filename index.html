@@ -433,15 +433,28 @@ function fetchIncaricati() {
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
+    console.log("INCARICATI RAW:", text.substring(0, 1000));
     try {
       var data = JSON.parse(text);
+      console.log("INCARICATI PARSED:", JSON.stringify(data).substring(0, 500));
       var raw = Array.isArray(data) ? data : [data];
-      INCARICATI = raw.map(parseIncaricato).filter(function(p){ return p.nome; });
-    } catch(e){ INCARICATI = []; }
+      // Gestisci sia dati piatti che wrappati in "Properties Value"
+      INCARICATI = raw.map(function(item){
+        return parseIncaricato(item["Properties Value"] || item);
+      }).filter(function(p){ return p.nome; });
+      console.log("INCARICATI FINALI:", INCARICATI.length, INCARICATI[0]);
+    } catch(e){ 
+      console.log("ERRORE PARSE INCARICATI:", e.message);
+      INCARICATI = []; 
+    }
     S.loadingPrivacy = false;
     render();
   })
-  .catch(function(){ S.loadingPrivacy = false; render(); });
+  .catch(function(e){ 
+    console.log("ERRORE FETCH INCARICATI:", e);
+    S.loadingPrivacy = false; 
+    render(); 
+  });
 }
 
 function parseIncaricato(item) {
