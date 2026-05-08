@@ -471,12 +471,13 @@ function parseIncaricato(item) {
   }
   var email = p.Email || "";
   var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : (typeof p.Mansione === "string" ? p.Mansione : "");
-  var contratto = p["Tipo di contratto"] || "";
+  var contratto = (p["Tipo di contratto"] && p["Tipo di contratto"].name) ? p["Tipo di contratto"].name : (typeof p["Tipo di contratto"] === "string" ? p["Tipo di contratto"] : "");
   var nomina = (p.Nomina && p.Nomina.name) ? p.Nomina.name : (typeof p.Nomina === "string" ? p.Nomina : "Non inviata");
   var dataInvio = (p["Data invio"] && p["Data invio"].start) ? p["Data invio"].start : "";
   var dataFirma = (p["Data firma"] && p["Data firma"].start) ? p["Data firma"].start : "";
-  var pageId = item.id || "";
-  return {nome:nome, cognome:cognome, email:email, mansione:mansione, contratto:contratto, nomina:nomina, dataInvio:dataInvio, dataFirma:dataFirma, pageId:pageId};
+var pageId = item.id || (item.properties_value && item.properties_value.id) || "";
+  console.log("PAGE ID:", pageId, "ITEM:", JSON.stringify(item).substring(0,200));
+return {nome:nome, cognome:cognome, email:email, mansione:mansione, contratto:contratto, nomina:nomina, dataInvio:dataInvio, dataFirma:dataFirma, pageId:pageId};
 }
 function azioneNomina(pageId, email, nome, cognome, stato) {
   var oggi = new Date().toISOString().split("T")[0];
