@@ -171,7 +171,7 @@ function fetchTurni() {
         var titolo = "";
         if(p.Titolo && Array.isArray(p.Titolo) && p.Titolo[0]) titolo = p.Titolo[0].plain_text || "";
         var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : (p.Dipendente && p.Dipendente[0] ? p.Dipendente[0].plain_text || "" : "");
-        var struttura = typeof p.Struttura === "string" ? p.Struttura : (p.Struttura && p.Struttura[0] ? p.Struttura[0].plain_text || "" : "");
+        var struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
         var tipo = (p["Tipo turno"] && p["Tipo turno"].name) ? p["Tipo turno"].name : "";
         var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
         var oraInizio = typeof p["Ora inizio"] === "string" ? p["Ora inizio"] : (p["Ora inizio"] && p["Ora inizio"][0] ? p["Ora inizio"][0].plain_text || "" : "");
