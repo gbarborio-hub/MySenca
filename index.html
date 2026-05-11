@@ -6,11 +6,11 @@
 <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/gbarborio-hub/senca-hub/main/www.senca.it.png"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
 <title>Senca Hub</title>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,600,700,800,900&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-:root{--bg:#E8F4F5;--teal:#1B7F7A;--teal-dark:#0D5955;--cyan:#00C2C7;--cyan-light:#E0F7F7;--coral:#E8603A;--white:#FFFFFF;--text-dark:#1A2E2E;--text-mid:#3D5858;--text-light:#7A9999;--radius:16px;--radius-sm:10px;font-family:"Nunito",sans-serif}
-body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"Nunito",sans-serif}
+:root{--bg:#E8F4F5;--teal:#1B7F7A;--teal-dark:#0D5955;--cyan:#00C2C7;--cyan-light:#E0F7F7;--coral:#E8603A;--white:#FFFFFF;--text-dark:#1A2E2E;--text-mid:#3D5858;--text-light:#7A9999;--radius:16px;--radius-sm:10px;font-family:"Satoshi",sans-serif}
+body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"Satoshi",sans-serif}
 .login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:var(--white)}
 .login-logo-area{width:100%;display:flex;align-items:center;justify-content:center;padding:3rem 2rem 1.5rem}
 .login-logo-wrap{width:160px;height:160px}
@@ -18,9 +18,9 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"N
 .login-greeting{font-size:28px;font-weight:800;color:var(--text-dark);text-align:center;margin-bottom:0.5rem}
 .login-sub{font-size:15px;color:var(--text-light);text-align:center;margin-bottom:2.5rem}
 .field-label{font-size:11px;font-weight:800;letter-spacing:1.2px;color:var(--teal);text-transform:uppercase;margin-bottom:6px;display:block}
-.field-input{width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--teal);padding:8px 0 6px;font-size:15px;font-family:"Nunito",sans-serif;color:var(--text-dark);outline:none;margin-bottom:1.5rem}
+.field-input{width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--teal);padding:8px 0 6px;font-size:15px;font-family:"Satoshi",sans-serif;color:var(--text-dark);outline:none;margin-bottom:1.5rem}
 .field-input::placeholder{color:var(--text-light)}
-.login-btn{width:100%;padding:1rem;border:1.5px solid var(--text-mid);border-radius:30px;background:transparent;font-size:16px;font-weight:700;color:var(--text-dark);cursor:pointer;font-family:"Nunito",sans-serif;margin-top:0.5rem;transition:all 0.15s}
+.login-btn{width:100%;padding:1rem;border:1.5px solid var(--text-mid);border-radius:30px;background:transparent;font-size:16px;font-weight:700;color:var(--text-dark);cursor:pointer;font-family:"Satoshi",sans-serif;margin-top:0.5rem;transition:all 0.15s}
 .login-btn:hover{background:var(--teal);color:white;border-color:var(--teal)}
 .login-btn:disabled{opacity:0.6;cursor:not-allowed}
 .login-error{font-size:13px;color:#C0392B;text-align:center;margin-top:0.75rem;display:none;padding:0.75rem;background:#FCE4E4;border-radius:8px}
@@ -30,7 +30,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"N
 .app-logo{width:42px;height:42px;flex-shrink:0}
 .app-content{flex:1;padding:0.75rem 1rem 2rem;overflow-y:auto}
 .nav-tabs{display:flex;gap:0.5rem;margin-bottom:1.25rem;flex-wrap:wrap}
-.nav-tab{padding:0.45rem 1.1rem;border-radius:20px;font-size:13.5px;font-weight:700;cursor:pointer;border:none;font-family:"Nunito",sans-serif;transition:all 0.15s}
+.nav-tab{padding:0.45rem 1.1rem;border-radius:20px;font-size:13.5px;font-weight:700;cursor:pointer;border:none;font-family:"Satoshi",sans-serif;transition:all 0.15s}
 .nav-tab.active{background:var(--coral);color:white}
 .nav-tab.inactive{background:var(--white);color:var(--text-mid)}
 .section-label{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem}
@@ -52,7 +52,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"N
 .piano-chips::-webkit-scrollbar{display:none}
 .piano-chip{flex-shrink:0;padding:0.9rem 1.1rem;border-radius:var(--radius-sm);font-size:13px;font-weight:800;cursor:pointer;min-width:100px;text-align:center}
 .chip-count{font-size:22px;font-weight:900;display:block;margin-bottom:2px}
-.update-btn{width:100%;padding:1rem;background:var(--cyan);border-radius:30px;border:none;font-size:16px;font-weight:800;color:white;cursor:pointer;font-family:"Nunito",sans-serif;margin-top:0.75rem}
+.update-btn{width:100%;padding:1rem;background:var(--cyan);border-radius:30px;border:none;font-size:16px;font-weight:800;color:white;cursor:pointer;font-family:"Satoshi",sans-serif;margin-top:0.75rem}
 .table-card{background:white;border-radius:var(--radius);overflow:hidden;margin-bottom:0.75rem}
 .table-row{display:flex;align-items:center;padding:0.85rem 1rem;border-bottom:1px solid var(--bg);gap:6px}
 .table-row:last-child{border-bottom:none}
@@ -69,7 +69,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"N
 .badge-bozza{background:#E0F0FF;color:#1A4A7A}
 .badge-rev{background:#FCE4E4;color:#7A1A1A}
 .filters{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem}
-.filt{padding:0.35rem 0.8rem;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:"Nunito",sans-serif}
+.filt{padding:0.35rem 0.8rem;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:"Satoshi",sans-serif}
 .filt.active{background:var(--teal);color:white}
 .filt.inactive{background:white;color:var(--text-mid)}
 .bottom-nav{background:white;display:flex;justify-content:space-around;padding:0.75rem 0 1rem;border-top:1px solid #E0ECEC;position:sticky;bottom:0}
@@ -112,8 +112,8 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"N
 .doc-chip-label{font-size:11px;color:rgba(255,255,255,0.8);margin-top:3px;font-weight:600}
 .timbra-card{background:white;border-radius:var(--radius);margin-bottom:0.75rem;padding:1.5rem}
 .timbra-title{font-size:16px;font-weight:800;color:var(--text-dark);margin-bottom:1rem}
-.struttura-select{width:100%;padding:0.85rem 1rem;border-radius:var(--radius-sm);border:2px solid var(--cyan-light);background:var(--bg);font-size:15px;font-weight:700;color:var(--text-dark);font-family:"Nunito",sans-serif;outline:none;margin-bottom:1rem;appearance:none}
-.timbra-btn{width:100%;padding:1.1rem;border-radius:30px;border:none;font-size:17px;font-weight:900;color:white;cursor:pointer;font-family:"Nunito",sans-serif;transition:all 0.15s}
+.struttura-select{width:100%;padding:0.85rem 1rem;border-radius:var(--radius-sm);border:2px solid var(--cyan-light);background:var(--bg);font-size:15px;font-weight:700;color:var(--text-dark);font-family:"Satoshi",sans-serif;outline:none;margin-bottom:1rem;appearance:none}
+.timbra-btn{width:100%;padding:1.1rem;border-radius:30px;border:none;font-size:17px;font-weight:900;color:white;cursor:pointer;font-family:"Satoshi",sans-serif;transition:all 0.15s}
 .timbra-btn.entrata{background:var(--teal)}
 .timbra-btn.uscita{background:var(--coral)}
 .timbra-btn:disabled{opacity:0.5;cursor:not-allowed}
@@ -1097,10 +1097,10 @@ function renderPrivacy() {
     if(inc.dataFirma)m+="<div style=\"background:white;border-radius:var(--radius-sm);padding:0.75rem 1rem;margin-bottom:0.5rem;font-size:13px;font-weight:700;color:var(--text-mid)\">✍️ Firmata il: "+fmtDateIt(inc.dataFirma)+"</div>";
     m+="<div style=\"display:flex;gap:0.5rem;margin-top:1rem;flex-direction:column\">";
     if(inc.nomina!=="Firmata"){
-      if(inc.nomina==="Non inviata"){m+="<button onclick=\"azioneNomina('"+inc.pageId+"','"+inc.email+"','"+inc.nome+"','"+inc.cognome+"','Inviata')\" style=\"padding:0.9rem;background:var(--teal);border-radius:30px;border:none;font-size:15px;font-weight:800;color:white;cursor:pointer;font-family:'Nunito',sans-serif\">📨 Invia nomina</button>";}
-      else{m+="<button onclick=\"azioneNomina('"+inc.pageId+"','"+inc.email+"','"+inc.nome+"','"+inc.cognome+"','Sollecito')\" style=\"padding:0.9rem;background:var(--coral);border-radius:30px;border:none;font-size:15px;font-weight:800;color:white;cursor:pointer;font-family:'Nunito',sans-serif\">🔔 Sollecita</button>";}
+      if(inc.nomina==="Non inviata"){m+="<button onclick=\"azioneNomina('"+inc.pageId+"','"+inc.email+"','"+inc.nome+"','"+inc.cognome+"','Inviata')\" style=\"padding:0.9rem;background:var(--teal);border-radius:30px;border:none;font-size:15px;font-weight:800;color:white;cursor:pointer;font-family:'Satoshi',sans-serif\">📨 Invia nomina</button>";}
+      else{m+="<button onclick=\"azioneNomina('"+inc.pageId+"','"+inc.email+"','"+inc.nome+"','"+inc.cognome+"','Sollecito')\" style=\"padding:0.9rem;background:var(--coral);border-radius:30px;border:none;font-size:15px;font-weight:800;color:white;cursor:pointer;font-family:'Satoshi',sans-serif\">🔔 Sollecita</button>";}
     }
-    m+="<button onclick=\"S.privacyDetail=null;render()\" style=\"padding:0.9rem;background:var(--coral);border-radius:30px;border:none;font-size:15px;font-weight:800;color:white;cursor:pointer;font-family:'Nunito',sans-serif\">← Indietro</button>";
+    m+="<button onclick=\"S.privacyDetail=null;render()\" style=\"padding:0.9rem;background:var(--coral);border-radius:30px;border:none;font-size:15px;font-weight:800;color:white;cursor:pointer;font-family:'Satoshi',sans-serif\">← Indietro</button>";
     m+="</div>";
     return m;
   }
