@@ -171,8 +171,13 @@ function fetchProfilo() {
       var telefono = p.Telefono || "";
       var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : "";
       var contratto = (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : "";
-      var struttura = typeof p["Struttura principale"] === "string" ? p["Struttura principale"] : "";
-      var cf = typeof p["Codice fiscale"] === "string" ? p["Codice fiscale"] : "";
+      var struttura = "";
+      if(typeof p["Struttura principale"] === "string") struttura = p["Struttura principale"];
+      else if(p["Struttura principale"] && Array.isArray(p["Struttura principale"]) && p["Struttura principale"][0]) struttura = p["Struttura principale"][0].plain_text || p["Struttura principale"][0].text && p["Struttura principale"][0].text.content || "";
+      else if(p["Struttura principale"] && p["Struttura principale"].name) struttura = p["Struttura principale"].name;
+      var cf = "";
+      if(typeof p["Codice fiscale"] === "string") cf = p["Codice fiscale"];
+      else if(p["Codice fiscale"] && Array.isArray(p["Codice fiscale"]) && p["Codice fiscale"][0]) cf = p["Codice fiscale"][0].plain_text || p["Codice fiscale"][0].text && p["Codice fiscale"][0].text.content || "";
       var nascita = (p["Data di nascita"] && p["Data di nascita"].start) ? p["Data di nascita"].start.split("T")[0] : "";
       PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita};
       render();
