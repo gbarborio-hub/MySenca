@@ -916,6 +916,8 @@ function renderDipContatti() {
   h += "<button class='update-btn' onclick=\"fetchContatti()\">Aggiorna</button>";
   return h;
 }
+
+function renderDipTurni() {
   if(S.loadingTurni) {
     return "<div style='display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div><div style='color:#7A9999;font-weight:700;font-size:14px'>Caricamento turni...</div></div>";
   }
