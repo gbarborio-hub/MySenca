@@ -156,7 +156,7 @@ var PROFILO_DIP = null;
 function fetchProfilo() {
   fetch(PROFILO_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({username: S.user.username})
   })
   .then(function(r){ return r.text(); })
@@ -201,7 +201,7 @@ var FERIE_RICHIESTE = [];
 function fetchFerieSaldo() {
   fetch(FERIE_SALDO_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({username: S.user.username})
   })
   .then(function(r){ return r.text(); })
@@ -227,7 +227,7 @@ function fetchFerieSaldo() {
 function fetchFerieRichieste() {
   fetch(FERIE_LETTURA_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({username: S.user.username})
   })
   .then(function(r){ return r.text(); })
@@ -255,7 +255,7 @@ function fetchFerieRichieste() {
 function inviaRichiestaFerie(tipo, dataInizio, dataFine, oreRichieste, note) {
   fetch(FERIE_RICHIESTA_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({
       dipendente: S.user.nome,
       username: S.user.username,
@@ -279,7 +279,7 @@ var CONTATTI = [];
 function fetchContatti() {
   fetch(CONTATTI_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({action:"get_contatti"})
   })
   .then(function(r){ return r.text(); })
@@ -313,7 +313,7 @@ var TIMBRATURE_DIP = [];
 function fetchTimbrature() {
   fetch(TIMBRATURE_READ_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({nome: S.user.nome})
   })
   .then(function(r){ return r.text(); })
@@ -398,7 +398,7 @@ var TURNI_DIP = [];
 function fetchTurni() {
   fetch(TURNI_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({nome: S.user.nome})
   })
   .then(function(r){ return r.text(); })
@@ -440,7 +440,7 @@ var STRUTTURE = [];
 function fetchStrutture() {
   fetch(STRUTTURE_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: getAuthHeaders(),
     body: JSON.stringify({action:"get_strutture"})
   })
   .then(function(r){ return r.text(); })
@@ -982,7 +982,7 @@ function doTimbraUscita() {
 
       fetch(TIMBRA_URL, {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           nome: S.user.nome,
           username: S.user.username || "",
