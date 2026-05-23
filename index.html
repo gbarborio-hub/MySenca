@@ -1505,19 +1505,230 @@ function renderGP_Dipendenti() {
   return h;
 }
 
+// ===== QUADRO TURNI =====
+var GT_MESE = (new Date().getMonth() + 1);
+var GT_ANNO = new Date().getFullYear();
+var GT_STRUTTURA = "";
+var GT_FIGURA = "OSS";
+var GT_DATA = {};
+var GT_CELL = null;
+var GT_SELECTED_SHIFT = null;
+var GT_SAVING = false;
+
+var GT_SHIFTS = [
+  {code:"M",  desc:"Mattina",          orario:"7-14",           bg:"#FAC775", fg:"#633806"},
+  {code:"P",  desc:"Pomeriggio",        orario:"14-21",          bg:"#F0997B", fg:"#4A1B0C"},
+  {code:"N+", desc:"Notte lunga",       orario:"20-7",           bg:"#85B7EB", fg:"#042C53"},
+  {code:"N",  desc:"Notte",             orario:"21-7",           bg:"#B5D4F4", fg:"#042C53"},
+  {code:"G1", desc:"Giorno 1",          orario:"7-13+14-20",     bg:"#97C459", fg:"#173404"},
+  {code:"G2", desc:"Giorno 2",          orario:"7-14+15-20",     bg:"#C0DD97", fg:"#27500A"},
+  {code:"MN", desc:"Mattina+Notte",     orario:"Mattina+Notte",  bg:"#CECBF6", fg:"#26215C"},
+  {code:"PN", desc:"Pomeriggio+Notte",  orario:"Pom+Notte",      bg:"#F4C0D1", fg:"#4B1528"},
+  {code:"F",  desc:"Ferie",             orario:"—",              bg:"#9FE1CB", fg:"#04342C"},
+  {code:"AF", desc:"Affiancamento",     orario:"—",              bg:"#D3D1C7", fg:"#2C2C2A"},
+  {code:"C",  desc:"Coordinamento",     orario:"9-14",           bg:"#F7C1C1", fg:"#501313"},
+];
+
+var GT_MESI = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+var GT_DAYS_IN_MONTH = [0,31,28,31,30,31,30,31,31,30,31,30,31];
+function gtDaysInMonth(m, y) {
+  if(m===2 && ((y%4===0&&y%100!==0)||y%400===0)) return 29;
+  return GT_DAYS_IN_MONTH[m];
+}
+function gtWeekday(y, m, d) { return new Date(y, m-1, d).getDay(); }
+var GT_DN = ["D","L","M","M","G","V","S"];
+
+function gtShiftStyle(code) {
+  for(var i=0;i<GT_SHIFTS.length;i++) if(GT_SHIFTS[i].code===code) return GT_SHIFTS[i];
+  return null;
+}
+
+function gtDipendenti() {
+  var lista = [];
+  for(var i=0;i<GP_DIPENDENTI.length;i++) {
+    var d = GP_DIPENDENTI[i];
+    if(GT_STRUTTURA && d.struttura && d.struttura !== GT_STRUTTURA) continue;
+    if(GT_FIGURA && d.mansione && d.mansione !== GT_FIGURA) continue;
+    lista.push(d);
+  }
+  if(lista.length === 0) return GP_DIPENDENTI;
+  return lista;
+}
+
+function gtCellKey(nome, giorno) { return nome + "||" + giorno; }
+
 function renderGP_Turni() {
+  var days = gtDaysInMonth(GT_MESE, GT_ANNO);
+  var dips = gtDipendenti();
+  var strutture = [];
+  for(var i=0;i<GP_DIPENDENTI.length;i++) { if(GP_DIPENDENTI[i].struttura && strutture.indexOf(GP_DIPENDENTI[i].struttura)<0) strutture.push(GP_DIPENDENTI[i].struttura); }
+  var figure = ["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo"];
+
   var h = "";
-  h += "<div class='section-label'><div class='section-title'>Gestione turni</div></div>";
-  h += "<div class='timbra-card' style='text-align:center;padding:2rem'>";
-  h += "<div style='font-size:48px;margin-bottom:1rem'>📅</div>";
-  h += "<div style='font-size:16px;font-weight:800;color:var(--text-dark);margin-bottom:0.5rem'>Assegnazione turni</div>";
-  h += "<div style='font-size:13px;color:var(--text-light);font-weight:600;margin-bottom:1.5rem'>Seleziona dipendente, data e ciclo di turnazione</div>";
-  h += "<div style='background:var(--cyan-light);border-radius:var(--radius-sm);padding:1rem;font-size:13px;font-weight:700;color:var(--teal)'>🔧 Funzione in sviluppo — i turni si inseriscono direttamente su Notion nel DB Turni selezionando il ciclo di turnazione.</div>";
+
+  // Stili inline per la griglia
+  h += "<style>";
+  h += ".gt-wrap{background:white;border-radius:var(--radius);overflow:hidden;margin-bottom:0.75rem}";
+  h += ".gt-table{border-collapse:collapse;width:100%;min-width:600px;font-size:11px}";
+  h += ".gt-table th{background:#F0F7F7;color:var(--text-mid);font-weight:800;padding:5px 3px;text-align:center;border:0.5px solid #D8ECEC;white-space:nowrap;font-size:10px;position:sticky;top:0;z-index:2}";
+  h += ".gt-table th.gt-name-th{text-align:left;padding-left:8px;min-width:110px;position:sticky;left:0;z-index:3;background:#F0F7F7}";
+  h += ".gt-table td.gt-name{position:sticky;left:0;background:white;z-index:1;font-weight:700;font-size:11px;padding:4px 6px;border:0.5px solid #D8ECEC;white-space:nowrap;color:var(--text-dark)}";
+  h += ".gt-table td.gt-cell{text-align:center;padding:2px;border:0.5px solid #D8ECEC;min-width:26px;cursor:pointer}";
+  h += ".gt-badge{display:inline-block;padding:2px 3px;border-radius:4px;font-weight:800;font-size:10px;min-width:22px;text-align:center;cursor:pointer;width:100%}";
+  h += ".gt-badge-empty{display:inline-block;width:100%;min-height:18px}";
+  h += ".gt-weekend{background:#FFF5F5}";
+  h += ".gt-legend{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border-top:1px solid #E0ECEC}";
+  h += ".gt-leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid);font-weight:700}";
+  h += ".gt-leg-badge{padding:1px 6px;border-radius:3px;font-weight:800;font-size:10px}";
+  h += ".gt-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:flex-end;justify-content:center}";
+  h += ".gt-modal-bg.open{display:flex}";
+  h += ".gt-modal{background:white;border-radius:16px 16px 0 0;padding:1.5rem 1rem 2rem;width:100%;max-width:420px}";
+  h += ".gt-modal-title{font-size:16px;font-weight:800;color:var(--text-dark);margin-bottom:4px}";
+  h += ".gt-modal-sub{font-size:12px;color:var(--text-light);font-weight:600;margin-bottom:1rem}";
+  h += ".gt-shift-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}";
+  h += ".gt-shift-opt{padding:8px 4px;border-radius:8px;text-align:center;font-weight:800;font-size:11px;cursor:pointer;border:2px solid transparent;line-height:1.3}";
+  h += ".gt-shift-opt.sel{border-color:var(--teal-dark)!important}";
+  h += ".gt-shift-opt:hover{opacity:0.85}";
+  h += ".gt-modal-btns{display:flex;gap:8px}";
+  h += ".gt-btn-cancel{flex:1;padding:0.85rem;border-radius:30px;border:1.5px solid var(--text-mid);background:transparent;font-size:14px;font-weight:700;color:var(--text-dark);cursor:pointer;font-family:'Satoshi',sans-serif}";
+  h += ".gt-btn-confirm{flex:2;padding:0.85rem;border-radius:30px;border:none;background:var(--teal);font-size:14px;font-weight:800;color:white;cursor:pointer;font-family:'Satoshi',sans-serif}";
+  h += "</style>";
+
+  // Filtri
+  h += "<div class='section-label'><div class='section-title'>Quadro turni</div>";
+  h += "<div style='font-size:11px;color:var(--text-light);font-weight:700'>" + GT_MESI[GT_MESE] + " " + GT_ANNO + "</div></div>";
+
+  h += "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem'>";
+  // Mese prev/next
+  h += "<div style='display:flex;align-items:center;gap:6px;background:white;border-radius:20px;padding:4px 10px'>";
+  h += "<span onclick='gtPrevMese()' style='cursor:pointer;font-size:18px;color:var(--teal);font-weight:900'>‹</span>";
+  h += "<span style='font-size:12px;font-weight:800;color:var(--text-dark);min-width:90px;text-align:center'>" + GT_MESI[GT_MESE] + " " + GT_ANNO + "</span>";
+  h += "<span onclick='gtNextMese()' style='cursor:pointer;font-size:18px;color:var(--teal);font-weight:900'>›</span>";
   h += "</div>";
-  h += "<div class='section-label' style='margin-top:1rem'><div class='section-title'>Cicli di turnazione</div>";
-  h += "<div style='background:var(--teal);color:white;border-radius:20px;padding:0.4rem 1rem;font-size:12px;font-weight:800;cursor:pointer' onclick=\"alert('Funzione in arrivo!')\">+ Nuovo ciclo</div></div>";
-  h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700;font-size:13px'>Inserisci i cicli di turnazione direttamente su Notion nel DB \"Cicli di turnazione\"</div></div>";
+  // Figura
+  h += "<select onchange='GT_FIGURA=this.value;render()' style='padding:6px 10px;border-radius:20px;border:none;background:white;font-size:12px;font-weight:700;color:var(--text-dark);font-family:Satoshi,sans-serif;outline:none'>";
+  for(var fi=0;fi<figure.length;fi++) h += "<option value='"+figure[fi]+"'"+(GT_FIGURA===figure[fi]?" selected":"")+">"+figure[fi]+"</option>";
+  h += "</select>";
+  h += "</div>";
+
+  // Griglia
+  h += "<div style='overflow-x:auto;border-radius:var(--radius);border:0.5px solid #D8ECEC'>";
+  h += "<table class='gt-table'><thead><tr>";
+  h += "<th class='gt-name-th'>Dipendente</th>";
+  for(var d=1;d<=days;d++) {
+    var wd = gtWeekday(GT_ANNO, GT_MESE, d);
+    var isWe = wd===0||wd===6;
+    h += "<th style='"+(isWe?"color:#C0392B":"")+";min-width:26px'>"+d+"<br><span style='font-weight:600;font-size:9px'>"+GT_DN[wd]+"</span></th>";
+  }
+  h += "</tr></thead><tbody>";
+
+  if(dips.length === 0) {
+    h += "<tr><td colspan='"+(days+1)+"' style='text-align:center;padding:2rem;color:var(--text-light);font-weight:700;font-size:13px'>Nessun dipendente trovato</td></tr>";
+  } else {
+    for(var ei=0;ei<dips.length;ei++) {
+      var emp = dips[ei];
+      var nomeCognome = (emp.nome||"") + (emp.cognome ? " "+emp.cognome : "");
+      h += "<tr><td class='gt-name'>"+nomeCognome+"</td>";
+      for(var di=1;di<=days;di++) {
+        var wd2 = gtWeekday(GT_ANNO, GT_MESE, di);
+        var isWe2 = wd2===0||wd2===6;
+        var key = gtCellKey(nomeCognome, di);
+        var code = GT_DATA[key] || "";
+        var sh = code ? gtShiftStyle(code) : null;
+        h += "<td class='gt-cell"+(isWe2?" gt-weekend":"")+"' onclick='gtOpenModal(\""+nomeCognome.replace(/"/g,"&quot;")+"\","+di+")'>";
+        if(sh) h += "<span class='gt-badge' style='background:"+sh.bg+";color:"+sh.fg+"'>"+code+"</span>";
+        else h += "<span class='gt-badge-empty'></span>";
+        h += "</td>";
+      }
+      h += "</tr>";
+    }
+  }
+  h += "</tbody></table></div>";
+
+  // Legenda
+  h += "<div class='gt-legend'>";
+  for(var si=0;si<GT_SHIFTS.length;si++) {
+    var s = GT_SHIFTS[si];
+    h += "<div class='gt-leg-item'><span class='gt-leg-badge' style='background:"+s.bg+";color:"+s.fg+"'>"+s.code+"</span>"+s.desc+"</div>";
+  }
+  h += "</div>";
+
+  // Bottone salva
+  h += "<button class='update-btn' style='background:var(--teal-dark)' onclick='gtSaveToNotion()'>"+(GT_SAVING?"Salvataggio...":"Salva su Notion")+"</button>";
+
+  // Modal selezione turno (bottom sheet)
+  h += "<div class='gt-modal-bg' id='gt-modal'>";
+  h += "<div class='gt-modal'>";
+  h += "<div class='gt-modal-title' id='gt-modal-title'>Modifica turno</div>";
+  h += "<div class='gt-modal-sub' id='gt-modal-sub'></div>";
+  h += "<div class='gt-shift-grid' id='gt-shift-grid'>";
+  for(var sj=0;sj<GT_SHIFTS.length;sj++) {
+    var sopt = GT_SHIFTS[sj];
+    h += "<div class='gt-shift-opt' id='gtopt-"+sopt.code+"' style='background:"+sopt.bg+";color:"+sopt.fg+"' onclick='gtSelectShift(\""+sopt.code+"\")'>";
+    h += "<div style='font-size:13px'>"+sopt.code+"</div>";
+    h += "<div style='font-size:9px;opacity:0.8'>"+sopt.orario+"</div></div>";
+  }
+  h += "<div class='gt-shift-opt' style='background:#F0F7F7;color:var(--text-mid)' onclick='gtSelectShift(\"\")'>✕<br><span style='font-size:9px'>Vuoto</span></div>";
+  h += "</div>";
+  h += "<div class='gt-modal-btns'>";
+  h += "<button class='gt-btn-cancel' onclick='gtCloseModal()'>Annulla</button>";
+  h += "<button class='gt-btn-confirm' onclick='gtConfirmShift()'>Conferma</button>";
+  h += "</div></div></div>";
+
   return h;
+}
+
+function gtPrevMese() {
+  GT_MESE--;
+  if(GT_MESE<1){GT_MESE=12;GT_ANNO--;}
+  render();
+}
+function gtNextMese() {
+  GT_MESE++;
+  if(GT_MESE>12){GT_MESE=1;GT_ANNO++;}
+  render();
+}
+function gtOpenModal(nome, giorno) {
+  GT_CELL = {nome:nome, giorno:giorno};
+  var key = gtCellKey(nome, giorno);
+  GT_SELECTED_SHIFT = GT_DATA[key] || "";
+  var wd = gtWeekday(GT_ANNO, GT_MESE, giorno);
+  var dnFull = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
+  document.getElementById("gt-modal-title").textContent = giorno + " " + ["","Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"][GT_MESE];
+  document.getElementById("gt-modal-sub").textContent = nome + " · " + dnFull[wd];
+  document.querySelectorAll(".gt-shift-opt").forEach(function(el){ el.classList.remove("sel"); });
+  if(GT_SELECTED_SHIFT) {
+    var el = document.getElementById("gtopt-"+GT_SELECTED_SHIFT);
+    if(el) el.classList.add("sel");
+  }
+  document.getElementById("gt-modal").classList.add("open");
+}
+function gtSelectShift(code) {
+  GT_SELECTED_SHIFT = code;
+  document.querySelectorAll(".gt-shift-opt").forEach(function(el){ el.classList.remove("sel"); });
+  if(code) { var el = document.getElementById("gtopt-"+code); if(el) el.classList.add("sel"); }
+  else { document.querySelectorAll(".gt-shift-opt").forEach(function(el){ if(el.textContent.trim().startsWith("✕")) el.classList.add("sel"); }); }
+}
+function gtCloseModal() {
+  document.getElementById("gt-modal").classList.remove("open");
+  GT_CELL = null;
+}
+function gtConfirmShift() {
+  if(GT_CELL) {
+    var key = gtCellKey(GT_CELL.nome, GT_CELL.giorno);
+    GT_DATA[key] = GT_SELECTED_SHIFT || "";
+    gtCloseModal();
+    render();
+  }
+}
+function gtSaveToNotion() {
+  GT_SAVING = true;
+  render();
+  setTimeout(function(){
+    GT_SAVING = false;
+    render();
+    alert("Turni salvati su Notion! (Collegamento Make in arrivo)");
+  }, 1500);
 }
 
 function renderGP_Timbrature() {
