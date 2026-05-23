@@ -149,6 +149,8 @@ var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
 var TIMBRA_URL = "https://hook.eu1.make.com/ovyaryk28yqdcl6q2a2v1sasxo5hktj1";
 var STRUTTURE_URL = "https://hook.eu1.make.com/xw0j4gjineix3dbogtdayeu0jm4tv6wq";
 var PROFILO_URL = "https://hook.eu1.make.com/kgiczfmj5o3hwogzwjeaoq0w2oyy10ue";
+// Webhook da creare su Make — legge dal DB Dipendenti (non Incaricati)
+var DIPENDENTI_GP_URL = "https://hook.eu1.make.com/odppmtyyvjsimsesjm5w5v25gnwk69u4";
 
 var PROFILO_DIP = null;
 
@@ -200,10 +202,19 @@ var GP_VIEW = "dipendenti";
 var GP_DIP_DETAIL = null;
 
 function fetchDipendentiGP() {
-  fetch(PRIVACY_URL, {
+  // Legge dal DB Dipendenti (non Incaricati)
+  // DIPENDENTI_GP_URL va configurato su Make con webhook → Notion DB Dipendenti → risposta JSON
+  if(DIPENDENTI_GP_URL === "DA_CONFIGURARE_SU_MAKE") {
+    // Fallback: usa GP_DIPENDENTI già caricati se presenti, altrimenti avvisa
+    if(GP_DIPENDENTI.length === 0) {
+      console.warn("DIPENDENTI_GP_URL non ancora configurato su Make.");
+    }
+    return;
+  }
+  fetch(DIPENDENTI_GP_URL, {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({action:"get_dipendenti_gp"})
+    body: JSON.stringify({action:"get_dipendenti"})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
@@ -214,13 +225,15 @@ function fetchDipendentiGP() {
         var p = (item && item.properties_value) ? item.properties_value : item;
         var nome = "";
         if(p.Nome && Array.isArray(p.Nome) && p.Nome[0]) nome = p.Nome[0].plain_text || p.Nome[0].text && p.Nome[0].text.content || "";
+        else if(typeof p.Nome === "string") nome = p.Nome;
         var cognome = typeof p.Cognome === "string" ? p.Cognome : (p.Cognome && p.Cognome[0] ? p.Cognome[0].plain_text || "" : "");
         var email = p.Email || "";
         var telefono = p.Telefono || "";
-        var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : "";
+        var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : (typeof p.Mansione === "string" ? p.Mansione : "");
         var struttura = "";
         if(typeof p["Struttura principale"] === "string") struttura = p["Struttura principale"];
         else if(p["Struttura principale"] && p["Struttura principale"].name) struttura = p["Struttura principale"].name;
+        else if(p["Struttura principale"] && Array.isArray(p["Struttura principale"]) && p["Struttura principale"][0]) struttura = p["Struttura principale"][0].plain_text || "";
         var contratto = (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : "";
         var username = typeof p.Username === "string" ? p.Username : (p.Username && p.Username[0] ? p.Username[0].plain_text || "" : "");
         var pageId = item["Page ID"] || item.id || "";
@@ -647,7 +660,7 @@ function doLogin() {
       S.user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
       if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
       if(isDipendente()) { fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); }
-      if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); }
+      if(isGestionePersonale()) { fetchDipendentiGP(); fetchStrutture(); fetchTimbratureGP(); fetchFerieRichiesteGP(); }
       render();
     } else {
       err.textContent = "Credenziali non valide. Riprova.";
@@ -1544,14 +1557,14 @@ function gtShiftStyle(code) {
 }
 
 function gtDipendenti() {
+  if(!GT_STRUTTURA && !GT_FIGURA) return GP_DIPENDENTI;
   var lista = [];
   for(var i=0;i<GP_DIPENDENTI.length;i++) {
     var d = GP_DIPENDENTI[i];
-    if(GT_STRUTTURA && d.struttura && d.struttura !== GT_STRUTTURA) continue;
-    if(GT_FIGURA && d.mansione && d.mansione !== GT_FIGURA) continue;
+    if(GT_STRUTTURA && d.struttura !== GT_STRUTTURA) continue;
+    if(GT_FIGURA && d.mansione !== GT_FIGURA) continue;
     lista.push(d);
   }
-  if(lista.length === 0) return GP_DIPENDENTI;
   return lista;
 }
 
@@ -1560,8 +1573,13 @@ function gtCellKey(nome, giorno) { return nome + "||" + giorno; }
 function renderGP_Turni() {
   var days = gtDaysInMonth(GT_MESE, GT_ANNO);
   var dips = gtDipendenti();
+  // Strutture: usa il DB Strutture se caricato, altrimenti ricava dai dipendenti
   var strutture = [];
-  for(var i=0;i<GP_DIPENDENTI.length;i++) { if(GP_DIPENDENTI[i].struttura && strutture.indexOf(GP_DIPENDENTI[i].struttura)<0) strutture.push(GP_DIPENDENTI[i].struttura); }
+  if(STRUTTURE.length > 0) {
+    for(var si0=0;si0<STRUTTURE.length;si0++) { if(STRUTTURE[si0].nome) strutture.push(STRUTTURE[si0].nome); }
+  } else {
+    for(var si1=0;si1<GP_DIPENDENTI.length;si1++) { if(GP_DIPENDENTI[si1].struttura && strutture.indexOf(GP_DIPENDENTI[si1].struttura)<0) strutture.push(GP_DIPENDENTI[si1].struttura); }
+  }
   var figure = ["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo"];
 
   var h = "";
@@ -1595,21 +1613,32 @@ function renderGP_Turni() {
   h += "</style>";
 
   // Filtri
-  h += "<div class='section-label'><div class='section-title'>Quadro turni</div>";
-  h += "<div style='font-size:11px;color:var(--text-light);font-weight:700'>" + GT_MESI[GT_MESE] + " " + GT_ANNO + "</div></div>";
+  h += "<div class='section-label'><div class='section-title'>Quadro turni</div></div>";
 
-  h += "<div style='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:0.75rem'>";
-  // Mese prev/next
-  h += "<div style='display:flex;align-items:center;gap:6px;background:white;border-radius:20px;padding:4px 10px'>";
-  h += "<span onclick='gtPrevMese()' style='cursor:pointer;font-size:18px;color:var(--teal);font-weight:900'>‹</span>";
-  h += "<span style='font-size:12px;font-weight:800;color:var(--text-dark);min-width:90px;text-align:center'>" + GT_MESI[GT_MESE] + " " + GT_ANNO + "</span>";
-  h += "<span onclick='gtNextMese()' style='cursor:pointer;font-size:18px;color:var(--teal);font-weight:900'>›</span>";
+  // Riga 1: navigazione mese
+  h += "<div style='display:flex;align-items:center;justify-content:center;gap:6px;background:white;border-radius:20px;padding:6px 14px;margin-bottom:8px'>";
+  h += "<span onclick='gtPrevMese()' style='cursor:pointer;font-size:20px;color:var(--teal);font-weight:900;line-height:1'>‹</span>";
+  h += "<span style='font-size:13px;font-weight:800;color:var(--text-dark);min-width:110px;text-align:center'>" + GT_MESI[GT_MESE] + " " + GT_ANNO + "</span>";
+  h += "<span onclick='gtNextMese()' style='cursor:pointer;font-size:20px;color:var(--teal);font-weight:900;line-height:1'>›</span>";
   h += "</div>";
-  // Figura
-  h += "<select onchange='GT_FIGURA=this.value;render()' style='padding:6px 10px;border-radius:20px;border:none;background:white;font-size:12px;font-weight:700;color:var(--text-dark);font-family:Satoshi,sans-serif;outline:none'>";
+
+  // Riga 2: filtri struttura + figura
+  var filterStyle = "width:100%;padding:0.75rem 1rem;border-radius:var(--radius-sm);border:2px solid var(--cyan-light);background:var(--bg);font-size:14px;font-weight:700;color:var(--text-dark);font-family:Satoshi,sans-serif;outline:none;margin-bottom:8px;appearance:none";
+  h += "<select onchange='GT_STRUTTURA=this.value;render()' style='"+filterStyle+"'>";
+  h += "<option value=''>— Tutte le strutture —</option>";
+  for(var si2=0;si2<strutture.length;si2++) h += "<option value='"+strutture[si2]+"'"+(GT_STRUTTURA===strutture[si2]?" selected":"")+">"+strutture[si2]+"</option>";
+  h += "</select>";
+
+  h += "<select onchange='GT_FIGURA=this.value;render()' style='"+filterStyle+"'>";
+  h += "<option value=''>— Tutti i ruoli —</option>";
   for(var fi=0;fi<figure.length;fi++) h += "<option value='"+figure[fi]+"'"+(GT_FIGURA===figure[fi]?" selected":"")+">"+figure[fi]+"</option>";
   h += "</select>";
-  h += "</div>";
+
+  // Messaggio se nessun filtro selezionato
+  if(!GT_STRUTTURA || !GT_FIGURA) {
+    h += "<div style='background:var(--cyan-light);border-radius:var(--radius-sm);padding:1rem;font-size:13px;font-weight:700;color:var(--teal);text-align:center;margin-bottom:0.75rem'>Seleziona struttura e ruolo per visualizzare la griglia turni</div>";
+    if(!GT_STRUTTURA && !GT_FIGURA) return h;
+  }
 
   // Griglia
   h += "<div style='overflow-x:auto;border-radius:var(--radius);border:0.5px solid #D8ECEC'>";
