@@ -541,29 +541,46 @@ var INCARICATI = [];
 var TURNI_DIP = [];
 
 function fetchTurni() {
+  // Invia nome dipendente, mese e anno correnti per filtrare il Quadro Turni
+  var now = new Date();
+  var meseNomi = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
   fetch(TURNI_URL, {
     method: "POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({nome: S.user.nome})
+    body: JSON.stringify({
+      nome: (S.user.nome||"") + (S.user.cognome ? " "+S.user.cognome : ""),
+      mese: meseNomi[now.getMonth()+1],
+      anno: now.getFullYear()
+    })
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
     try {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
-      TURNI_DIP = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        var titolo = "";
-        if(p.Titolo && Array.isArray(p.Titolo) && p.Titolo[0]) titolo = p.Titolo[0].plain_text || "";
-        var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : (p.Dipendente && p.Dipendente[0] ? p.Dipendente[0].plain_text || "" : "");
-        var struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
-        var tipo = (p["Tipo turno"] && p["Tipo turno"].name) ? p["Tipo turno"].name : "";
-        var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
-        var oraInizio = typeof p["Ora inizio"] === "string" ? p["Ora inizio"] : (p["Ora inizio"] && p["Ora inizio"][0] ? p["Ora inizio"][0].plain_text || "" : "");
-        var oraFine = typeof p["Ora fine"] === "string" ? p["Ora fine"] : (p["Ora fine"] && p["Ora fine"][0] ? p["Ora fine"][0].plain_text || "" : "");
-        return {titolo:titolo, dipendente:dipendente, struttura:struttura, tipo:tipo, data:data2, oraInizio:oraInizio, oraFine:oraFine};
-      }).filter(function(t){ return t.data; })
-        .sort(function(a,b){ return a.data > b.data ? 1 : -1; });
+      // Cerca il record del mese corrente
+      TURNI_DIP = [];
+      for(var i=0;i<raw.length;i++) {
+        var item = raw[i];
+        var p = (item && item["Properties Value"]) ? item["Properties Value"]
+               : (item && item.properties_value) ? item.properties_value : item;
+        // Leggi tutti i giorni G01-G31
+        var giorni = {};
+        for(var g=1;g<=31;g++) {
+          var pad = g < 10 ? "0"+g : ""+g;
+          var val = p["G"+pad] || p["g"+pad] || "";
+          if(typeof val === "object" && val !== null) val = val["Plain Text"] || val.plain_text || val.name || "";
+          giorni[g] = val;
+        }
+        var mese = p["Mese"] || p["mese"] || "";
+        if(typeof mese === "object") mese = mese.name || mese["Plain Text"] || "";
+        var anno = p["Anno"] || p["anno"] || now.getFullYear();
+        var struttura = p["Struttura"] || p["struttura"] || "";
+        if(typeof struttura === "object") struttura = struttura.name || struttura["Plain Text"] || "";
+        var figura = p["Figura Professionale"] || p["figura"] || "";
+        if(typeof figura === "object") figura = figura.name || figura["Plain Text"] || "";
+        TURNI_DIP.push({giorni:giorni, mese:mese, anno:anno, struttura:struttura, figura:figura});
+      }
       S.loadingTurni = false;
       render();
     } catch(e) {
@@ -1225,34 +1242,80 @@ function renderDipTurni() {
     return "<div style='display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div><div style='color:#7A9999;font-weight:700;font-size:14px'>Caricamento turni...</div></div>";
   }
   var h = "";
+  var now = new Date();
+  var meseNomi = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  var meseCorrente = meseNomi[now.getMonth()+1];
+  var annoCorrente = now.getFullYear();
+  var giornoOggi = now.getDate();
+
   if(TURNI_DIP.length === 0) {
-    h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato</div></div>";
+    h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato per " + meseCorrente + " " + annoCorrente + "</div></div>";
   } else {
-    var oggi = new Date().toISOString().split("T")[0];
-    var prossimo = TURNI_DIP.find(function(t){ return t.data >= oggi; });
+    var turno = TURNI_DIP[0];
+    var giorni = turno.giorni || {};
+    var daysInMonth = new Date(turno.anno||annoCorrente, now.getMonth()+1, 0).getDate();
+
+    // Turno di oggi in evidenza
+    var turnoOggi = giorni[giornoOggi];
+    if(turnoOggi) {
+      var shOggi = null;
+      for(var si=0;si<GT_SHIFTS.length;si++) { if(GT_SHIFTS[si].code===turnoOggi){shOggi=GT_SHIFTS[si];break;} }
+      h += "<div class='stat-card' style='background:" + (shOggi?shOggi.bg:"var(--teal)") + "'><div class='stat-card-orb'></div>";
+      h += "<div class='stat-label' style='color:" + (shOggi?shOggi.fg:"white") + ";opacity:0.8'>Turno di oggi</div>";
+      h += "<div style='font-size:28px;font-weight:900;color:" + (shOggi?shOggi.fg:"white") + "'>" + turnoOggi + "</div>";
+      if(shOggi) h += "<div style='font-size:13px;font-weight:700;color:" + shOggi.fg + ";opacity:0.85'>" + shOggi.desc + " · " + shOggi.orario + "</div>";
+      h += "</div>";
+    }
+
+    // Prossimo turno diverso da oggi
+    var prossimo = null;
+    for(var d2=giornoOggi+1;d2<=daysInMonth;d2++) {
+      if(giorni[d2]) { prossimo = {giorno:d2, code:giorni[d2]}; break; }
+    }
     if(prossimo) {
-      h += "<div class='stat-card' style='background:var(--coral)'><div class='stat-card-orb'></div>";
-      h += "<div class='stat-label'>Prossimo turno</div>";
-      h += "<div style='font-size:22px;font-weight:900;color:white'>" + fmtDateIt(prossimo.data) + " — " + prossimo.tipo + "</div>";
-      h += "<div class='stat-sub'>🕐 " + prossimo.oraInizio + " — " + prossimo.oraFine + " · " + prossimo.struttura + "</div>";
-      h += "</div>";
-    }
-    h += "<div class='section-label'><div class='section-title'>Tutti i turni</div></div>";
-    for(var i=0; i<TURNI_DIP.length; i++) {
-      var t = TURNI_DIP[i];
-      var isPassato = t.data < oggi;
-      h += "<div class='turno-card' style='opacity:" + (isPassato ? "0.6" : "1") + "'>";
-      h += "<div class='turno-data'>" + fmtDateIt(t.data) + "</div>";
+      var shP = null;
+      for(var sp=0;sp<GT_SHIFTS.length;sp++) { if(GT_SHIFTS[sp].code===prossimo.code){shP=GT_SHIFTS[sp];break;} }
+      var dnFull = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+      var wd = new Date(turno.anno||annoCorrente, now.getMonth(), prossimo.giorno).getDay();
+      h += "<div style='background:var(--bg);border-radius:var(--radius-sm);padding:0.75rem 1rem;margin-bottom:0.75rem;border:1.5px solid var(--cyan-light)'>";
+      h += "<div style='font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:4px'>Prossimo turno</div>";
       h += "<div style='display:flex;align-items:center;justify-content:space-between'>";
-      h += "<div class='turno-tipo'>" + t.tipo + "</div>";
-      h += "<span class='turno-badge turno-" + t.tipo.toLowerCase() + "'>" + t.tipo + "</span>";
+      h += "<div style='font-size:14px;font-weight:800;color:var(--text-dark)'>" + dnFull[wd] + " " + prossimo.giorno + " " + meseCorrente + "</div>";
+      h += "<span style='padding:4px 10px;border-radius:6px;font-weight:800;font-size:13px;background:" + (shP?shP.bg:"var(--teal)") + ";color:" + (shP?shP.fg:"white") + "'>" + prossimo.code + "</span>";
       h += "</div>";
-      h += "<div class='turno-orari'>🕐 " + t.oraInizio + " — " + t.oraFine + "</div>";
-      h += "<div class='turno-struttura'>📍 " + t.struttura + "</div>";
+      if(shP) h += "<div style='font-size:12px;color:var(--text-light);font-weight:600;margin-top:2px'>" + shP.orario + "</div>";
       h += "</div>";
     }
+
+    // Griglia mese
+    h += "<div class='section-label'><div class='section-title'>" + meseCorrente + " " + (turno.anno||annoCorrente) + "</div></div>";
+    h += "<div style='display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:1rem'>";
+    var dnShort = ["D","L","M","M","G","V","S"];
+    for(var dn=0;dn<7;dn++) h += "<div style='text-align:center;font-size:10px;font-weight:700;color:var(--text-light);padding:2px'>" + dnShort[dn] + "</div>";
+
+    // Spazio iniziale
+    var firstDay = new Date(turno.anno||annoCorrente, now.getMonth(), 1).getDay();
+    for(var fs=0;fs<firstDay;fs++) h += "<div></div>";
+
+    for(var d=1;d<=daysInMonth;d++) {
+      var code = giorni[d] || "";
+      var sh = null;
+      for(var s=0;s<GT_SHIFTS.length;s++) { if(GT_SHIFTS[s].code===code){sh=GT_SHIFTS[s];break;} }
+      var isOggi = d === giornoOggi;
+      var wd2 = new Date(turno.anno||annoCorrente, now.getMonth(), d).getDay();
+      var isWe = wd2===0||wd2===6;
+      h += "<div style='text-align:center;border-radius:6px;padding:3px 2px;background:" + (isOggi?"var(--teal)":sh?sh.bg:isWe?"rgba(0,0,0,0.04)":"transparent") + ";border:" + (isOggi?"2px solid var(--teal-dark)":"1.5px solid " + (sh?"transparent":"var(--cyan-light)")) + "'>";
+      h += "<div style='font-size:9px;font-weight:700;color:" + (isOggi?"white":isWe?"#C0392B":"var(--text-light)") + "'>" + d + "</div>";
+      if(code) h += "<div style='font-size:10px;font-weight:900;color:" + (isOggi?"white":sh?sh.fg:"var(--text-dark)") + "'>" + code + "</div>";
+      else h += "<div style='font-size:10px;color:transparent'>·</div>";
+      h += "</div>";
+    }
+    h += "</div>";
+
+    // Struttura e figura
+    if(turno.struttura) h += "<div style='font-size:12px;color:var(--text-light);font-weight:700;text-align:center;margin-bottom:0.5rem'>📍 " + turno.struttura + " · " + turno.figura + "</div>";
   }
-  h += "<button class='update-btn' onclick=\"S.loadingTurni=true;fetchTurni()\">Aggiorna</button>";
+  h += "<button class='update-btn' onclick="S.loadingTurni=true;fetchTurni()">Aggiorna</button>";
   return h;
 }
 
