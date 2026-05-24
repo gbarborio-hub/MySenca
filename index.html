@@ -252,28 +252,23 @@ function fetchDipendentiGP() {
         var email    = p["Email"] || p["email"] || "";
         var telefono = p["Telefono"] || p["telefono"] || "";
         var mansione = getSelect(p["Mansione"] || p["mansione"]);
-        // Struttura: campo Rollup "Struttura" che risolve il nome dalla Relation
+        // Struttura: legge il Page ID dalla Relation "Struttura principale"
         var struttura = "";
-        var strutturaRollup = p["Struttura"] || p["struttura"];
+        var strutturaId = "";
         var strutturaPrinc = p["Struttura principale"] || p["struttura principale"];
-        if(strutturaRollup) {
-          if(typeof strutturaRollup === "string") struttura = strutturaRollup;
-          else if(Array.isArray(strutturaRollup) && strutturaRollup[0]) {
-            struttura = strutturaRollup[0]["Plain Text"] || strutturaRollup[0].plain_text || strutturaRollup[0].name || strutturaRollup[0].title || "";
-          }
-          else if(strutturaRollup.name) struttura = strutturaRollup.name;
-        } else if(strutturaPrinc) {
-          if(typeof strutturaPrinc === "string") struttura = strutturaPrinc;
-          else if(strutturaPrinc.name) struttura = strutturaPrinc.name;
+        if(strutturaPrinc) {
+          if(typeof strutturaPrinc === "string") { struttura = strutturaPrinc; strutturaId = strutturaPrinc; }
           else if(Array.isArray(strutturaPrinc) && strutturaPrinc[0]) {
-            struttura = strutturaPrinc[0].name || strutturaPrinc[0]["Plain Text"] || strutturaPrinc[0].plain_text || "";
+            // Relation restituisce array di {ID, Name} o solo ID
+            strutturaId = strutturaPrinc[0]["ID"] || strutturaPrinc[0].id || strutturaPrinc[0]["Page ID"] || "";
+            struttura = strutturaPrinc[0].name || strutturaPrinc[0]["Name"] || strutturaPrinc[0]["Plain Text"] || strutturaId;
           }
         }
         var contratto = getSelect(p["Tipo contratto"] || p["tipo contratto"]);
         var username  = getRichText(p["Username"] || p["username"]);
         var pageId    = item["ID"] || item["id"] || item["Page ID"] || "";
 
-        return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, contratto:contratto, username:username, pageId:pageId};
+        return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, strutturaId:strutturaId, contratto:contratto, username:username, pageId:pageId};
       }).filter(function(d){ return d.nome; });
       render();
     } catch(e) { console.log("Errore fetch dipendenti GP:", e); }
@@ -1597,7 +1592,12 @@ function gtDipendenti() {
   var lista = [];
   for(var i=0;i<GP_DIPENDENTI.length;i++) {
     var d = GP_DIPENDENTI[i];
-    if(GT_STRUTTURA && d.struttura !== GT_STRUTTURA) continue;
+    // Filtra per struttura: confronta per ID (strutturaId) o per nome
+    if(GT_STRUTTURA) {
+      var match = (d.strutturaId && d.strutturaId === GT_STRUTTURA) ||
+                  (d.struttura && d.struttura === GT_STRUTTURA);
+      if(!match) continue;
+    }
     if(GT_FIGURA && d.mansione !== GT_FIGURA) continue;
     lista.push(d);
   }
@@ -1609,12 +1609,16 @@ function gtCellKey(nome, giorno) { return nome + "||" + giorno; }
 function renderGP_Turni() {
   var days = gtDaysInMonth(GT_MESE, GT_ANNO);
   var dips = gtDipendenti();
-  // Strutture: usa il DB Strutture se caricato, altrimenti ricava dai dipendenti
+  // Strutture: usa il DB Strutture se caricato (oggetti {id, nome}), altrimenti ricava dai dipendenti
   var strutture = [];
   if(STRUTTURE.length > 0) {
-    for(var si0=0;si0<STRUTTURE.length;si0++) { if(STRUTTURE[si0].nome) strutture.push(STRUTTURE[si0].nome); }
+    for(var si0=0;si0<STRUTTURE.length;si0++) { if(STRUTTURE[si0].nome) strutture.push({id: STRUTTURE[si0].id, nome: STRUTTURE[si0].nome}); }
   } else {
-    for(var si1=0;si1<GP_DIPENDENTI.length;si1++) { if(GP_DIPENDENTI[si1].struttura && strutture.indexOf(GP_DIPENDENTI[si1].struttura)<0) strutture.push(GP_DIPENDENTI[si1].struttura); }
+    for(var si1=0;si1<GP_DIPENDENTI.length;si1++) {
+      var sId1 = GP_DIPENDENTI[si1].strutturaId || GP_DIPENDENTI[si1].struttura;
+      var sNome1 = GP_DIPENDENTI[si1].struttura || sId1;
+      if(sId1 && !strutture.find(function(x){return x.id===sId1;})) strutture.push({id:sId1, nome:sNome1});
+    }
   }
   var figure = ["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo"];
 
@@ -1662,7 +1666,12 @@ function renderGP_Turni() {
   var filterStyle = "width:100%;padding:0.75rem 1rem;border-radius:var(--radius-sm);border:2px solid var(--cyan-light);background:var(--bg);font-size:14px;font-weight:700;color:var(--text-dark);font-family:Satoshi,sans-serif;outline:none;margin-bottom:8px;appearance:none";
   h += "<select onchange='GT_STRUTTURA=this.value;render()' style='"+filterStyle+"'>";
   h += "<option value=''>— Tutte le strutture —</option>";
-  for(var si2=0;si2<strutture.length;si2++) h += "<option value='"+strutture[si2]+"'"+(GT_STRUTTURA===strutture[si2]?" selected":"")+">"+strutture[si2]+"</option>";
+  for(var si2=0;si2<strutture.length;si2++) {
+    var sObj = typeof strutture[si2] === "object" ? strutture[si2] : {id: strutture[si2], nome: strutture[si2]};
+    var sId = sObj.id || sObj.nome;
+    var sNome = sObj.nome || sObj.id;
+    h += "<option value='"+sId+"'"+(GT_STRUTTURA===sId?" selected":"")+">"+sNome+"</option>";
+  }
   h += "</select>";
 
   h += "<select onchange='GT_FIGURA=this.value;render()' style='"+filterStyle+"'>";
