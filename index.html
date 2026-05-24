@@ -1447,43 +1447,6 @@ function renderDipSegnalazione() {
   return h;
 }
 
-function renderDipTurni() {
-  if(S.loadingTurni) {
-    return "<div style='display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div><div style='color:#7A9999;font-weight:700;font-size:14px'>Caricamento turni...</div></div>";
-  }
-  var h = "";
-  if(TURNI_DIP.length === 0) {
-    h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato</div></div>";
-  } else {
-    // Prossimo turno in evidenza
-    var oggi = new Date().toISOString().split("T")[0];
-    var prossimo = TURNI_DIP.find(function(t){ return t.data >= oggi; });
-    if(prossimo) {
-      h += "<div class='stat-card' style='background:var(--coral)'><div class='stat-card-orb'></div>";
-      h += "<div class='stat-label'>Prossimo turno</div>";
-      h += "<div style='font-size:22px;font-weight:900;color:white'>" + fmtDateIt(prossimo.data) + " — " + prossimo.tipo + "</div>";
-      h += "<div class='stat-sub'>🕐 " + prossimo.oraInizio + " — " + prossimo.oraFine + " · " + prossimo.struttura + "</div>";
-      h += "</div>";
-    }
-    h += "<div class='section-label'><div class='section-title'>Tutti i turni</div></div>";
-    for(var i=0; i<TURNI_DIP.length; i++) {
-      var t = TURNI_DIP[i];
-      var isPassato = t.data < oggi;
-      h += "<div class='turno-card' style='opacity:" + (isPassato ? "0.6" : "1") + "'>";
-      h += "<div class='turno-data'>" + fmtDateIt(t.data) + "</div>";
-      h += "<div style='display:flex;align-items:center;justify-content:space-between'>";
-      h += "<div class='turno-tipo'>" + t.tipo + "</div>";
-      h += "<span class='turno-badge turno-" + t.tipo.toLowerCase() + "'>" + t.tipo + "</span>";
-      h += "</div>";
-      h += "<div class='turno-orari'>🕐 " + t.oraInizio + " — " + t.oraFine + "</div>";
-      h += "<div class='turno-struttura'>📍 " + t.struttura + "</div>";
-      h += "</div>";
-    }
-  }
-  h += "<button class='update-btn' onclick=\"S.loadingTurni=true;fetchTurni()\">Aggiorna</button>";
-  return h;
-}
-
 function renderDipProfilo() {
   var u = S.user;
   var p = PROFILO_DIP;
