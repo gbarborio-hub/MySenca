@@ -1251,76 +1251,67 @@ function renderDipTurni() {
   var h = "";
   var now = new Date();
   var meseNomi = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-  var meseCorrente = meseNomi[now.getMonth()+1];
   var annoCorrente = now.getFullYear();
   var giornoOggi = now.getDate();
+  var meseOggi = now.getMonth()+1;
+  var dnFull = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
+  var dataOggi = annoCorrente + "-" + (meseOggi<10?"0"+meseOggi:meseOggi) + "-" + (giornoOggi<10?"0"+giornoOggi:giornoOggi);
 
   if(TURNI_DIP.length === 0) {
-    h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato per " + meseCorrente + " " + annoCorrente + "</div></div>";
+    h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato</div></div>";
   } else {
-    var turno = TURNI_DIP[0];
-    var giorni = turno.giorni || {};
-    var daysInMonth = new Date(turno.anno||annoCorrente, now.getMonth()+1, 0).getDate();
+    // Costruisce lista turni da oggi in poi
+    var prossimiTurni = [];
+    for(var ri=0;ri<TURNI_DIP.length;ri++) {
+      var rec = TURNI_DIP[ri];
+      var giorni = rec.giorni || {};
+      var meseNum = meseNomi.indexOf(rec.mese);
+      if(meseNum < 1) meseNum = meseOggi;
+      var anno = parseInt(rec.anno) || annoCorrente;
+      var daysInMonth = new Date(anno, meseNum, 0).getDate();
+      for(var d=1;d<=daysInMonth;d++) {
+        var code = giorni[d] || "";
+        if(!code) continue;
+        var dataStr = anno + "-" + (meseNum<10?"0"+meseNum:meseNum) + "-" + (d<10?"0"+d:d);
+        if(dataStr < dataOggi) continue;
+        var wd = new Date(anno, meseNum-1, d).getDay();
+        var sh = null;
+        for(var si=0;si<GT_SHIFTS.length;si++) { if(GT_SHIFTS[si].code===code){sh=GT_SHIFTS[si];break;} }
+        prossimiTurni.push({data:dataStr, giorno:d, mese:meseNum, anno:anno, code:code, sh:sh, wd:wd, struttura:rec.struttura, figura:rec.figura, isOggi:dataStr===dataOggi});
+      }
+    }
+    prossimiTurni.sort(function(a,b){return a.data>b.data?1:-1;});
 
     // Turno di oggi in evidenza
-    var turnoOggi = giorni[giornoOggi];
+    var turnoOggi = prossimiTurni.find(function(t){return t.isOggi;});
     if(turnoOggi) {
-      var shOggi = null;
-      for(var si=0;si<GT_SHIFTS.length;si++) { if(GT_SHIFTS[si].code===turnoOggi){shOggi=GT_SHIFTS[si];break;} }
-      h += "<div class='stat-card' style='background:" + (shOggi?shOggi.bg:"var(--teal)") + "'><div class='stat-card-orb'></div>";
-      h += "<div class='stat-label' style='color:" + (shOggi?shOggi.fg:"white") + ";opacity:0.8'>Turno di oggi</div>";
-      h += "<div style='font-size:28px;font-weight:900;color:" + (shOggi?shOggi.fg:"white") + "'>" + turnoOggi + "</div>";
-      if(shOggi) h += "<div style='font-size:13px;font-weight:700;color:" + shOggi.fg + ";opacity:0.85'>" + shOggi.desc + " · " + shOggi.orario + "</div>";
+      var sh0 = turnoOggi.sh;
+      h += "<div class='stat-card' style='background:" + (sh0?sh0.bg:"var(--teal)") + "'><div class='stat-card-orb'></div>";
+      h += "<div class='stat-label' style='color:" + (sh0?sh0.fg:"white") + ";opacity:0.8'>Turno di oggi</div>";
+      h += "<div style='font-size:28px;font-weight:900;color:" + (sh0?sh0.fg:"white") + "'>" + turnoOggi.code + "</div>";
+      if(sh0) h += "<div style='font-size:13px;font-weight:700;color:" + sh0.fg + ";opacity:0.85'>" + sh0.desc + " · " + sh0.orario + "</div>";
       h += "</div>";
     }
 
-    // Prossimo turno diverso da oggi
-    var prossimo = null;
-    for(var d2=giornoOggi+1;d2<=daysInMonth;d2++) {
-      if(giorni[d2]) { prossimo = {giorno:d2, code:giorni[d2]}; break; }
+    // Lista prossimi turni
+    var futuri = prossimiTurni.filter(function(t){return !t.isOggi;});
+    if(futuri.length > 0) {
+      h += "<div class='section-label'><div class='section-title'>Prossimi turni</div></div>";
+      for(var i=0;i<futuri.length;i++) {
+        var t = futuri[i];
+        var sh = t.sh;
+        h += "<div class='turno-card'>";
+        h += "<div class='turno-data'>" + dnFull[t.wd] + " " + t.giorno + " " + meseNomi[t.mese] + "</div>";
+        h += "<div style='display:flex;align-items:center;justify-content:space-between;margin-top:4px'>";
+        h += "<div style='font-size:13px;font-weight:700;color:var(--text-mid)'>" + (sh?sh.desc:t.code) + (sh?" · "+sh.orario:"") + "</div>";
+        h += "<span style='padding:4px 12px;border-radius:6px;font-weight:900;font-size:13px;background:" + (sh?sh.bg:"var(--teal-light)") + ";color:" + (sh?sh.fg:"var(--teal)") + "'>" + t.code + "</span>";
+        h += "</div>";
+        if(t.struttura) h += "<div class='turno-struttura'>📍 " + t.struttura + "</div>";
+        h += "</div>";
+      }
+    } else if(!turnoOggi) {
+      h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno programmato</div></div>";
     }
-    if(prossimo) {
-      var shP = null;
-      for(var sp=0;sp<GT_SHIFTS.length;sp++) { if(GT_SHIFTS[sp].code===prossimo.code){shP=GT_SHIFTS[sp];break;} }
-      var dnFull = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
-      var wd = new Date(turno.anno||annoCorrente, now.getMonth(), prossimo.giorno).getDay();
-      h += "<div style='background:var(--bg);border-radius:var(--radius-sm);padding:0.75rem 1rem;margin-bottom:0.75rem;border:1.5px solid var(--cyan-light)'>";
-      h += "<div style='font-size:11px;font-weight:700;color:var(--text-light);margin-bottom:4px'>Prossimo turno</div>";
-      h += "<div style='display:flex;align-items:center;justify-content:space-between'>";
-      h += "<div style='font-size:14px;font-weight:800;color:var(--text-dark)'>" + dnFull[wd] + " " + prossimo.giorno + " " + meseCorrente + "</div>";
-      h += "<span style='padding:4px 10px;border-radius:6px;font-weight:800;font-size:13px;background:" + (shP?shP.bg:"var(--teal)") + ";color:" + (shP?shP.fg:"white") + "'>" + prossimo.code + "</span>";
-      h += "</div>";
-      if(shP) h += "<div style='font-size:12px;color:var(--text-light);font-weight:600;margin-top:2px'>" + shP.orario + "</div>";
-      h += "</div>";
-    }
-
-    // Griglia mese
-    h += "<div class='section-label'><div class='section-title'>" + meseCorrente + " " + (turno.anno||annoCorrente) + "</div></div>";
-    h += "<div style='display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:1rem'>";
-    var dnShort = ["D","L","M","M","G","V","S"];
-    for(var dn=0;dn<7;dn++) h += "<div style='text-align:center;font-size:10px;font-weight:700;color:var(--text-light);padding:2px'>" + dnShort[dn] + "</div>";
-
-    // Spazio iniziale
-    var firstDay = new Date(turno.anno||annoCorrente, now.getMonth(), 1).getDay();
-    for(var fs=0;fs<firstDay;fs++) h += "<div></div>";
-
-    for(var d=1;d<=daysInMonth;d++) {
-      var code = giorni[d] || "";
-      var sh = null;
-      for(var s=0;s<GT_SHIFTS.length;s++) { if(GT_SHIFTS[s].code===code){sh=GT_SHIFTS[s];break;} }
-      var isOggi = d === giornoOggi;
-      var wd2 = new Date(turno.anno||annoCorrente, now.getMonth(), d).getDay();
-      var isWe = wd2===0||wd2===6;
-      h += "<div style='text-align:center;border-radius:6px;padding:3px 2px;background:" + (isOggi?"var(--teal)":sh?sh.bg:isWe?"rgba(0,0,0,0.04)":"transparent") + ";border:" + (isOggi?"2px solid var(--teal-dark)":"1.5px solid " + (sh?"transparent":"var(--cyan-light)")) + "'>";
-      h += "<div style='font-size:9px;font-weight:700;color:" + (isOggi?"white":isWe?"#C0392B":"var(--text-light)") + "'>" + d + "</div>";
-      if(code) h += "<div style='font-size:10px;font-weight:900;color:" + (isOggi?"white":sh?sh.fg:"var(--text-dark)") + "'>" + code + "</div>";
-      else h += "<div style='font-size:10px;color:transparent'>·</div>";
-      h += "</div>";
-    }
-    h += "</div>";
-
-    // Struttura e figura
-    if(turno.struttura) h += "<div style='font-size:12px;color:var(--text-light);font-weight:700;text-align:center;margin-bottom:0.5rem'>📍 " + turno.struttura + " · " + turno.figura + "</div>";
   }
   h += "<button class='update-btn' onclick=\"S.loadingTurni=true;fetchTurni()\">Aggiorna</button>";
   return h;
