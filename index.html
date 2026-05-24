@@ -151,6 +151,7 @@ var STRUTTURE_URL = "https://hook.eu1.make.com/xw0j4gjineix3dbogtdayeu0jm4tv6wq"
 var PROFILO_URL = "https://hook.eu1.make.com/kgiczfmj5o3hwogzwjeaoq0w2oyy10ue";
 // Webhook da creare su Make — legge dal DB Dipendenti (non Incaricati)
 var DIPENDENTI_GP_URL = "https://hook.eu1.make.com/odppmtyyvjsimsesjm5w5v25gnwk69u4";
+var TURNI_SAVE_URL = "https://hook.eu1.make.com/lckmb3m6yqhsqp9mqlqabm19y9k6ngoa";
 
 var PROFILO_DIP = null;
 
@@ -222,21 +223,56 @@ function fetchDipendentiGP() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       GP_DIPENDENTI = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        var nome = "";
-        if(p.Nome && Array.isArray(p.Nome) && p.Nome[0]) nome = p.Nome[0].plain_text || p.Nome[0].text && p.Nome[0].text.content || "";
-        else if(typeof p.Nome === "string") nome = p.Nome;
-        var cognome = typeof p.Cognome === "string" ? p.Cognome : (p.Cognome && p.Cognome[0] ? p.Cognome[0].plain_text || "" : "");
-        var email = p.Email || "";
-        var telefono = p.Telefono || "";
-        var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : (typeof p.Mansione === "string" ? p.Mansione : "");
+        // Struttura nativa Notion via Make: Properties Value è l'oggetto con i campi
+        var p = (item && item["Properties Value"]) ? item["Properties Value"]
+               : (item && item.properties_value) ? item.properties_value
+               : (item && item.propertiesValue) ? item.propertiesValue
+               : item;
+
+        // Nome: Array di rich text → Plain Text
+        function getRichText(field) {
+          if(!field) return "";
+          if(typeof field === "string") return field;
+          if(Array.isArray(field) && field[0]) {
+            return field[0]["Plain Text"] || field[0].plain_text || field[0].text && field[0].text.content || "";
+          }
+          return "";
+        }
+        // Select field → name
+        function getSelect(field) {
+          if(!field) return "";
+          if(typeof field === "string") return field;
+          if(field.name) return field.name;
+          if(Array.isArray(field) && field[0]) return field[0].name || field[0]["Plain Text"] || "";
+          return "";
+        }
+
+        var nome     = getRichText(p["Nome"] || p["nome"]);
+        var cognome  = getRichText(p["Cognome"] || p["cognome"]);
+        var email    = p["Email"] || p["email"] || "";
+        var telefono = p["Telefono"] || p["telefono"] || "";
+        var mansione = getSelect(p["Mansione"] || p["mansione"]);
+        // Struttura: campo Rollup "Struttura" che risolve il nome dalla Relation
         var struttura = "";
-        if(typeof p["Struttura principale"] === "string") struttura = p["Struttura principale"];
-        else if(p["Struttura principale"] && p["Struttura principale"].name) struttura = p["Struttura principale"].name;
-        else if(p["Struttura principale"] && Array.isArray(p["Struttura principale"]) && p["Struttura principale"][0]) struttura = p["Struttura principale"][0].plain_text || "";
-        var contratto = (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : "";
-        var username = typeof p.Username === "string" ? p.Username : (p.Username && p.Username[0] ? p.Username[0].plain_text || "" : "");
-        var pageId = item["Page ID"] || item.id || "";
+        var strutturaRollup = p["Struttura"] || p["struttura"];
+        var strutturaPrinc = p["Struttura principale"] || p["struttura principale"];
+        if(strutturaRollup) {
+          if(typeof strutturaRollup === "string") struttura = strutturaRollup;
+          else if(Array.isArray(strutturaRollup) && strutturaRollup[0]) {
+            struttura = strutturaRollup[0]["Plain Text"] || strutturaRollup[0].plain_text || strutturaRollup[0].name || strutturaRollup[0].title || "";
+          }
+          else if(strutturaRollup.name) struttura = strutturaRollup.name;
+        } else if(strutturaPrinc) {
+          if(typeof strutturaPrinc === "string") struttura = strutturaPrinc;
+          else if(strutturaPrinc.name) struttura = strutturaPrinc.name;
+          else if(Array.isArray(strutturaPrinc) && strutturaPrinc[0]) {
+            struttura = strutturaPrinc[0].name || strutturaPrinc[0]["Plain Text"] || strutturaPrinc[0].plain_text || "";
+          }
+        }
+        var contratto = getSelect(p["Tipo contratto"] || p["tipo contratto"]);
+        var username  = getRichText(p["Username"] || p["username"]);
+        var pageId    = item["ID"] || item["id"] || item["Page ID"] || "";
+
         return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, contratto:contratto, username:username, pageId:pageId};
       }).filter(function(d){ return d.nome; });
       render();
@@ -1751,13 +1787,58 @@ function gtConfirmShift() {
   }
 }
 function gtSaveToNotion() {
+  if(!GT_STRUTTURA || !GT_FIGURA) {
+    alert("Seleziona struttura e ruolo prima di salvare.");
+    return;
+  }
+  var dips = gtDipendenti();
+  if(dips.length === 0) {
+    alert("Nessun dipendente da salvare.");
+    return;
+  }
   GT_SAVING = true;
   render();
-  setTimeout(function(){
+
+  // Costruisce array turni per tutti i dipendenti visibili
+  var turni = dips.map(function(emp) {
+    var nomeCognome = (emp.nome||"") + (emp.cognome ? " "+emp.cognome : "");
+    var giorni = {};
+    var days = gtDaysInMonth(GT_MESE, GT_ANNO);
+    for(var d=1; d<=days; d++) {
+      var pad = d < 10 ? "0"+d : ""+d;
+      giorni["G"+pad] = GT_DATA[gtCellKey(nomeCognome, d)] || "";
+    }
+    return {
+      dipendente: nomeCognome,
+      pageId: emp.pageId || "",
+      giorni: giorni
+    };
+  });
+
+  var payload = {
+    struttura: GT_STRUTTURA,
+    figura: GT_FIGURA,
+    mese: GT_MESI[GT_MESE],
+    anno: GT_ANNO,
+    turni: turni
+  };
+
+  fetch(TURNI_SAVE_URL, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  })
+  .then(function(r){ return r.text(); })
+  .then(function(resp){
     GT_SAVING = false;
     render();
-    alert("Turni salvati su Notion! (Collegamento Make in arrivo)");
-  }, 1500);
+    alert("Turni salvati su Notion!");
+  })
+  .catch(function(e){
+    GT_SAVING = false;
+    render();
+    alert("Errore nel salvataggio: " + e.message);
+  });
 }
 
 function renderGP_Timbrature() {
