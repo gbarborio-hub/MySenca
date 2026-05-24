@@ -183,7 +183,7 @@ function fetchProfilo() {
       else if(p["Codice fiscale"] && Array.isArray(p["Codice fiscale"]) && p["Codice fiscale"][0]) cf = p["Codice fiscale"][0].plain_text || p["Codice fiscale"][0].text && p["Codice fiscale"][0].text.content || "";
       var nascita = (p["Data di nascita"] && p["Data di nascita"].start) ? p["Data di nascita"].start.split("T")[0] : "";
       var pageId = data["ID"] || data["id"] || data["Page ID"] || "";
-      PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita, pageId:pageId};
+      PROFILO_DIP = {nome:nome.trim(), cognome:cognome.trim(), email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita, pageId:pageId};
       render();
     } catch(e) {
       console.log("Errore fetch profilo:", e);
