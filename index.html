@@ -182,7 +182,8 @@ function fetchProfilo() {
       if(typeof p["Codice fiscale"] === "string") cf = p["Codice fiscale"];
       else if(p["Codice fiscale"] && Array.isArray(p["Codice fiscale"]) && p["Codice fiscale"][0]) cf = p["Codice fiscale"][0].plain_text || p["Codice fiscale"][0].text && p["Codice fiscale"][0].text.content || "";
       var nascita = (p["Data di nascita"] && p["Data di nascita"].start) ? p["Data di nascita"].start.split("T")[0] : "";
-      PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita};
+      var pageId = data["ID"] || data["id"] || data["Page ID"] || "";
+      PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita, pageId:pageId};
       render();
     } catch(e) {
       console.log("Errore fetch profilo:", e);
@@ -544,13 +545,19 @@ function fetchTurni() {
   // Invia nome dipendente, mese e anno correnti per filtrare il Quadro Turni
   var now = new Date();
   var meseNomi = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  // Usa nome+cognome dal profilo se disponibile, altrimenti username
+  var nomeCercato = "";
+  if(PROFILO_DIP && PROFILO_DIP.nome) {
+    nomeCercato = PROFILO_DIP.nome + (PROFILO_DIP.cognome ? " "+PROFILO_DIP.cognome : "");
+  } else {
+    nomeCercato = S.user.nome || S.user.username || "";
+  }
   fetch(TURNI_URL, {
     method: "POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({
-      nome: (S.user.nome||"") + (S.user.cognome ? " "+S.user.cognome : ""),
-      mese: meseNomi[now.getMonth()+1],
-      anno: now.getFullYear()
+      nome: nomeCercato,
+      username: S.user.username || ""
     })
   })
   .then(function(r){ return r.text(); })
