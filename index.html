@@ -1494,6 +1494,16 @@ function renderGestionePersonale() {
   document.getElementById("root").innerHTML = h;
 }
 
+function gtNomeStruttura(strutturaIdOrNome) {
+  if(!strutturaIdOrNome) return "";
+  // Cerca prima per ID in STRUTTURE
+  for(var i=0;i<STRUTTURE.length;i++) {
+    if(STRUTTURE[i].id === strutturaIdOrNome) return STRUTTURE[i].nome;
+  }
+  // Se non trovato, potrebbe già essere un nome
+  return strutturaIdOrNome;
+}
+
 function renderGP_Dipendenti() {
   var h = "";
 
@@ -1503,7 +1513,7 @@ function renderGP_Dipendenti() {
     h += "<div class='stat-card'><div class='stat-card-orb'></div>";
     h += "<div class='stat-label'>Dipendente</div>";
     h += "<div style='font-size:24px;font-weight:900;color:white'>" + d.nome + " " + d.cognome + "</div>";
-    h += "<div class='stat-sub'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
+    h += "<div class='stat-sub'>" + (d.mansione||"") + " · " + gtNomeStruttura(d.strutturaId||d.struttura) + "</div>";
     h += "</div>";
     h += "<div class='ana-card'>";
     h += "<div class='ana-row'><div class='ana-label'>Email</div><div class='ana-value' style='font-size:12px'>" + (d.email||"—") + "</div></div>";
@@ -1538,7 +1548,7 @@ function renderGP_Dipendenti() {
       h += "<div class='table-row' style='cursor:pointer' onclick='GP_DIP_DETAIL=GP_DIPENDENTI[" + i + "];render()'>";
       h += "<div style='flex:1;min-width:0'>";
       h += "<div class='row-title'>" + d.nome + " " + d.cognome + "</div>";
-      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
+      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + gtNomeStruttura(d.strutturaId||d.struttura) + "</div>";
       h += "</div>";
       h += "<div style='font-size:11px;color:var(--text-light)'>›</div>";
       h += "</div>";
