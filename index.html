@@ -1562,7 +1562,7 @@ function renderGestionePersonale() {
     for(var i=0; i<gpNavs.length; i++) {
       var nav = gpNavs[i];
       var act = GP_VIEW === nav.id ? "active" : "";
-      h += "<div class='desktop-nav-item " + act + "' onclick="GP_VIEW='" + nav.id + "';GP_DIP_DETAIL=null;render()">";
+      h += "<div class='desktop-nav-item " + act + "' onclick=\"GP_VIEW='" + nav.id + "';GP_DIP_DETAIL=null;render()\">";
       h += nav.icon + "<span>" + nav.label + "</span></div>";
     }
     h += "<div class='desktop-sidebar-footer'>";
@@ -1601,7 +1601,7 @@ function renderGestionePersonale() {
       var nav = gpNavs[i];
       var act = GP_VIEW === nav.id ? "active" : "";
       var onclick = "GP_VIEW='" + nav.id + "';GP_DIP_DETAIL=null;render()";
-      h += "<div class='bnav-item " + act + "' onclick="" + onclick + "">";
+      h += "<div class='bnav-item " + act + "' onclick=\"" + onclick + "\">";
       h += "<div class='bnav-icon'>" + nav.icon + "</div>";
       h += "<div class='bnav-label'>" + nav.label + "</div></div>";
     }
