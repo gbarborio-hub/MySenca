@@ -136,76 +136,19 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .ana-row:last-child{border-bottom:none}
 .ana-label{font-size:12px;font-weight:800;color:var(--text-light);text-transform:uppercase;letter-spacing:0.5px}
 .ana-value{font-size:14px;font-weight:700;color:var(--text-dark);text-align:right}
-
-/* ===== DESKTOP LAYOUT (>768px) ===== */
-@media (min-width: 768px) {
-  body { overflow: hidden; height: 100vh; }
-  
-  .login-screen { flex-direction: row; }
-  .login-logo-area { width: 45%; min-height: 100vh; background: var(--teal-dark); flex-direction: column; justify-content: center; padding: 3rem; }
-  .login-logo-wrap { width: 200px; height: 200px; }
-  .login-logo-area::after { content: "Senca Hub"; display: block; margin-top: 1.5rem; font-size: 32px; font-weight: 900; color: white; font-family: "Satoshi", sans-serif; }
-  .login-body { width: 55%; max-width: none; padding: 3rem 4rem; display: flex; flex-direction: column; justify-content: center; min-height: 100vh; }
-  .login-greeting { font-size: 36px; text-align: left; }
-  .login-sub { text-align: left; font-size: 16px; }
-  
-  /* App screen desktop */
-  .app-screen { max-width: none; flex-direction: row; height: 100vh; overflow: hidden; }
-  
-  /* Sidebar */
-  .desktop-sidebar { width: 240px; min-width: 240px; background: var(--teal-dark); display: flex; flex-direction: column; padding: 1.5rem 0; height: 100vh; overflow-y: auto; }
-  .desktop-sidebar-logo { display: flex; align-items: center; gap: 12px; padding: 0 1.25rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 1rem; }
-  .desktop-sidebar-logo img { width: 36px; height: 36px; }
-  .desktop-sidebar-logo span { font-size: 16px; font-weight: 800; color: white; }
-  .desktop-sidebar-user { padding: 0.75rem 1.25rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem; }
-  .desktop-sidebar-user-name { font-size: 14px; font-weight: 800; color: white; }
-  .desktop-sidebar-user-role { font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 600; margin-top: 2px; }
-  .desktop-nav-item { display: flex; align-items: center; gap: 10px; padding: 0.7rem 1.25rem; cursor: pointer; border-radius: 0; transition: background 0.15s; color: rgba(255,255,255,0.7); font-size: 13.5px; font-weight: 700; }
-  .desktop-nav-item:hover { background: rgba(255,255,255,0.08); color: white; }
-  .desktop-nav-item.active { background: rgba(255,255,255,0.15); color: white; border-left: 3px solid var(--cyan); }
-  .desktop-nav-item svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
-  .desktop-nav-section { font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; padding: 1rem 1.25rem 0.35rem; }
-  .desktop-sidebar-footer { margin-top: auto; padding: 1rem 1.25rem 0; border-top: 1px solid rgba(255,255,255,0.1); }
-  .desktop-logout { display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.6); font-size: 13px; font-weight: 700; cursor: pointer; padding: 0.5rem 0; }
-  .desktop-logout:hover { color: white; }
-  
-  /* Main content area */
-  .desktop-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-  .desktop-topbar { background: white; padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #E0ECEC; flex-shrink: 0; }
-  .desktop-topbar-title { font-size: 20px; font-weight: 800; color: var(--text-dark); }
-  .desktop-topbar-actions { display: flex; align-items: center; gap: 12px; }
-  .desktop-content { flex: 1; overflow-y: auto; padding: 1.5rem 2rem; }
-  
-  /* Hide mobile elements on desktop */
-  .app-header { display: none !important; }
-  .bottom-nav { display: none !important; }
-  
-  /* Wider content on desktop */
-  .desktop-content .gt-table { font-size: 12px; }
-}
-
-@media (max-width: 767px) {
-  .desktop-sidebar { display: none !important; }
-  .desktop-main { display: contents !important; }
-  .desktop-topbar { display: none !important; }
-  .desktop-content { display: contents !important; }
-}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script>
 
-var AUTH_URL = "https://hook.eu1.make.com/8g42dbwwryob9skne4qwl5mtwv7rg7az";
+var AUTH_URL = "http://130.110.1.122/webhook/auth";
 var DATI_URL = "https://hook.eu1.make.com/y882re16wkatcqdk7zevhr24uknk78v4";
 var PRIVACY_URL = "https://hook.eu1.make.com/dmdvislgavso2dhh7ccp5iy4pa69vuox";
 var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
-var TIMBRA_URL = "https://hook.eu1.make.com/ovyaryk28yqdcl6q2a2v1sasxo5hktj1";
-var STRUTTURE_URL = "https://hook.eu1.make.com/xw0j4gjineix3dbogtdayeu0jm4tv6wq";
-var PROFILO_URL = "https://hook.eu1.make.com/kgiczfmj5o3hwogzwjeaoq0w2oyy10ue";
-// Webhook da creare su Make — legge dal DB Dipendenti (non Incaricati)
-var DIPENDENTI_GP_URL = "https://hook.eu1.make.com/odppmtyyvjsimsesjm5w5v25gnwk69u4";
-var TURNI_SAVE_URL = "https://hook.eu1.make.com/lckmb3m6yqhsqp9mqlqabm19y9k6ngoa";
+var TIMBRA_URL = "http://130.110.1.122/webhook/timbra";
+var STRUTTURE_URL = "http://130.110.1.122/webhook/strutture";
+var PROFILO_URL = "http://130.110.1.122/webhook/profilo";
 
 var PROFILO_DIP = null;
 
@@ -236,8 +179,7 @@ function fetchProfilo() {
       if(typeof p["Codice fiscale"] === "string") cf = p["Codice fiscale"];
       else if(p["Codice fiscale"] && Array.isArray(p["Codice fiscale"]) && p["Codice fiscale"][0]) cf = p["Codice fiscale"][0].plain_text || p["Codice fiscale"][0].text && p["Codice fiscale"][0].text.content || "";
       var nascita = (p["Data di nascita"] && p["Data di nascita"].start) ? p["Data di nascita"].start.split("T")[0] : "";
-      var pageId = data["ID"] || data["id"] || data["Page ID"] || "";
-      PROFILO_DIP = {nome:nome.trim(), cognome:cognome.trim(), email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita, pageId:pageId};
+      PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita};
       render();
     } catch(e) {
       console.log("Errore fetch profilo:", e);
@@ -245,10 +187,10 @@ function fetchProfilo() {
   })
   .catch(function(e){ console.log("Errore fetch profilo:", e); });
 }
-var TURNI_URL = "https://hook.eu1.make.com/asyef6nu2ll64d3u7ed5qdjpk4w9aneh";
+var TURNI_URL = "http://130.110.1.122/webhook/turni-read";
 var CICLO_URL = "https://hook.eu1.make.com/amh2svifhurdxby9dc2b9fms2fnk9f6x";
 var CONTATTI_URL = "https://hook.eu1.make.com/3pkwi2nqujb04dfklwql6tpa52fxq4rj";
-var SEGNALAZIONE_URL = "https://hook.eu1.make.com/nysboebghlz1hvdwt6g5oi8rt6vfne5d";
+var SEGNALAZIONE_URL = "http://130.110.1.122/webhook/segnalazione";
 
 // ===== GESTIONE PERSONALE =====
 var GP_DIPENDENTI = [];
@@ -258,16 +200,7 @@ var GP_VIEW = "dipendenti";
 var GP_DIP_DETAIL = null;
 
 function fetchDipendentiGP() {
-  // Legge dal DB Dipendenti (non Incaricati)
-  // DIPENDENTI_GP_URL va configurato su Make con webhook → Notion DB Dipendenti → risposta JSON
-  if(DIPENDENTI_GP_URL === "DA_CONFIGURARE_SU_MAKE") {
-    // Fallback: usa GP_DIPENDENTI già caricati se presenti, altrimenti avvisa
-    if(GP_DIPENDENTI.length === 0) {
-      console.warn("DIPENDENTI_GP_URL non ancora configurato su Make.");
-    }
-    return;
-  }
-  fetch(DIPENDENTI_GP_URL, {
+  fetch("http://130.110.1.122/webhook/dipendenti", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({action:"get_dipendenti"})
@@ -278,52 +211,18 @@ function fetchDipendentiGP() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       GP_DIPENDENTI = raw.map(function(item) {
-        // Struttura nativa Notion via Make: Properties Value è l'oggetto con i campi
-        var p = (item && item["Properties Value"]) ? item["Properties Value"]
-               : (item && item.properties_value) ? item.properties_value
-               : (item && item.propertiesValue) ? item.propertiesValue
-               : item;
-
-        // Nome: Array di rich text → Plain Text
-        function getRichText(field) {
-          if(!field) return "";
-          if(typeof field === "string") return field;
-          if(Array.isArray(field) && field[0]) {
-            return field[0]["Plain Text"] || field[0].plain_text || field[0].text && field[0].text.content || "";
-          }
-          return "";
-        }
-        // Select field → name
-        function getSelect(field) {
-          if(!field) return "";
-          if(typeof field === "string") return field;
-          if(field.name) return field.name;
-          if(Array.isArray(field) && field[0]) return field[0].name || field[0]["Plain Text"] || "";
-          return "";
-        }
-
-        var nome     = getRichText(p["Nome"] || p["nome"]);
-        var cognome  = getRichText(p["Cognome"] || p["cognome"]);
-        var email    = p["Email"] || p["email"] || "";
-        var telefono = p["Telefono"] || p["telefono"] || "";
-        var mansione = getSelect(p["Mansione"] || p["mansione"]);
-        // Struttura: legge il Page ID dalla Relation "Struttura principale"
+        var nome = item.nome || item.name || "";
+        var cognome = item.cognome || "";
+        var email = item.email || "";
+        var telefono = item.telefono || "";
+        var mansione = item.mansione || "";
         var struttura = "";
-        var strutturaId = "";
-        var strutturaPrinc = p["Struttura principale"] || p["struttura principale"];
-        if(strutturaPrinc) {
-          if(typeof strutturaPrinc === "string") { struttura = strutturaPrinc; strutturaId = strutturaPrinc; }
-          else if(Array.isArray(strutturaPrinc) && strutturaPrinc[0]) {
-            // Relation restituisce array di {ID, Name} o solo ID
-            strutturaId = strutturaPrinc[0]["ID"] || strutturaPrinc[0].id || strutturaPrinc[0]["Page ID"] || "";
-            struttura = strutturaPrinc[0].name || strutturaPrinc[0]["Name"] || strutturaPrinc[0]["Plain Text"] || strutturaId;
-          }
-        }
-        var contratto = getSelect(p["Tipo contratto"] || p["tipo contratto"]);
-        var username  = getRichText(p["Username"] || p["username"]);
-        var pageId    = item["ID"] || item["id"] || item["Page ID"] || "";
-
-        return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, strutturaId:strutturaId, contratto:contratto, username:username, pageId:pageId};
+        if(typeof p["Struttura principale"] === "string") struttura = p["Struttura principale"];
+        else if(p["Struttura principale"] && p["Struttura principale"].name) struttura = p["Struttura principale"].name;
+        var contratto = (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : "";
+        var username = typeof p.Username === "string" ? p.Username : (p.Username && p.Username[0] ? p.Username[0].plain_text || "" : "");
+        var pageId = item["Page ID"] || item.id || "";
+        return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, contratto:contratto, username:username, pageId:pageId};
       }).filter(function(d){ return d.nome; });
       render();
     } catch(e) { console.log("Errore fetch dipendenti GP:", e); }
@@ -332,10 +231,10 @@ function fetchDipendentiGP() {
 }
 
 function fetchTimbratureGP() {
-  fetch(TIMBRATURE_READ_URL, {
+  fetch("http://130.110.1.122/webhook/gp-timbrature", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({nome:"all", action:"get_all"})
+    body: JSON.stringify({struttura:""})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
@@ -343,19 +242,18 @@ function fetchTimbratureGP() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       GP_TIMBRATURE = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        var struttura = "";
-        if(typeof p.Struttura === "string") struttura = p.Struttura;
-        else if(p.Struttura && Array.isArray(p.Struttura) && p.Struttura[0]) struttura = p.Struttura[0].plain_text || "";
-        var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : "";
-        var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
-        var oraEntrata = typeof p["Ora entrata"] === "string" ? p["Ora entrata"] : (p["Ora entrata"] && p["Ora entrata"][0] ? p["Ora entrata"][0].plain_text || "" : "");
-        var oraUscita = typeof p["Ora uscita"] === "string" ? p["Ora uscita"] : (p["Ora uscita"] && p["Ora uscita"][0] ? p["Ora uscita"][0].plain_text || "" : "");
-        var oreTotali = p["Ore totali"] || 0;
-        var stato = (p.Stato && p.Stato.name) ? p.Stato.name : "";
-        var approvazione = (p.Approvazione && p.Approvazione.name) ? p.Approvazione.name : "Regolare";
-        var pageId = item["Page ID"] || item.id || "";
-        return {struttura:struttura, dipendente:dipendente, data:data2, oraEntrata:oraEntrata, oraUscita:oraUscita, oreTotali:parseFloat(oreTotali)||0, stato:stato, approvazione:approvazione, pageId:pageId};
+        return {
+          struttura: item.struttura || "",
+          dipendente: item.dipendente || "",
+          data: item.data || "",
+          oraEntrata: item.oraEntrata || "",
+          oraUscita: item.oraUscita || "",
+          oreTotali: parseFloat(item.oreLavorate) || 0,
+          approvazione: item.approvazione || "Approvata",
+          eliminata: item.eliminata || false,
+          eliminataDa: item.eliminataDa || "",
+          pageId: item.id || ""
+        };
       }).filter(function(t){ return t.data; })
         .sort(function(a,b){ return a.data > b.data ? -1 : 1; });
       render();
@@ -365,10 +263,10 @@ function fetchTimbratureGP() {
 }
 
 function fetchFerieRichiesteGP() {
-  fetch(FERIE_LETTURA_URL, {
+  fetch("http://130.110.1.122/webhook/gp-ferie", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({username:"all", action:"get_all"})
+    body: JSON.stringify({struttura:""})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
@@ -376,15 +274,16 @@ function fetchFerieRichiesteGP() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       GP_FERIE_RICHIESTE = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        var tipo = (p.Tipo && p.Tipo.name) ? p.Tipo.name : "";
-        var stato = (p.Stato && p.Stato.name) ? p.Stato.name : "";
-        var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : "";
-        var dataInizio = (p["Data inizio"] && p["Data inizio"].start) ? p["Data inizio"].start.split("T")[0] : "";
-        var dataFine = (p["Data fine"] && p["Data fine"].start) ? p["Data fine"].start.split("T")[0] : "";
-        var oreRichieste = p["Ore richieste"] || 0;
-        var pageId = item["Page ID"] || item.id || "";
-        return {tipo:tipo, stato:stato, dipendente:dipendente, dataInizio:dataInizio, dataFine:dataFine, oreRichieste:oreRichieste, pageId:pageId};
+        return {
+          tipo: item.tipo || "",
+          stato: item.stato || "",
+          dipendente: item.dipendente || "",
+          dataInizio: item.dataInizio || "",
+          dataFine: item.dataFine || "",
+          giorni: item.giorni || 0,
+          noteDipendente: item.noteDipendente || "",
+          pageId: item.id || ""
+        };
       }).filter(function(r){ return r.tipo; });
       render();
     } catch(e) { console.log("Errore fetch ferie GP:", e); }
@@ -392,8 +291,8 @@ function fetchFerieRichiesteGP() {
   .catch(function(e){ console.log("Errore fetch ferie GP:", e); });
 }
 var FERIE_SALDO_URL = "https://hook.eu1.make.com/vltcargb3vtf232f931qb7jm22wij60w";
-var FERIE_RICHIESTA_URL = "https://hook.eu1.make.com/d7wyto8t21pfk7xq0tjunk6n7e8s9stj";
-var FERIE_LETTURA_URL = "https://hook.eu1.make.com/tf7e3oqhvhdudtgdzja5l9qy86yesbur";
+var FERIE_RICHIESTA_URL = "http://130.110.1.122/webhook/ferie-richiesta";
+var FERIE_LETTURA_URL = "http://130.110.1.122/webhook/ferie-lettura";
 
 var FERIE_SALDO = null;
 var FERIE_RICHIESTE = [];
@@ -506,15 +405,15 @@ function fetchContatti() {
   })
   .catch(function(e){ console.log("Errore fetch contatti:", e); });
 }
-var TIMBRATURE_READ_URL = "https://hook.eu1.make.com/jsjc97nwzuleo7tjo9k37oejuptyhbbh";
+var TIMBRATURE_READ_URL = "http://130.110.1.122/webhook/timbrature-read";
 
 var TIMBRATURE_DIP = [];
 
 function fetchTimbrature() {
-  fetch(TIMBRATURE_READ_URL, {
+  fetch("http://130.110.1.122/webhook/timbrature-read", {
     method: "POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({nome: S.user.nome})
+    body: JSON.stringify({username: S.user.username || S.user.nome})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
@@ -522,32 +421,16 @@ function fetchTimbrature() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       TIMBRATURE_DIP = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        // Struttura - testo semplice
-        var struttura = "";
-        if(typeof p.Struttura === "string") struttura = p.Struttura;
-        else if(p.Struttura && Array.isArray(p.Struttura) && p.Struttura[0]) struttura = p.Struttura[0].plain_text || p.Struttura[0].text && p.Struttura[0].text.content || "";
-        else if(p.Struttura && p.Struttura.name) struttura = p.Struttura.name;
-        // Dipendente
-        var dipendente = "";
-        if(typeof p.Dipendente === "string") dipendente = p.Dipendente;
-        else if(p.Dipendente && Array.isArray(p.Dipendente) && p.Dipendente[0]) dipendente = p.Dipendente[0].plain_text || "";
-        // Data
-        var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
-        // Ora entrata
-        var oraEntrata = "";
-        if(typeof p["Ora entrata"] === "string") oraEntrata = p["Ora entrata"];
-        else if(p["Ora entrata"] && Array.isArray(p["Ora entrata"]) && p["Ora entrata"][0]) oraEntrata = p["Ora entrata"][0].plain_text || p["Ora entrata"][0].text && p["Ora entrata"][0].text.content || "";
-        // Ora uscita
-        var oraUscita = "";
-        if(typeof p["Ora uscita"] === "string") oraUscita = p["Ora uscita"];
-        else if(p["Ora uscita"] && Array.isArray(p["Ora uscita"]) && p["Ora uscita"][0]) oraUscita = p["Ora uscita"][0].plain_text || p["Ora uscita"][0].text && p["Ora uscita"][0].text.content || "";
-        // Ore totali
-        var oreTotali = p["Ore totali"] || 0;
-        // Stato
-        var stato = (p.Stato && p.Stato.name) ? p.Stato.name : "";
-        var approvazione = (p.Approvazione && p.Approvazione.name) ? p.Approvazione.name : "Regolare";
-        return {struttura:struttura, dipendente:dipendente, data:data2, oraEntrata:oraEntrata, oraUscita:oraUscita, oreTotali:parseFloat(oreTotali)||0, stato:stato, approvazione:approvazione};
+        return {
+          struttura: item.struttura || "",
+          dipendente: item.dipendente || "",
+          data: item.data || "",
+          oraEntrata: item.oraEntrata || "",
+          oraUscita: item.oraUscita || "",
+          oreTotali: parseFloat(item.oreLavorate) || 0,
+          approvazione: item.approvazione || "Approvata",
+          pageId: item.id || ""
+        };
       }).filter(function(t){ return t.data; });
       render();
     } catch(e) {
@@ -596,52 +479,29 @@ var INCARICATI = [];
 var TURNI_DIP = [];
 
 function fetchTurni() {
-  // Invia nome dipendente, mese e anno correnti per filtrare il Quadro Turni
-  var now = new Date();
-  var meseNomi = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-  // Usa nome+cognome dal profilo se disponibile, altrimenti username
-  var nomeCercato = "";
-  if(PROFILO_DIP && PROFILO_DIP.nome) {
-    nomeCercato = PROFILO_DIP.nome + (PROFILO_DIP.cognome ? " "+PROFILO_DIP.cognome : "");
-  } else {
-    nomeCercato = S.user.nome || S.user.username || "";
-  }
   fetch(TURNI_URL, {
     method: "POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      nome: nomeCercato,
-      username: S.user.username || ""
-    })
+    body: JSON.stringify({nome: S.user.nome})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
     try {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
-      // Cerca il record del mese corrente
-      TURNI_DIP = [];
-      for(var i=0;i<raw.length;i++) {
-        var item = raw[i];
-        var p = (item && item["Properties Value"]) ? item["Properties Value"]
-               : (item && item.properties_value) ? item.properties_value : item;
-        // Leggi tutti i giorni G01-G31
-        var giorni = {};
-        for(var g=1;g<=31;g++) {
-          var pad = g < 10 ? "0"+g : ""+g;
-          var val = p["G"+pad] || p["g"+pad] || "";
-          if(typeof val === "object" && val !== null) val = val["Plain Text"] || val.plain_text || val.name || "";
-          giorni[g] = val;
-        }
-        var mese = p["Mese"] || p["mese"] || "";
-        if(typeof mese === "object") mese = mese.name || mese["Plain Text"] || "";
-        var anno = p["Anno"] || p["anno"] || now.getFullYear();
-        var struttura = p["Struttura"] || p["struttura"] || "";
-        if(typeof struttura === "object") struttura = struttura.name || struttura["Plain Text"] || "";
-        var figura = p["Figura Professionale"] || p["figura"] || "";
-        if(typeof figura === "object") figura = figura.name || figura["Plain Text"] || "";
-        TURNI_DIP.push({giorni:giorni, mese:mese, anno:anno, struttura:struttura, figura:figura});
-      }
+      TURNI_DIP = raw.map(function(item) {
+        var p = (item && item.properties_value) ? item.properties_value : item;
+        var titolo = "";
+        if(p.Titolo && Array.isArray(p.Titolo) && p.Titolo[0]) titolo = p.Titolo[0].plain_text || "";
+        var dipendente = typeof p.Dipendente === "string" ? p.Dipendente : (p.Dipendente && p.Dipendente[0] ? p.Dipendente[0].plain_text || "" : "");
+        var struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
+        var tipo = (p["Tipo turno"] && p["Tipo turno"].name) ? p["Tipo turno"].name : "";
+        var data2 = (p.Data && p.Data.start) ? p.Data.start.split("T")[0] : "";
+        var oraInizio = typeof p["Ora inizio"] === "string" ? p["Ora inizio"] : (p["Ora inizio"] && p["Ora inizio"][0] ? p["Ora inizio"][0].plain_text || "" : "");
+        var oraFine = typeof p["Ora fine"] === "string" ? p["Ora fine"] : (p["Ora fine"] && p["Ora fine"][0] ? p["Ora fine"][0].plain_text || "" : "");
+        return {titolo:titolo, dipendente:dipendente, struttura:struttura, tipo:tipo, data:data2, oraInizio:oraInizio, oraFine:oraFine};
+      }).filter(function(t){ return t.data; })
+        .sort(function(a,b){ return a.data > b.data ? 1 : -1; });
       S.loadingTurni = false;
       render();
     } catch(e) {
@@ -769,7 +629,7 @@ function doLogin() {
       S.user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
       if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
       if(isDipendente()) { fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); }
-      if(isGestionePersonale()) { fetchDipendentiGP(); fetchStrutture(); fetchTimbratureGP(); fetchFerieRichiesteGP(); }
+      if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); }
       render();
     } else {
       err.textContent = "Credenziali non valide. Riprova.";
@@ -792,10 +652,6 @@ function isDipendente() { return S.user && S.user.ruolo==="Dipendente"; }
 function isGestionePersonale() { return S.user && S.user.ruolo==="Gestione personale"; }
 
 // ===== RENDER PRINCIPALE =====
-function isDesktop() {
-  return window.innerWidth >= 768;
-}
-
 function render() {
   if(!S.loggedIn) { renderLogin(); return; }
   if(isDipendente()) { renderDipendente(); return; }
@@ -1307,68 +1163,31 @@ function renderDipTurni() {
     return "<div style='display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div><div style='color:#7A9999;font-weight:700;font-size:14px'>Caricamento turni...</div></div>";
   }
   var h = "";
-  var now = new Date();
-  var meseNomi = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-  var annoCorrente = now.getFullYear();
-  var giornoOggi = now.getDate();
-  var meseOggi = now.getMonth()+1;
-  var dnFull = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
-  var dataOggi = annoCorrente + "-" + (meseOggi<10?"0"+meseOggi:meseOggi) + "-" + (giornoOggi<10?"0"+giornoOggi:giornoOggi);
-
   if(TURNI_DIP.length === 0) {
     h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato</div></div>";
   } else {
-    // Costruisce lista turni da oggi in poi
-    var prossimiTurni = [];
-    for(var ri=0;ri<TURNI_DIP.length;ri++) {
-      var rec = TURNI_DIP[ri];
-      var giorni = rec.giorni || {};
-      var meseNum = meseNomi.indexOf(rec.mese);
-      if(meseNum < 1) meseNum = meseOggi;
-      var anno = parseInt(rec.anno) || annoCorrente;
-      var daysInMonth = new Date(anno, meseNum, 0).getDate();
-      for(var d=1;d<=daysInMonth;d++) {
-        var code = giorni[d] || "";
-        if(!code) continue;
-        var dataStr = anno + "-" + (meseNum<10?"0"+meseNum:meseNum) + "-" + (d<10?"0"+d:d);
-        if(dataStr < dataOggi) continue;
-        var wd = new Date(anno, meseNum-1, d).getDay();
-        var sh = null;
-        for(var si=0;si<GT_SHIFTS.length;si++) { if(GT_SHIFTS[si].code===code){sh=GT_SHIFTS[si];break;} }
-        prossimiTurni.push({data:dataStr, giorno:d, mese:meseNum, anno:anno, code:code, sh:sh, wd:wd, struttura:rec.struttura, figura:rec.figura, isOggi:dataStr===dataOggi});
-      }
-    }
-    prossimiTurni.sort(function(a,b){return a.data>b.data?1:-1;});
-
-    // Turno di oggi in evidenza
-    var turnoOggi = prossimiTurni.find(function(t){return t.isOggi;});
-    if(turnoOggi) {
-      var sh0 = turnoOggi.sh;
-      h += "<div class='stat-card' style='background:" + (sh0?sh0.bg:"var(--teal)") + "'><div class='stat-card-orb'></div>";
-      h += "<div class='stat-label' style='color:" + (sh0?sh0.fg:"white") + ";opacity:0.8'>Turno di oggi</div>";
-      h += "<div style='font-size:28px;font-weight:900;color:" + (sh0?sh0.fg:"white") + "'>" + turnoOggi.code + "</div>";
-      if(sh0) h += "<div style='font-size:13px;font-weight:700;color:" + sh0.fg + ";opacity:0.85'>" + sh0.desc + " · " + sh0.orario + "</div>";
+    var oggi = new Date().toISOString().split("T")[0];
+    var prossimo = TURNI_DIP.find(function(t){ return t.data >= oggi; });
+    if(prossimo) {
+      h += "<div class='stat-card' style='background:var(--coral)'><div class='stat-card-orb'></div>";
+      h += "<div class='stat-label'>Prossimo turno</div>";
+      h += "<div style='font-size:22px;font-weight:900;color:white'>" + fmtDateIt(prossimo.data) + " — " + prossimo.tipo + "</div>";
+      h += "<div class='stat-sub'>🕐 " + prossimo.oraInizio + " — " + prossimo.oraFine + " · " + prossimo.struttura + "</div>";
       h += "</div>";
     }
-
-    // Lista prossimi turni
-    var futuri = prossimiTurni.filter(function(t){return !t.isOggi;});
-    if(futuri.length > 0) {
-      h += "<div class='section-label'><div class='section-title'>Prossimi turni</div></div>";
-      for(var i=0;i<futuri.length;i++) {
-        var t = futuri[i];
-        var sh = t.sh;
-        h += "<div class='turno-card'>";
-        h += "<div class='turno-data'>" + dnFull[t.wd] + " " + t.giorno + " " + meseNomi[t.mese] + "</div>";
-        h += "<div style='display:flex;align-items:center;justify-content:space-between;margin-top:4px'>";
-        h += "<div style='font-size:13px;font-weight:700;color:var(--text-mid)'>" + (sh?sh.desc:t.code) + (sh?" · "+sh.orario:"") + "</div>";
-        h += "<span style='padding:4px 12px;border-radius:6px;font-weight:900;font-size:13px;background:" + (sh?sh.bg:"var(--teal-light)") + ";color:" + (sh?sh.fg:"var(--teal)") + "'>" + t.code + "</span>";
-        h += "</div>";
-        if(t.struttura) h += "<div class='turno-struttura'>📍 " + t.struttura + "</div>";
-        h += "</div>";
-      }
-    } else if(!turnoOggi) {
-      h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno programmato</div></div>";
+    h += "<div class='section-label'><div class='section-title'>Tutti i turni</div></div>";
+    for(var i=0; i<TURNI_DIP.length; i++) {
+      var t = TURNI_DIP[i];
+      var isPassato = t.data < oggi;
+      h += "<div class='turno-card' style='opacity:" + (isPassato ? "0.6" : "1") + "'>";
+      h += "<div class='turno-data'>" + fmtDateIt(t.data) + "</div>";
+      h += "<div style='display:flex;align-items:center;justify-content:space-between'>";
+      h += "<div class='turno-tipo'>" + t.tipo + "</div>";
+      h += "<span class='turno-badge turno-" + t.tipo.toLowerCase() + "'>" + t.tipo + "</span>";
+      h += "</div>";
+      h += "<div class='turno-orari'>🕐 " + t.oraInizio + " — " + t.oraFine + "</div>";
+      h += "<div class='turno-struttura'>📍 " + t.struttura + "</div>";
+      h += "</div>";
     }
   }
   h += "<button class='update-btn' onclick=\"S.loadingTurni=true;fetchTurni()\">Aggiorna</button>";
@@ -1496,6 +1315,43 @@ function renderDipSegnalazione() {
   return h;
 }
 
+function renderDipTurni() {
+  if(S.loadingTurni) {
+    return "<div style='display:flex;align-items:center;justify-content:center;height:40vh;flex-direction:column;gap:1rem'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div><div style='color:#7A9999;font-weight:700;font-size:14px'>Caricamento turni...</div></div>";
+  }
+  var h = "";
+  if(TURNI_DIP.length === 0) {
+    h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Nessun turno trovato</div></div>";
+  } else {
+    // Prossimo turno in evidenza
+    var oggi = new Date().toISOString().split("T")[0];
+    var prossimo = TURNI_DIP.find(function(t){ return t.data >= oggi; });
+    if(prossimo) {
+      h += "<div class='stat-card' style='background:var(--coral)'><div class='stat-card-orb'></div>";
+      h += "<div class='stat-label'>Prossimo turno</div>";
+      h += "<div style='font-size:22px;font-weight:900;color:white'>" + fmtDateIt(prossimo.data) + " — " + prossimo.tipo + "</div>";
+      h += "<div class='stat-sub'>🕐 " + prossimo.oraInizio + " — " + prossimo.oraFine + " · " + prossimo.struttura + "</div>";
+      h += "</div>";
+    }
+    h += "<div class='section-label'><div class='section-title'>Tutti i turni</div></div>";
+    for(var i=0; i<TURNI_DIP.length; i++) {
+      var t = TURNI_DIP[i];
+      var isPassato = t.data < oggi;
+      h += "<div class='turno-card' style='opacity:" + (isPassato ? "0.6" : "1") + "'>";
+      h += "<div class='turno-data'>" + fmtDateIt(t.data) + "</div>";
+      h += "<div style='display:flex;align-items:center;justify-content:space-between'>";
+      h += "<div class='turno-tipo'>" + t.tipo + "</div>";
+      h += "<span class='turno-badge turno-" + t.tipo.toLowerCase() + "'>" + t.tipo + "</span>";
+      h += "</div>";
+      h += "<div class='turno-orari'>🕐 " + t.oraInizio + " — " + t.oraFine + "</div>";
+      h += "<div class='turno-struttura'>📍 " + t.struttura + "</div>";
+      h += "</div>";
+    }
+  }
+  h += "<button class='update-btn' onclick=\"S.loadingTurni=true;fetchTurni()\">Aggiorna</button>";
+  return h;
+}
+
 function renderDipProfilo() {
   var u = S.user;
   var p = PROFILO_DIP;
@@ -1536,92 +1392,44 @@ function renderDipProfilo() {
 function renderGestionePersonale() {
   var u = S.user;
   var firstName = u.nome ? u.nome.split(" ")[0] : "utente";
+  var h = "<div class=\"app-screen\">";
 
+  // Header
+  h += "<div class=\"app-header\">";
+  h += "<div class=\"app-greeting\">Buongiorno,<br>" + firstName + "</div>";
+  h += "<div class=\"app-logo\">" + LOGO_IMG + "</div>";
+  h += "</div>";
+
+  // Content
+  h += "<div class=\"app-content\">";
+
+  if(GP_VIEW === "dipendenti") h += renderGP_Dipendenti();
+  else if(GP_VIEW === "turni") h += renderGP_Turni();
+  else if(GP_VIEW === "timbrature") h += renderGP_Timbrature();
+  else if(GP_VIEW === "ferie") h += renderGP_Ferie();
+  else if(GP_VIEW === "strutture") h += renderGP_Strutture();
+
+  h += "</div>";
+
+  // Bottom nav
   var gpNavs = [
-    {id:"dipendenti", label:"Dipendenti", icon:"<svg viewBox='0 0 24 24'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 00-3-3.87'/><path d='M16 3.13a4 4 0 010 7.75'/></svg>"},
-    {id:"turni", label:"Turni", icon:"<svg viewBox='0 0 24 24'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>"},
-    {id:"timbrature", label:"Timbrature", icon:"<svg viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>"},
-    {id:"ferie", label:"Ferie/ROL", icon:"<svg viewBox='0 0 24 24'><path d='M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z'/></svg>"},
-    {id:"strutture", label:"Strutture", icon:"<svg viewBox='0 0 24 24'><path d='M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg>"}
+    {id:"dipendenti", icon:"<svg viewBox='0 0 24 24'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 00-3-3.87'/><path d='M16 3.13a4 4 0 010 7.75'/></svg>", label:"Dipendenti"},
+    {id:"turni", icon:"<svg viewBox='0 0 24 24'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>", label:"Turni"},
+    {id:"timbrature", icon:"<svg viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><polyline points='12 6 12 12 16 14'/></svg>", label:"Timbrature"},
+    {id:"ferie", icon:"<svg viewBox='0 0 24 24'><path d='M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z'/></svg>", label:"Ferie/ROL"},
+    {id:"logout_gp", icon:"<svg viewBox='0 0 24 24'><path d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'/></svg>", label:"Esci"}
   ];
-
-  var pageTitles = {dipendenti:"Dipendenti", turni:"Quadro Turni", timbrature:"Timbrature", ferie:"Ferie e ROL", strutture:"Strutture"};
-
-  if(isDesktop()) {
-    // ===== LAYOUT DESKTOP =====
-    var h = "<div class='app-screen' style='flex-direction:row'>";
-
-    // Sidebar
-    h += "<div class='desktop-sidebar'>";
-    h += "<div class='desktop-sidebar-logo'>" + LOGO_IMG + "<span>Senca Hub</span></div>";
-    h += "<div class='desktop-sidebar-user'>";
-    h += "<div class='desktop-sidebar-user-name'>Buongiorno, " + firstName + "</div>";
-    h += "<div class='desktop-sidebar-user-role'>Gestione Personale</div>";
-    h += "</div>";
-    h += "<div class='desktop-nav-section'>Menu</div>";
-    for(var i=0; i<gpNavs.length; i++) {
-      var nav = gpNavs[i];
-      var act = GP_VIEW === nav.id ? "active" : "";
-      h += "<div class='desktop-nav-item " + act + "' onclick=\"GP_VIEW='" + nav.id + "';GP_DIP_DETAIL=null;render()\">";
-      h += nav.icon + "<span>" + nav.label + "</span></div>";
-    }
-    h += "<div class='desktop-sidebar-footer'>";
-    h += "<div class='desktop-logout' onclick='doLogout()'><svg viewBox='0 0 24 24' width='16' height='16' stroke='currentColor' fill='none' stroke-width='2'><path d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'/></svg>Esci</div>";
-    h += "</div></div>";
-
-    // Main
-    h += "<div class='desktop-main'>";
-    h += "<div class='desktop-topbar'>";
-    h += "<div class='desktop-topbar-title'>" + (pageTitles[GP_VIEW]||"Dashboard") + "</div>";
-    h += "</div>";
-    h += "<div class='desktop-content'>";
-    if(GP_VIEW === "dipendenti") h += renderGP_Dipendenti();
-    else if(GP_VIEW === "turni") h += renderGP_Turni();
-    else if(GP_VIEW === "timbrature") h += renderGP_Timbrature();
-    else if(GP_VIEW === "ferie") h += renderGP_Ferie();
-    else if(GP_VIEW === "strutture") h += renderGP_Strutture();
-    h += "</div></div></div>";
-
-  } else {
-    // ===== LAYOUT MOBILE =====
-    var h = "<div class='app-screen'>";
-    h += "<div class='app-header'>";
-    h += "<div class='app-greeting'>Buongiorno,<br>" + firstName + "</div>";
-    h += "<div class='app-logo'>" + LOGO_IMG + "</div>";
-    h += "</div>";
-    h += "<div class='app-content'>";
-    if(GP_VIEW === "dipendenti") h += renderGP_Dipendenti();
-    else if(GP_VIEW === "turni") h += renderGP_Turni();
-    else if(GP_VIEW === "timbrature") h += renderGP_Timbrature();
-    else if(GP_VIEW === "ferie") h += renderGP_Ferie();
-    else if(GP_VIEW === "strutture") h += renderGP_Strutture();
-    h += "</div>";
-    h += "<div class='bottom-nav'>";
-    for(var i=0; i<gpNavs.length; i++) {
-      var nav = gpNavs[i];
-      var act = GP_VIEW === nav.id ? "active" : "";
-      var onclick = "GP_VIEW='" + nav.id + "';GP_DIP_DETAIL=null;render()";
-      h += "<div class='bnav-item " + act + "' onclick=\"" + onclick + "\">";
-      h += "<div class='bnav-icon'>" + nav.icon + "</div>";
-      h += "<div class='bnav-label'>" + nav.label + "</div></div>";
-    }
-    h += "<div class='bnav-item' onclick='doLogout()'>";
-    h += "<div class='bnav-icon'><svg viewBox='0 0 24 24'><path d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'/></svg></div>";
-    h += "<div class='bnav-label'>Esci</div></div>";
-    h += "</div></div>";
+  h += "<div class=\"bottom-nav\">";
+  for(var i=0; i<gpNavs.length; i++) {
+    var nav = gpNavs[i];
+    var act = GP_VIEW === nav.id ? "active" : "";
+    var onclick = nav.id === "logout_gp" ? "doLogout()" : "GP_VIEW='" + nav.id + "';GP_DIP_DETAIL=null;render()";
+    h += "<div class=\"bnav-item " + act + "\" onclick=\"" + onclick + "\">";
+    h += "<div class=\"bnav-icon\">" + nav.icon + "</div>";
+    h += "<div class=\"bnav-label\">" + nav.label + "</div></div>";
   }
-
+  h += "</div></div>";
   document.getElementById("root").innerHTML = h;
-}
-
-function gtNomeStruttura(strutturaIdOrNome) {
-  if(!strutturaIdOrNome) return "";
-  // Cerca prima per ID in STRUTTURE
-  for(var i=0;i<STRUTTURE.length;i++) {
-    if(STRUTTURE[i].id === strutturaIdOrNome) return STRUTTURE[i].nome;
-  }
-  // Se non trovato, potrebbe già essere un nome
-  return strutturaIdOrNome;
 }
 
 function renderGP_Dipendenti() {
@@ -1633,7 +1441,7 @@ function renderGP_Dipendenti() {
     h += "<div class='stat-card'><div class='stat-card-orb'></div>";
     h += "<div class='stat-label'>Dipendente</div>";
     h += "<div style='font-size:24px;font-weight:900;color:white'>" + d.nome + " " + d.cognome + "</div>";
-    h += "<div class='stat-sub'>" + (d.mansione||"") + " · " + gtNomeStruttura(d.strutturaId||d.struttura) + "</div>";
+    h += "<div class='stat-sub'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
     h += "</div>";
     h += "<div class='ana-card'>";
     h += "<div class='ana-row'><div class='ana-label'>Email</div><div class='ana-value' style='font-size:12px'>" + (d.email||"—") + "</div></div>";
@@ -1668,7 +1476,7 @@ function renderGP_Dipendenti() {
       h += "<div class='table-row' style='cursor:pointer' onclick='GP_DIP_DETAIL=GP_DIPENDENTI[" + i + "];render()'>";
       h += "<div style='flex:1;min-width:0'>";
       h += "<div class='row-title'>" + d.nome + " " + d.cognome + "</div>";
-      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + gtNomeStruttura(d.strutturaId||d.struttura) + "</div>";
+      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
       h += "</div>";
       h += "<div style='font-size:11px;color:var(--text-light)'>›</div>";
       h += "</div>";
@@ -1679,305 +1487,19 @@ function renderGP_Dipendenti() {
   return h;
 }
 
-// ===== QUADRO TURNI =====
-var GT_MESE = (new Date().getMonth() + 1);
-var GT_ANNO = new Date().getFullYear();
-var GT_STRUTTURA = "";
-var GT_FIGURA = "OSS";
-var GT_DATA = {};
-var GT_CELL = null;
-var GT_SELECTED_SHIFT = null;
-var GT_SAVING = false;
-
-var GT_SHIFTS = [
-  {code:"M",  desc:"Mattina",          orario:"7-14",           bg:"#FAC775", fg:"#633806"},
-  {code:"P",  desc:"Pomeriggio",        orario:"14-21",          bg:"#F0997B", fg:"#4A1B0C"},
-  {code:"N+", desc:"Notte lunga",       orario:"20-7",           bg:"#85B7EB", fg:"#042C53"},
-  {code:"N",  desc:"Notte",             orario:"21-7",           bg:"#B5D4F4", fg:"#042C53"},
-  {code:"G1", desc:"Giorno 1",          orario:"7-13+14-20",     bg:"#97C459", fg:"#173404"},
-  {code:"G2", desc:"Giorno 2",          orario:"7-14+15-20",     bg:"#C0DD97", fg:"#27500A"},
-  {code:"MN", desc:"Mattina+Notte",     orario:"Mattina+Notte",  bg:"#CECBF6", fg:"#26215C"},
-  {code:"PN", desc:"Pomeriggio+Notte",  orario:"Pom+Notte",      bg:"#F4C0D1", fg:"#4B1528"},
-  {code:"F",  desc:"Ferie",             orario:"—",              bg:"#9FE1CB", fg:"#04342C"},
-  {code:"AF", desc:"Affiancamento",     orario:"—",              bg:"#D3D1C7", fg:"#2C2C2A"},
-  {code:"C",  desc:"Coordinamento",     orario:"9-14",           bg:"#F7C1C1", fg:"#501313"},
-];
-
-var GT_MESI = ["","Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-var GT_DAYS_IN_MONTH = [0,31,28,31,30,31,30,31,31,30,31,30,31];
-function gtDaysInMonth(m, y) {
-  if(m===2 && ((y%4===0&&y%100!==0)||y%400===0)) return 29;
-  return GT_DAYS_IN_MONTH[m];
-}
-function gtWeekday(y, m, d) { return new Date(y, m-1, d).getDay(); }
-var GT_DN = ["D","L","M","M","G","V","S"];
-
-function gtShiftStyle(code) {
-  for(var i=0;i<GT_SHIFTS.length;i++) if(GT_SHIFTS[i].code===code) return GT_SHIFTS[i];
-  return null;
-}
-
-function gtDipendenti() {
-  if(!GT_STRUTTURA && !GT_FIGURA) return GP_DIPENDENTI;
-  var lista = [];
-  for(var i=0;i<GP_DIPENDENTI.length;i++) {
-    var d = GP_DIPENDENTI[i];
-    // Filtra per struttura: confronta per ID (strutturaId) o per nome
-    if(GT_STRUTTURA) {
-      var match = (d.strutturaId && d.strutturaId === GT_STRUTTURA) ||
-                  (d.struttura && d.struttura === GT_STRUTTURA);
-      if(!match) continue;
-    }
-    if(GT_FIGURA && d.mansione !== GT_FIGURA) continue;
-    lista.push(d);
-  }
-  return lista;
-}
-
-function gtCellKey(nome, giorno) { return nome + "||" + giorno; }
-
 function renderGP_Turni() {
-  var days = gtDaysInMonth(GT_MESE, GT_ANNO);
-  var dips = gtDipendenti();
-  // Strutture: usa il DB Strutture se caricato (oggetti {id, nome}), altrimenti ricava dai dipendenti
-  var strutture = [];
-  if(STRUTTURE.length > 0) {
-    for(var si0=0;si0<STRUTTURE.length;si0++) { if(STRUTTURE[si0].nome) strutture.push({id: STRUTTURE[si0].id, nome: STRUTTURE[si0].nome}); }
-  } else {
-    for(var si1=0;si1<GP_DIPENDENTI.length;si1++) {
-      var sId1 = GP_DIPENDENTI[si1].strutturaId || GP_DIPENDENTI[si1].struttura;
-      var sNome1 = GP_DIPENDENTI[si1].struttura || sId1;
-      if(sId1 && !strutture.find(function(x){return x.id===sId1;})) strutture.push({id:sId1, nome:sNome1});
-    }
-  }
-  var figure = ["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo"];
-
   var h = "";
-
-  // Stili inline per la griglia
-  h += "<style>";
-  h += ".gt-wrap{background:white;border-radius:var(--radius);overflow:hidden;margin-bottom:0.75rem}";
-  h += ".gt-table{border-collapse:collapse;width:100%;min-width:600px;font-size:11px}";
-  h += ".gt-table th{background:#F0F7F7;color:var(--text-mid);font-weight:800;padding:5px 3px;text-align:center;border:0.5px solid #D8ECEC;white-space:nowrap;font-size:10px;position:sticky;top:0;z-index:2}";
-  h += ".gt-table th.gt-name-th{text-align:left;padding-left:8px;min-width:110px;position:sticky;left:0;z-index:3;background:#F0F7F7}";
-  h += ".gt-table td.gt-name{position:sticky;left:0;background:white;z-index:1;font-weight:700;font-size:11px;padding:4px 6px;border:0.5px solid #D8ECEC;white-space:nowrap;color:var(--text-dark)}";
-  h += ".gt-table td.gt-cell{text-align:center;padding:2px;border:0.5px solid #D8ECEC;min-width:26px;cursor:pointer}";
-  h += ".gt-badge{display:inline-block;padding:2px 3px;border-radius:4px;font-weight:800;font-size:10px;min-width:22px;text-align:center;cursor:pointer;width:100%}";
-  h += ".gt-badge-empty{display:inline-block;width:100%;min-height:18px}";
-  h += ".gt-weekend{background:#FFF5F5}";
-  h += ".gt-legend{display:flex;flex-wrap:wrap;gap:6px;padding:10px;border-top:1px solid #E0ECEC}";
-  h += ".gt-leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-mid);font-weight:700}";
-  h += ".gt-leg-badge{padding:1px 6px;border-radius:3px;font-weight:800;font-size:10px}";
-  h += ".gt-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:flex-end;justify-content:center}";
-  h += ".gt-modal-bg.open{display:flex}";
-  h += ".gt-modal{background:white;border-radius:16px 16px 0 0;padding:1.5rem 1rem 2rem;width:100%;max-width:420px}";
-  h += ".gt-modal-title{font-size:16px;font-weight:800;color:var(--text-dark);margin-bottom:4px}";
-  h += ".gt-modal-sub{font-size:12px;color:var(--text-light);font-weight:600;margin-bottom:1rem}";
-  h += ".gt-shift-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}";
-  h += ".gt-shift-opt{padding:8px 4px;border-radius:8px;text-align:center;font-weight:800;font-size:11px;cursor:pointer;border:2px solid transparent;line-height:1.3}";
-  h += ".gt-shift-opt.sel{border-color:var(--teal-dark)!important}";
-  h += ".gt-shift-opt:hover{opacity:0.85}";
-  h += ".gt-modal-btns{display:flex;gap:8px}";
-  h += ".gt-btn-cancel{flex:1;padding:0.85rem;border-radius:30px;border:1.5px solid var(--text-mid);background:transparent;font-size:14px;font-weight:700;color:var(--text-dark);cursor:pointer;font-family:'Satoshi',sans-serif}";
-  h += ".gt-btn-confirm{flex:2;padding:0.85rem;border-radius:30px;border:none;background:var(--teal);font-size:14px;font-weight:800;color:white;cursor:pointer;font-family:'Satoshi',sans-serif}";
-  h += "</style>";
-
-  // Filtri
-  h += "<div class='section-label'><div class='section-title'>Quadro turni</div></div>";
-
-  // Riga 1: navigazione mese
-  h += "<div style='display:flex;align-items:center;justify-content:center;gap:6px;background:white;border-radius:20px;padding:6px 14px;margin-bottom:8px'>";
-  h += "<span onclick='gtPrevMese()' style='cursor:pointer;font-size:20px;color:var(--teal);font-weight:900;line-height:1'>‹</span>";
-  h += "<span style='font-size:13px;font-weight:800;color:var(--text-dark);min-width:110px;text-align:center'>" + GT_MESI[GT_MESE] + " " + GT_ANNO + "</span>";
-  h += "<span onclick='gtNextMese()' style='cursor:pointer;font-size:20px;color:var(--teal);font-weight:900;line-height:1'>›</span>";
+  h += "<div class='section-label'><div class='section-title'>Gestione turni</div></div>";
+  h += "<div class='timbra-card' style='text-align:center;padding:2rem'>";
+  h += "<div style='font-size:48px;margin-bottom:1rem'>📅</div>";
+  h += "<div style='font-size:16px;font-weight:800;color:var(--text-dark);margin-bottom:0.5rem'>Assegnazione turni</div>";
+  h += "<div style='font-size:13px;color:var(--text-light);font-weight:600;margin-bottom:1.5rem'>Seleziona dipendente, data e ciclo di turnazione</div>";
+  h += "<div style='background:var(--cyan-light);border-radius:var(--radius-sm);padding:1rem;font-size:13px;font-weight:700;color:var(--teal)'>🔧 Funzione in sviluppo — i turni si inseriscono direttamente su Notion nel DB Turni selezionando il ciclo di turnazione.</div>";
   h += "</div>";
-
-  // Riga 2: filtri struttura + figura
-  var filterStyle = "width:100%;padding:0.75rem 1rem;border-radius:var(--radius-sm);border:2px solid var(--cyan-light);background:var(--bg);font-size:14px;font-weight:700;color:var(--text-dark);font-family:Satoshi,sans-serif;outline:none;margin-bottom:8px;appearance:none";
-  h += "<select onchange='GT_STRUTTURA=this.value;render()' style='"+filterStyle+"'>";
-  h += "<option value=''>— Tutte le strutture —</option>";
-  for(var si2=0;si2<strutture.length;si2++) {
-    var sObj = typeof strutture[si2] === "object" ? strutture[si2] : {id: strutture[si2], nome: strutture[si2]};
-    var sId = sObj.id || sObj.nome;
-    var sNome = sObj.nome || sObj.id;
-    h += "<option value='"+sId+"'"+(GT_STRUTTURA===sId?" selected":"")+">"+sNome+"</option>";
-  }
-  h += "</select>";
-
-  h += "<select onchange='GT_FIGURA=this.value;render()' style='"+filterStyle+"'>";
-  h += "<option value=''>— Tutti i ruoli —</option>";
-  for(var fi=0;fi<figure.length;fi++) h += "<option value='"+figure[fi]+"'"+(GT_FIGURA===figure[fi]?" selected":"")+">"+figure[fi]+"</option>";
-  h += "</select>";
-
-  // Messaggio se nessun filtro selezionato
-  if(!GT_STRUTTURA || !GT_FIGURA) {
-    h += "<div style='background:var(--cyan-light);border-radius:var(--radius-sm);padding:1rem;font-size:13px;font-weight:700;color:var(--teal);text-align:center;margin-bottom:0.75rem'>Seleziona struttura e ruolo per visualizzare la griglia turni</div>";
-    if(!GT_STRUTTURA && !GT_FIGURA) return h;
-  }
-
-  // Griglia
-  h += "<div style='overflow-x:auto;border-radius:var(--radius);border:0.5px solid #D8ECEC'>";
-  h += "<table class='gt-table'><thead><tr>";
-  h += "<th class='gt-name-th'>Dipendente</th>";
-  for(var d=1;d<=days;d++) {
-    var wd = gtWeekday(GT_ANNO, GT_MESE, d);
-    var isWe = wd===0||wd===6;
-    h += "<th style='"+(isWe?"color:#C0392B":"")+";min-width:26px'>"+d+"<br><span style='font-weight:600;font-size:9px'>"+GT_DN[wd]+"</span></th>";
-  }
-  h += "</tr></thead><tbody>";
-
-  if(dips.length === 0) {
-    h += "<tr><td colspan='"+(days+1)+"' style='text-align:center;padding:2rem;color:var(--text-light);font-weight:700;font-size:13px'>Nessun dipendente trovato</td></tr>";
-  } else {
-    for(var ei=0;ei<dips.length;ei++) {
-      var emp = dips[ei];
-      var nomeCognome = (emp.nome||"") + (emp.cognome ? " "+emp.cognome : "");
-      h += "<tr><td class='gt-name'>"+nomeCognome+"</td>";
-      for(var di=1;di<=days;di++) {
-        var wd2 = gtWeekday(GT_ANNO, GT_MESE, di);
-        var isWe2 = wd2===0||wd2===6;
-        var key = gtCellKey(nomeCognome, di);
-        var code = GT_DATA[key] || "";
-        var sh = code ? gtShiftStyle(code) : null;
-        h += "<td class='gt-cell"+(isWe2?" gt-weekend":"")+"' onclick='gtOpenModal(\""+nomeCognome.replace(/"/g,"&quot;")+"\","+di+")'>";
-        if(sh) h += "<span class='gt-badge' style='background:"+sh.bg+";color:"+sh.fg+"'>"+code+"</span>";
-        else h += "<span class='gt-badge-empty'></span>";
-        h += "</td>";
-      }
-      h += "</tr>";
-    }
-  }
-  h += "</tbody></table></div>";
-
-  // Legenda
-  h += "<div class='gt-legend'>";
-  for(var si=0;si<GT_SHIFTS.length;si++) {
-    var s = GT_SHIFTS[si];
-    h += "<div class='gt-leg-item'><span class='gt-leg-badge' style='background:"+s.bg+";color:"+s.fg+"'>"+s.code+"</span>"+s.desc+"</div>";
-  }
-  h += "</div>";
-
-  // Bottone salva
-  h += "<button class='update-btn' style='background:var(--teal-dark)' onclick='gtSaveToNotion()'>"+(GT_SAVING?"Salvataggio...":"Salva su Notion")+"</button>";
-
-  // Modal selezione turno (bottom sheet)
-  h += "<div class='gt-modal-bg' id='gt-modal'>";
-  h += "<div class='gt-modal'>";
-  h += "<div class='gt-modal-title' id='gt-modal-title'>Modifica turno</div>";
-  h += "<div class='gt-modal-sub' id='gt-modal-sub'></div>";
-  h += "<div class='gt-shift-grid' id='gt-shift-grid'>";
-  for(var sj=0;sj<GT_SHIFTS.length;sj++) {
-    var sopt = GT_SHIFTS[sj];
-    h += "<div class='gt-shift-opt' id='gtopt-"+sopt.code+"' style='background:"+sopt.bg+";color:"+sopt.fg+"' onclick='gtSelectShift(\""+sopt.code+"\")'>";
-    h += "<div style='font-size:13px'>"+sopt.code+"</div>";
-    h += "<div style='font-size:9px;opacity:0.8'>"+sopt.orario+"</div></div>";
-  }
-  h += "<div class='gt-shift-opt' style='background:#F0F7F7;color:var(--text-mid)' onclick='gtSelectShift(\"\")'>✕<br><span style='font-size:9px'>Vuoto</span></div>";
-  h += "</div>";
-  h += "<div class='gt-modal-btns'>";
-  h += "<button class='gt-btn-cancel' onclick='gtCloseModal()'>Annulla</button>";
-  h += "<button class='gt-btn-confirm' onclick='gtConfirmShift()'>Conferma</button>";
-  h += "</div></div></div>";
-
+  h += "<div class='section-label' style='margin-top:1rem'><div class='section-title'>Cicli di turnazione</div>";
+  h += "<div style='background:var(--teal);color:white;border-radius:20px;padding:0.4rem 1rem;font-size:12px;font-weight:800;cursor:pointer' onclick=\"alert('Funzione in arrivo!')\">+ Nuovo ciclo</div></div>";
+  h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700;font-size:13px'>Inserisci i cicli di turnazione direttamente su Notion nel DB \"Cicli di turnazione\"</div></div>";
   return h;
-}
-
-function gtPrevMese() {
-  GT_MESE--;
-  if(GT_MESE<1){GT_MESE=12;GT_ANNO--;}
-  render();
-}
-function gtNextMese() {
-  GT_MESE++;
-  if(GT_MESE>12){GT_MESE=1;GT_ANNO++;}
-  render();
-}
-function gtOpenModal(nome, giorno) {
-  GT_CELL = {nome:nome, giorno:giorno};
-  var key = gtCellKey(nome, giorno);
-  GT_SELECTED_SHIFT = GT_DATA[key] || "";
-  var wd = gtWeekday(GT_ANNO, GT_MESE, giorno);
-  var dnFull = ["Domenica","Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato"];
-  document.getElementById("gt-modal-title").textContent = giorno + " " + ["","Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"][GT_MESE];
-  document.getElementById("gt-modal-sub").textContent = nome + " · " + dnFull[wd];
-  document.querySelectorAll(".gt-shift-opt").forEach(function(el){ el.classList.remove("sel"); });
-  if(GT_SELECTED_SHIFT) {
-    var el = document.getElementById("gtopt-"+GT_SELECTED_SHIFT);
-    if(el) el.classList.add("sel");
-  }
-  document.getElementById("gt-modal").classList.add("open");
-}
-function gtSelectShift(code) {
-  GT_SELECTED_SHIFT = code;
-  document.querySelectorAll(".gt-shift-opt").forEach(function(el){ el.classList.remove("sel"); });
-  if(code) { var el = document.getElementById("gtopt-"+code); if(el) el.classList.add("sel"); }
-  else { document.querySelectorAll(".gt-shift-opt").forEach(function(el){ if(el.textContent.trim().startsWith("✕")) el.classList.add("sel"); }); }
-}
-function gtCloseModal() {
-  document.getElementById("gt-modal").classList.remove("open");
-  GT_CELL = null;
-}
-function gtConfirmShift() {
-  if(GT_CELL) {
-    var key = gtCellKey(GT_CELL.nome, GT_CELL.giorno);
-    GT_DATA[key] = GT_SELECTED_SHIFT || "";
-    gtCloseModal();
-    render();
-  }
-}
-function gtSaveToNotion() {
-  if(!GT_STRUTTURA || !GT_FIGURA) {
-    alert("Seleziona struttura e ruolo prima di salvare.");
-    return;
-  }
-  var dips = gtDipendenti();
-  if(dips.length === 0) {
-    alert("Nessun dipendente da salvare.");
-    return;
-  }
-  GT_SAVING = true;
-  render();
-
-  // Costruisce array turni per tutti i dipendenti visibili
-  var turni = dips.map(function(emp) {
-    var nomeCognome = (emp.nome||"") + (emp.cognome ? " "+emp.cognome : "");
-    var giorni = {};
-    var days = gtDaysInMonth(GT_MESE, GT_ANNO);
-    for(var d=1; d<=days; d++) {
-      var pad = d < 10 ? "0"+d : ""+d;
-      giorni["G"+pad] = GT_DATA[gtCellKey(nomeCognome, d)] || "";
-    }
-    return {
-      dipendente: nomeCognome,
-      pageId: emp.pageId || "",
-      giorni: giorni
-    };
-  });
-
-  var payload = {
-    struttura: GT_STRUTTURA,
-    figura: GT_FIGURA,
-    mese: GT_MESI[GT_MESE],
-    anno: GT_ANNO,
-    turni: turni
-  };
-
-  fetch(TURNI_SAVE_URL, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify(payload)
-  })
-  .then(function(r){ return r.text(); })
-  .then(function(resp){
-    GT_SAVING = false;
-    render();
-    alert("Turni salvati su Notion!");
-  })
-  .catch(function(e){
-    GT_SAVING = false;
-    render();
-    alert("Errore nel salvataggio: " + e.message);
-  });
 }
 
 function renderGP_Timbrature() {
