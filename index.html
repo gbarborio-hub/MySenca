@@ -142,13 +142,13 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 <div id="root"></div>
 <script>
 
-var AUTH_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/auth";
+var AUTH_URL = "https://senca-hub.duckdns.org/webhook/auth";
 var DATI_URL = "https://hook.eu1.make.com/y882re16wkatcqdk7zevhr24uknk78v4";
 var PRIVACY_URL = "https://hook.eu1.make.com/dmdvislgavso2dhh7ccp5iy4pa69vuox";
 var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
-var TIMBRA_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/timbra";
-var STRUTTURE_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/strutture";
-var PROFILO_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/profilo";
+var TIMBRA_URL = "https://senca-hub.duckdns.org/webhook/timbra";
+var STRUTTURE_URL = "https://senca-hub.duckdns.org/webhook/strutture";
+var PROFILO_URL = "https://senca-hub.duckdns.org/webhook/profilo";
 
 var PROFILO_DIP = null;
 
@@ -187,10 +187,10 @@ function fetchProfilo() {
   })
   .catch(function(e){ console.log("Errore fetch profilo:", e); });
 }
-var TURNI_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/turni-read";
+var TURNI_URL = "https://senca-hub.duckdns.org/webhook/turni-read";
 var CICLO_URL = "https://hook.eu1.make.com/amh2svifhurdxby9dc2b9fms2fnk9f6x";
 var CONTATTI_URL = "https://hook.eu1.make.com/3pkwi2nqujb04dfklwql6tpa52fxq4rj";
-var SEGNALAZIONE_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/segnalazione";
+var SEGNALAZIONE_URL = "https://senca-hub.duckdns.org/webhook/segnalazione";
 
 // ===== GESTIONE PERSONALE =====
 var GP_DIPENDENTI = [];
@@ -200,7 +200,7 @@ var GP_VIEW = "dipendenti";
 var GP_DIP_DETAIL = null;
 
 function fetchDipendentiGP() {
-  fetch("https://quad-masters-clark-mistakes.trycloudflare.com/webhook/dipendenti", {
+  fetch("https://senca-hub.duckdns.org/webhook/dipendenti", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({action:"get_dipendenti"})
@@ -231,7 +231,7 @@ function fetchDipendentiGP() {
 }
 
 function fetchTimbratureGP() {
-  fetch("https://quad-masters-clark-mistakes.trycloudflare.com/webhook/gp-timbrature", {
+  fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({struttura:""})
@@ -263,7 +263,7 @@ function fetchTimbratureGP() {
 }
 
 function fetchFerieRichiesteGP() {
-  fetch("https://quad-masters-clark-mistakes.trycloudflare.com/webhook/gp-ferie", {
+  fetch("https://senca-hub.duckdns.org/webhook/gp-ferie", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({struttura:""})
@@ -291,8 +291,8 @@ function fetchFerieRichiesteGP() {
   .catch(function(e){ console.log("Errore fetch ferie GP:", e); });
 }
 var FERIE_SALDO_URL = "https://hook.eu1.make.com/vltcargb3vtf232f931qb7jm22wij60w";
-var FERIE_RICHIESTA_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/ferie-richiesta";
-var FERIE_LETTURA_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/ferie-lettura";
+var FERIE_RICHIESTA_URL = "https://senca-hub.duckdns.org/webhook/ferie-richiesta";
+var FERIE_LETTURA_URL = "https://senca-hub.duckdns.org/webhook/ferie-lettura";
 
 var FERIE_SALDO = null;
 var FERIE_RICHIESTE = [];
@@ -405,12 +405,12 @@ function fetchContatti() {
   })
   .catch(function(e){ console.log("Errore fetch contatti:", e); });
 }
-var TIMBRATURE_READ_URL = "https://quad-masters-clark-mistakes.trycloudflare.com/webhook/timbrature-read";
+var TIMBRATURE_READ_URL = "https://senca-hub.duckdns.org/webhook/timbrature-read";
 
 var TIMBRATURE_DIP = [];
 
 function fetchTimbrature() {
-  fetch("https://quad-masters-clark-mistakes.trycloudflare.com/webhook/timbrature-read", {
+  fetch("https://senca-hub.duckdns.org/webhook/timbrature-read", {
     method: "POST",
     headers:{"Content-Type":"application/json"},
     body: JSON.stringify({username: S.user.username || S.user.nome})
