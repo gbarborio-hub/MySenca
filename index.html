@@ -369,16 +369,17 @@ function fetchDipendentiGP() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       GP_DIPENDENTI = raw.map(function(item) {
-        var nome = item.nome || item.name || "";
-        var cognome = item.cognome || "";
-        var email = item.email || "";
-        var telefono = item.telefono || "";
-        var mansione = item.mansione || "";
-        var struttura = "";
-        if(typeof p["Struttura principale"] === "string") struttura = p["Struttura principale"];
-        else if(p["Struttura principale"] && p["Struttura principale"].name) struttura = p["Struttura principale"].name;
-        var contratto = (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : "";
-        var username = typeof p.Username === "string" ? p.Username : (p.Username && p.Username[0] ? p.Username[0].plain_text || "" : "");
+        var p = (item && item.properties_value) ? item.properties_value : item;
+        function rt(v){ if(typeof v==="string") return v; if(Array.isArray(v)&&v[0]) return v[0].plain_text||(v[0].text&&v[0].text.content)||""; return ""; }
+        function sl(v){ if(typeof v==="string") return v; if(v&&v.name) return v.name; return ""; }
+        var nome = item.nome || item.name || rt(p.Nome) || rt(p.Name) || "";
+        var cognome = item.cognome || rt(p.Cognome) || "";
+        var email = item.email || rt(p.Email) || (p.Email&&p.Email.email) || "";
+        var telefono = item.telefono || rt(p.Telefono) || (p.Telefono&&p.Telefono.phone_number) || "";
+        var mansione = item.mansione || rt(p.Mansione) || sl(p.Mansione) || "";
+        var struttura = item.struttura || sl(p["Struttura principale"]) || rt(p["Struttura principale"]) || sl(p.Struttura) || rt(p.Struttura) || "";
+        var contratto = item.contratto || sl(p["Tipo contratto"]) || "";
+        var username = item.username || rt(p.Username) || "";
         var pageId = item["Page ID"] || item.id || "";
         return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, contratto:contratto, username:username, pageId:pageId};
       }).filter(function(d){ return d.nome; });
@@ -691,15 +692,15 @@ function fetchStrutture() {
       var raw = Array.isArray(data) ? data : [data];
       STRUTTURE = raw.map(function(item) {
         var p = (item && item.properties_value) ? item.properties_value : item;
-        var nome = "";
-        if(p["Nome struttura"] && Array.isArray(p["Nome struttura"]) && p["Nome struttura"][0]) {
+        var nome = item.nome || "";
+        if(!nome && p["Nome struttura"] && Array.isArray(p["Nome struttura"]) && p["Nome struttura"][0]) {
           nome = p["Nome struttura"][0].plain_text || p["Nome struttura"][0].text && p["Nome struttura"][0].text.content || "";
-        } else if(typeof p["Nome struttura"] === "string") {
+        } else if(!nome && typeof p["Nome struttura"] === "string") {
           nome = p["Nome struttura"];
         }
-        var lat = p.Latitudine || 0;
-        var lng = p.Longitudine || 0;
-        var raggio = p["Raggio GPS (metri)"] || 200;
+        var lat = item.lat || p.Latitudine || 0;
+        var lng = item.lng || p.Longitudine || 0;
+        var raggio = item.raggio || p["Raggio GPS (metri)"] || 200;
         var id = item["Page ID"] || item.id || nome;
         return {id:id, nome:nome, lat:lat, lng:lng, raggio:raggio};
       }).filter(function(s){ return s.nome; });
