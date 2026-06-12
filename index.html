@@ -214,23 +214,22 @@ function fetchProfilo() {
   .then(function(text){
     try {
       var data = JSON.parse(text);
+      if(Array.isArray(data)) data = data[0] || {};
       var p = (data && data.properties_value) ? data.properties_value : data;
-      var nome = "";
-      if(p.Nome && Array.isArray(p.Nome) && p.Nome[0]) nome = p.Nome[0].plain_text || p.Nome[0].text && p.Nome[0].text.content || "";
-      else if(typeof p.Nome === "string") nome = p.Nome;
-      var cognome = typeof p.Cognome === "string" ? p.Cognome : (p.Cognome && p.Cognome[0] ? p.Cognome[0].plain_text || "" : "");
-      var email = p.Email || "";
-      var telefono = p.Telefono || "";
-      var mansione = (p.Mansione && p.Mansione.name) ? p.Mansione.name : "";
-      var contratto = (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : "";
-      var struttura = "";
-      if(typeof p["Struttura principale"] === "string") struttura = p["Struttura principale"];
-      else if(p["Struttura principale"] && Array.isArray(p["Struttura principale"]) && p["Struttura principale"][0]) struttura = p["Struttura principale"][0].plain_text || p["Struttura principale"][0].text && p["Struttura principale"][0].text.content || "";
-      else if(p["Struttura principale"] && p["Struttura principale"].name) struttura = p["Struttura principale"].name;
-      var cf = "";
-      if(typeof p["Codice fiscale"] === "string") cf = p["Codice fiscale"];
-      else if(p["Codice fiscale"] && Array.isArray(p["Codice fiscale"]) && p["Codice fiscale"][0]) cf = p["Codice fiscale"][0].plain_text || p["Codice fiscale"][0].text && p["Codice fiscale"][0].text.content || "";
-      var nascita = (p["Data di nascita"] && p["Data di nascita"].start) ? p["Data di nascita"].start.split("T")[0] : "";
+      function rt(v){ if(typeof v==="string") return v; if(Array.isArray(v)&&v[0]) return v[0].plain_text||(v[0].text&&v[0].text.content)||""; return ""; }
+      function sl(v){ if(typeof v==="string") return v; if(v&&v.name) return v.name; return ""; }
+      var nome = p.nome || rt(p.Nome) || "";
+      var cognome = p.cognome || rt(p.Cognome) || "";
+      var email = p.email || (typeof p.Email==="string"?p.Email:(p.Email&&p.Email.email)||"") || "";
+      var telefono = p.telefono || (typeof p.Telefono==="string"?p.Telefono:(p.Telefono&&p.Telefono.phone_number)||"") || "";
+      var mansione = p.mansione || sl(p.Mansione) || rt(p.Mansione) || "";
+      var contratto = p.contratto || sl(p["Tipo contratto"]) || "";
+      var struttura = p.struttura || rt(p["Struttura principale"]) || sl(p["Struttura principale"]) || "";
+      var cf = p.cf || rt(p["Codice fiscale"]) || "";
+      var nascita = "";
+      if(p.nascita && p.nascita.start) nascita = p.nascita.start.split("T")[0];
+      else if(typeof p.nascita === "string") nascita = p.nascita.split("T")[0];
+      else if(p["Data di nascita"] && p["Data di nascita"].start) nascita = p["Data di nascita"].start.split("T")[0];
       PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita};
       render();
     } catch(e) {
