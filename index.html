@@ -580,10 +580,13 @@ function fetchTimbrature() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       TIMBRATURE_DIP = raw.map(function(item) {
+        var dt = item.data;
+        if(dt && typeof dt !== "string") dt = dt.start || dt.date || "";
+        dt = dt ? String(dt).split("T")[0] : "";
         return {
           struttura: item.struttura || "",
           dipendente: item.dipendente || "",
-          data: item.data || "",
+          data: dt,
           oraEntrata: item.oraEntrata || "",
           oraUscita: item.oraUscita || "",
           oreTotali: parseFloat(item.oreLavorate) || 0,
@@ -746,6 +749,9 @@ function fmtDate(d) {
 }
 function fmtDateIt(d) {
   if(!d) return "—";
+  if(typeof d !== "string") d = (d && (d.start || d.date)) || "";
+  if(!d) return "—";
+  d = String(d).split("T")[0];
   var p = d.split("-");
   if(p.length < 3) return d;
   return p[2]+"/"+p[1]+"/"+p[0];
@@ -1101,9 +1107,9 @@ function renderDipTimbra() {
   } else {
     for(var j=0; j<ultime.length; j++) {
       var tb = ultime[j];
-      var appBg = tb.approvazione==="Regolare"?"#D5F0E0":tb.approvazione==="Approvato"?"#D5F0E0":tb.approvazione==="Non approvato"?"#FCE4E4":"#FEF3CD";
-      var appCol = tb.approvazione==="Regolare"?"#1A6B3A":tb.approvazione==="Approvato"?"#1A6B3A":tb.approvazione==="Non approvato"?"#7A1A1A":"#7A5800";
-      var appLabel = tb.approvazione==="Necessaria approvazione"?"⏳ In attesa di approvazione":tb.approvazione==="Approvato"?"✅ Turno non previsto approvato":tb.approvazione==="Non approvato"?"❌ Non approvato":"✅ Regolare";
+      var appBg = tb.approvazione==="Regolare"?"#D5F0E0":tb.approvazione==="Approvata"?"#D5F0E0":tb.approvazione==="Approvato"?"#D5F0E0":tb.approvazione==="Non approvato"?"#FCE4E4":"#FEF3CD";
+      var appCol = tb.approvazione==="Regolare"?"#1A6B3A":tb.approvazione==="Approvata"?"#1A6B3A":tb.approvazione==="Approvato"?"#1A6B3A":tb.approvazione==="Non approvato"?"#7A1A1A":"#7A5800";
+      var appLabel = tb.approvazione==="Necessaria approvazione"?"⏳ In attesa di approvazione":tb.approvazione==="Approvata"?"✅ Approvata":tb.approvazione==="Approvato"?"✅ Turno non previsto approvato":tb.approvazione==="Non approvato"?"❌ Non approvato":"✅ Regolare";
       h += "<div class='ana-row'>";
       h += "<div style='flex:1'>";
       h += "<div class='ana-label'>" + fmtDateIt(tb.data) + " · " + (tb.struttura||"—") + "</div>";
@@ -1810,8 +1816,8 @@ function renderGP_Timbrature() {
     h += "<div class='ana-card'>";
     for(var j=0; j<Math.min(10, altre.length); j++) {
       var tb = altre[j];
-      var appBg = tb.approvazione==="Regolare"?"#D5F0E0":tb.approvazione==="Approvato"?"#D5F0E0":"#FCE4E4";
-      var appCol = tb.approvazione==="Regolare"?"#1A6B3A":tb.approvazione==="Approvato"?"#1A6B3A":"#7A1A1A";
+      var appBg = tb.approvazione==="Regolare"?"#D5F0E0":tb.approvazione==="Approvata"?"#D5F0E0":tb.approvazione==="Approvato"?"#D5F0E0":"#FCE4E4";
+      var appCol = tb.approvazione==="Regolare"?"#1A6B3A":tb.approvazione==="Approvata"?"#1A6B3A":tb.approvazione==="Approvato"?"#1A6B3A":"#7A1A1A";
       h += "<div style='padding:0.85rem 1rem;border-bottom:1px solid var(--bg)'>";
       h += "<div style='display:flex;justify-content:space-between;align-items:center'>";
       h += "<div><div style='font-size:13px;font-weight:700;color:var(--text-dark)'>" + tb.dipendente + "</div>";
