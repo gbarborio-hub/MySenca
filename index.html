@@ -1149,9 +1149,15 @@ function doTimbraEntrata() {
       var t = turniOggi[i];
       if(!t.oraInizio) continue;
       var parti = t.oraInizio.split(":");
-      var minutiInizio = parseInt(parti[0]) * 60 + parseInt(parti[1]);
-      var diff = minutiAttuali - minutiInizio;
-      if(diff >= -30 && diff <= 30) { turnoValido = t; break; }
+      var minutiInizio = parseInt(parti[0]) * 60 + (parseInt(parti[1]) || 0);
+      var minutiFine = minutiInizio + 480; // default 8h se manca l'ora fine
+      if(t.oraFine) {
+        var pf = t.oraFine.split(":");
+        minutiFine = parseInt(pf[0]) * 60 + (parseInt(pf[1]) || 0);
+      }
+      if(minutiFine <= minutiInizio) minutiFine += 1440; // turno notturno oltre mezzanotte
+      var lo = minutiInizio - 29, hi = minutiFine + 29;
+      if((minutiAttuali >= lo && minutiAttuali <= hi) || (minutiAttuali + 1440 >= lo && minutiAttuali + 1440 <= hi)) { turnoValido = t; break; }
     }
     if(!turnoValido) fuoriTurno = true;
   } else {
