@@ -231,6 +231,7 @@ function fetchProfilo() {
       else if(typeof p.nascita === "string") nascita = p.nascita.split("T")[0];
       else if(p["Data di nascita"] && p["Data di nascita"].start) nascita = p["Data di nascita"].start.split("T")[0];
       PROFILO_DIP = {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, contratto:contratto, struttura:struttura, cf:cf, nascita:nascita};
+      fetchTurni();
       render();
     } catch(e) {
       console.log("Errore fetch profilo:", e);
@@ -637,10 +638,12 @@ var INCARICATI = [];
 var TURNI_DIP = [];
 
 function fetchTurni() {
+  var nomeTurni = S.user.nome || "";
+  if(PROFILO_DIP && PROFILO_DIP.nome) nomeTurni = (PROFILO_DIP.nome + " " + (PROFILO_DIP.cognome||"")).trim();
   fetch(TURNI_URL, {
     method: "POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({nome: S.user.nome})
+    body: JSON.stringify({nome: nomeTurni})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
