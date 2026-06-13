@@ -1155,7 +1155,8 @@ function renderDipTimbra() {
     h += "<div class='timbra-title'>Timbratura dimenticata</div>";
     h += "<div style='font-size:12px;color:var(--text-light);font-weight:700;margin-bottom:0.75rem'>Inserisci gli orari reali. La timbratura verrà inviata al direttore del personale per l'approvazione.</div>";
     h += "<label class='dim-lbl'>Data</label>";
-    h += "<input type='date' id='dim-data' class='dim-in' value='"+(new Date().toISOString().split("T")[0])+"'>";
+    var dimOggi = (function(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})();
+    h += "<input type='date' id='dim-data' class='dim-in' max='"+dimOggi+"' value='"+dimOggi+"'>";
     h += "<label class='dim-lbl'>Struttura</label>";
     h += "<select id='dim-struttura' class='dim-in'><option value=''>-- Seleziona struttura --</option>";
     for(var i=0;i<STRUTTURE.length;i++){ h += "<option value=\""+STRUTTURE[i].nome+"\">"+STRUTTURE[i].nome+"</option>"; }
@@ -1212,6 +1213,12 @@ function inviaTimbraturaDimenticata() {
   var mu = parseInt(pu[0])*60 + parseInt(pu[1]);
   if(mu <= me) mu += 1440; // turno a cavallo della mezzanotte
   var oreTotali = Math.round((mu - me)/60*100)/100;
+  // Blocco orari nel futuro: l'entrata e l'uscita reali non possono superare adesso
+  var ora = new Date();
+  var entrataDt = new Date(data + "T" + entrata + ":00");
+  var uscitaDt = new Date(entrataDt.getTime() + (mu - me)*60000);
+  if(entrataDt > ora){ S.dimMsg = "⚠️ L'orario di entrata non può essere nel futuro."; S.dimMsgType="err"; render(); return; }
+  if(uscitaDt > ora){ S.dimMsg = "⚠️ Non puoi registrare un'uscita nel futuro: il turno non è ancora terminato."; S.dimMsgType="err"; render(); return; }
   S.dimMsg = "⏳ Invio in corso..."; S.dimMsgType="warn"; render();
   fetch(TIMBRA_URL, {
     method:"POST", headers:{"Content-Type":"application/json"},
