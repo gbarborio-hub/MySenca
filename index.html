@@ -146,6 +146,10 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .gpt-refresh{background:var(--cyan);color:white;border:none;border-radius:var(--radius-sm);padding:0.55rem 0.9rem;font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif;white-space:nowrap}
 .gpt-refresh:disabled{opacity:0.6;cursor:default}
 .turni-past-btn{width:100%;padding:0.7rem;margin:0.5rem 0;border:1.5px dashed var(--text-light);border-radius:var(--radius-sm);background:transparent;color:var(--text-mid);font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
+.dim-toggle{width:100%;padding:0.8rem;border:1.5px dashed var(--coral);border-radius:var(--radius-sm);background:transparent;color:var(--coral);font-size:14px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
+.dim-lbl{display:block;font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin:0.5rem 0 0.25rem}
+.dim-in{width:100%;box-sizing:border-box;padding:0.6rem;border:1.5px solid var(--cyan-light);border-radius:var(--radius-sm);font-size:14px;font-weight:600;color:var(--text-dark);font-family:"Satoshi",sans-serif;background:var(--white);outline:none}
+.dim-cancel{width:100%;padding:0.6rem;margin-top:0.5rem;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-light);font-size:13px;font-weight:700;cursor:pointer;font-family:"Satoshi",sans-serif}
 .gpt-grid-wrap{overflow:auto;background:var(--white);border-radius:var(--radius);box-shadow:0 2px 8px rgba(13,89,85,0.06);max-height:62vh;margin-bottom:0.75rem;-webkit-overflow-scrolling:touch}
 .gpt-table{border-collapse:separate;border-spacing:0;font-size:11px;min-width:max-content}
 .gpt-table th{position:sticky;top:0;background:var(--teal-dark);color:white;font-weight:800;padding:6px 4px;min-width:30px;text-align:center;z-index:2;font-size:10.5px}
@@ -1143,6 +1147,31 @@ function renderDipTimbra() {
   if(S.timbraMsg) h += "<div class=\"timbra-status " + S.timbraMsgType + "\">" + S.timbraMsg + "</div>";
   h += "</div>";
 
+  // ===== Timbratura dimenticata =====
+  h += "<div class='timbra-card'>";
+  if(!S.dimOpen){
+    h += "<button class='dim-toggle' onclick=\"S.dimOpen=true;S.dimMsg=null;render()\">🕓 Ho dimenticato di timbrare</button>";
+  } else {
+    h += "<div class='timbra-title'>Timbratura dimenticata</div>";
+    h += "<div style='font-size:12px;color:var(--text-light);font-weight:700;margin-bottom:0.75rem'>Inserisci gli orari reali. La timbratura verrà inviata al direttore del personale per l'approvazione.</div>";
+    h += "<label class='dim-lbl'>Data</label>";
+    h += "<input type='date' id='dim-data' class='dim-in' value='"+(new Date().toISOString().split("T")[0])+"'>";
+    h += "<label class='dim-lbl'>Struttura</label>";
+    h += "<select id='dim-struttura' class='dim-in'><option value=''>-- Seleziona struttura --</option>";
+    for(var i=0;i<STRUTTURE.length;i++){ h += "<option value=\""+STRUTTURE[i].nome+"\">"+STRUTTURE[i].nome+"</option>"; }
+    h += "</select>";
+    h += "<div style='display:flex;gap:0.5rem'>";
+    h += "<div style='flex:1'><label class='dim-lbl'>Ora entrata</label><input type='time' id='dim-entrata' class='dim-in'></div>";
+    h += "<div style='flex:1'><label class='dim-lbl'>Ora uscita</label><input type='time' id='dim-uscita' class='dim-in'></div>";
+    h += "</div>";
+    h += "<label class='dim-lbl'>Motivo (facoltativo)</label>";
+    h += "<input type='text' id='dim-motivo' class='dim-in' placeholder='Es. dimenticanza, problema GPS...'>";
+    if(S.dimMsg) h += "<div class='timbra-status "+S.dimMsgType+"'>"+S.dimMsg+"</div>";
+    h += "<button class='timbra-btn entrata' style='margin-top:0.5rem' onclick='inviaTimbraturaDimenticata()'>📤 Invia per approvazione</button>";
+    h += "<button class='dim-cancel' onclick=\"S.dimOpen=false;S.dimMsg=null;render()\">Annulla</button>";
+  }
+  h += "</div>";
+
   h += "<div class='timbra-card'>";
   h += "<div class='timbra-title'>Ultime timbrature</div>";
   var ultime = TIMBRATURE_DIP.slice().sort(function(a,b){ return a.data > b.data ? -1 : 1; }).slice(0,5);
@@ -1169,6 +1198,51 @@ function renderDipTimbra() {
   return h;
 }
 
+function inviaTimbraturaDimenticata() {
+  var data = (document.getElementById("dim-data")||{}).value || "";
+  var struttura = (document.getElementById("dim-struttura")||{}).value || "";
+  var entrata = (document.getElementById("dim-entrata")||{}).value || "";
+  var uscita = (document.getElementById("dim-uscita")||{}).value || "";
+  var motivo = (document.getElementById("dim-motivo")||{}).value || "";
+  if(!data || !struttura || !entrata || !uscita){
+    S.dimMsg = "⚠️ Compila data, struttura, ora entrata e ora uscita."; S.dimMsgType="err"; render(); return;
+  }
+  var pe = entrata.split(":"), pu = uscita.split(":");
+  var me = parseInt(pe[0])*60 + parseInt(pe[1]);
+  var mu = parseInt(pu[0])*60 + parseInt(pu[1]);
+  if(mu <= me) mu += 1440; // turno a cavallo della mezzanotte
+  var oreTotali = Math.round((mu - me)/60*100)/100;
+  S.dimMsg = "⏳ Invio in corso..."; S.dimMsgType="warn"; render();
+  fetch(TIMBRA_URL, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      nome: S.user.nome,
+      username: S.user.username || "",
+      struttura: struttura,
+      data: data,
+      oraEntrata: entrata,
+      oraUscita: uscita,
+      oreTotali: oreTotali,
+      stato: "Dimenticata",
+      approvazione: "Necessaria approvazione",
+      turno: "",
+      note: motivo ? ("Timbratura dimenticata - " + motivo) : "Timbratura dimenticata",
+      lat: null, lng: null
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(){
+    S.dimOpen = false;
+    S.dimMsg = null;
+    S.timbraMsg = "✅ Timbratura inviata. In attesa di approvazione del personale.";
+    S.timbraMsgType = "ok";
+    fetchTimbrature();
+    render();
+  })
+  .catch(function(){
+    S.dimMsg = "⚠️ Errore nell'invio. Riprova."; S.dimMsgType="err"; render();
+  });
+}
 function doTimbraEntrata() {
   var strutId = S.timbraStruttura;
   if(!strutId) {
