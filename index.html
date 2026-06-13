@@ -413,7 +413,7 @@ function fetchTimbratureGP() {
           oraEntrata: item.oraEntrata || "",
           oraUscita: item.oraUscita || "",
           oreTotali: parseFloat(item.oreLavorate) || 0,
-          approvazione: item.approvazione || "Approvata",
+          approvazione: item.approvazione || "Regolare",
           eliminata: item.eliminata || false,
           eliminataDa: item.eliminataDa || "",
           pageId: item.id || ""
@@ -595,7 +595,7 @@ function fetchTimbrature() {
           oraEntrata: item.oraEntrata || "",
           oraUscita: item.oraUscita || "",
           oreTotali: parseFloat(item.oreLavorate) || 0,
-          approvazione: item.approvazione || "Approvata",
+          approvazione: item.approvazione || "Regolare",
           pageId: item.id || ""
         };
       }).filter(function(t){ return t.data; });
@@ -1143,9 +1143,9 @@ function renderDipTimbra() {
   } else {
     for(var j=0; j<ultime.length; j++) {
       var tb = ultime[j];
-      var appBg = tb.approvazione==="Regolare"?"#D5F0E0":tb.approvazione==="Approvata"?"#D5F0E0":tb.approvazione==="Approvato"?"#D5F0E0":tb.approvazione==="Non approvato"?"#FCE4E4":"#FEF3CD";
-      var appCol = tb.approvazione==="Regolare"?"#1A6B3A":tb.approvazione==="Approvata"?"#1A6B3A":tb.approvazione==="Approvato"?"#1A6B3A":tb.approvazione==="Non approvato"?"#7A1A1A":"#7A5800";
-      var appLabel = tb.approvazione==="Necessaria approvazione"?"⏳ In attesa di approvazione":tb.approvazione==="Approvata"?"✅ Approvata":tb.approvazione==="Approvato"?"✅ Turno non previsto approvato":tb.approvazione==="Non approvato"?"❌ Non approvato":"✅ Regolare";
+      var appBg = tb.approvazione==="Necessaria approvazione"?"#FEF3CD":(tb.approvazione==="Rifiutata"||tb.approvazione==="Rifiutato")?"#FCE4E4":"#D5F0E0";
+      var appCol = tb.approvazione==="Necessaria approvazione"?"#7A5800":(tb.approvazione==="Rifiutata"||tb.approvazione==="Rifiutato")?"#7A1A1A":"#1A6B3A";
+      var appLabel = tb.approvazione==="Necessaria approvazione"?"⏳ In attesa di approvazione":tb.approvazione==="Approvata"?"✅ Approvata":(tb.approvazione==="Rifiutata"||tb.approvazione==="Rifiutato")?"❌ Rifiutato":"✅ Regolare";
       h += "<div class='ana-row'>";
       h += "<div style='flex:1'>";
       h += "<div class='ana-label'>" + fmtDateIt(tb.data) + " · " + (tb.struttura||"—") + "</div>";
@@ -1836,8 +1836,8 @@ function renderGP_Timbrature() {
     h += "<div class='ana-card'>";
     for(var j=0; j<Math.min(10, altre.length); j++) {
       var tb = altre[j];
-      var appBg = tb.approvazione==="Regolare"?"#D5F0E0":tb.approvazione==="Approvata"?"#D5F0E0":tb.approvazione==="Approvato"?"#D5F0E0":"#FCE4E4";
-      var appCol = tb.approvazione==="Regolare"?"#1A6B3A":tb.approvazione==="Approvata"?"#1A6B3A":tb.approvazione==="Approvato"?"#1A6B3A":"#7A1A1A";
+      var appBg = tb.approvazione==="Necessaria approvazione"?"#FEF3CD":(tb.approvazione==="Rifiutata"||tb.approvazione==="Rifiutato")?"#FCE4E4":"#D5F0E0";
+      var appCol = tb.approvazione==="Necessaria approvazione"?"#7A5800":(tb.approvazione==="Rifiutata"||tb.approvazione==="Rifiutato")?"#7A1A1A":"#1A6B3A";
       h += "<div style='padding:0.85rem 1rem;border-bottom:1px solid var(--bg)'>";
       h += "<div style='display:flex;justify-content:space-between;align-items:center'>";
       h += "<div><div style='font-size:13px;font-weight:700;color:var(--text-dark)'>" + tb.dipendente + "</div>";
