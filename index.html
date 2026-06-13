@@ -143,6 +143,8 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .gpt-legend{display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.75rem;align-items:center}
 .gpt-chip{padding:0.3rem 0.7rem;border-radius:14px;font-size:11.5px;font-weight:800;color:white;white-space:nowrap}
 .gpt-legend-btn{padding:0.3rem 0.8rem;border-radius:14px;font-size:11.5px;font-weight:800;background:var(--white);color:var(--teal);border:1.5px dashed var(--teal);cursor:pointer}
+.gpt-refresh{background:var(--cyan);color:white;border:none;border-radius:var(--radius-sm);padding:0.55rem 0.9rem;font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif;white-space:nowrap}
+.gpt-refresh:disabled{opacity:0.6;cursor:default}
 .gpt-grid-wrap{overflow:auto;background:var(--white);border-radius:var(--radius);box-shadow:0 2px 8px rgba(13,89,85,0.06);max-height:62vh;margin-bottom:0.75rem;-webkit-overflow-scrolling:touch}
 .gpt-table{border-collapse:separate;border-spacing:0;font-size:11px;min-width:max-content}
 .gpt-table th{position:sticky;top:0;background:var(--teal-dark);color:white;font-weight:800;padding:6px 4px;min-width:30px;text-align:center;z-index:2;font-size:10.5px}
@@ -282,7 +284,7 @@ function fetchGriglia(){
     body:JSON.stringify({struttura:GPT.struttura, figura:GPT.figura, mese:GPT.mese, anno:GPT.anno})})
   .then(function(r){return r.json();})
   .then(function(data){
-    var raw = Array.isArray(data)?data:[];
+    var raw = Array.isArray(data) ? data : (data && Array.isArray(data.turni) ? data.turni : []);
     for(var i=0;i<raw.length;i++){
       var t = raw[i];
       var dip = t.Dipendente||""; var dt = (t.Data&&t.Data.start)?t.Data.start:"";
@@ -300,6 +302,7 @@ function gptChangeSel(field, val){
   if(field==="mese"||field==="anno") GPT[field]=parseInt(val); else GPT[field]=val;
   fetchLegenda(); fetchGriglia();
 }
+function gptRefresh(){ if(GPT.loading) return; fetchLegenda(); fetchGriglia(); }
 function gptOpenCell(dip, day){ GPT.modalCell={dip:dip,day:day}; GPT.modalSel=(GPT.griglia[dip]&&GPT.griglia[dip][day])||""; render(); }
 function gptPickShift(code){ GPT.modalSel=code; render(); }
 function gptConfirmCell(){
@@ -1687,6 +1690,7 @@ function renderGP_Turni() {
   var annoNow = (new Date()).getFullYear();
   for(var a=annoNow-1;a<=annoNow+1;a++){ h += "<option value='"+a+"' "+(GPT.anno===a?"selected":"")+">"+a+"</option>"; }
   h += "</select>";
+  h += "<button class='gpt-refresh' onclick='gptRefresh()' "+(GPT.loading?"disabled":"")+">"+(GPT.loading?"⏳":"🔄")+" Aggiorna</button>";
   h += "</div>";
   // Legenda chips
   h += "<div class='gpt-legend'>";
