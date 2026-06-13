@@ -1780,18 +1780,24 @@ function renderDipTimesheet(){
     var inner="";
     for(var i=0;i<dayTimb.length;i++){
       var t=dayTimb[i]; var mg=calcMaggiorazioni(t,GP_DIP_TURNI);
-      tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord; dayOre+=mg.ore;
-      inner+="<div style='margin-top:6px'>";
+      var conta=(t.approvazione==="Regolare"||t.approvazione==="Approvata");
+      if(conta){ tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord; dayOre+=mg.ore; }
+      inner+="<div style='margin-top:6px;opacity:"+(conta?"1":"0.55")+"'>";
       inner+="<div style='display:flex;justify-content:space-between;align-items:baseline'>";
       inner+="<div style='font-size:13px;font-weight:700;color:var(--text-dark)'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+"</div>";
-      inner+="<div style='font-size:12px;font-weight:800;color:var(--teal)'>"+mg.ore.toFixed(2)+"h</div>";
+      inner+="<div style='font-size:12px;font-weight:800;color:"+(conta?"var(--teal)":"var(--text-light)")+"'>"+mg.ore.toFixed(2)+"h</div>";
       inner+="</div>";
       var chips="";
-      if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
-      if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
-      if(mg.festNott>0) chips+=_chip("Fest.Nott "+mg.festNott.toFixed(2)+"h","#8E44AD");
-      if(mg.straord>0) chips+=_chip("⏱ Straord "+mg.straord.toFixed(2)+"h","#C0392B");
-      if(t.approvazione==="Necessaria approvazione") chips+=_chip("⏳ Da approvare","#7A5800");
+      if(conta){
+        if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
+        if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
+        if(mg.festNott>0) chips+=_chip("Fest.Nott "+mg.festNott.toFixed(2)+"h","#8E44AD");
+        if(mg.straord>0) chips+=_chip("⏱ Straord "+mg.straord.toFixed(2)+"h","#C0392B");
+      } else if(t.approvazione==="Necessaria approvazione"){
+        chips+=_chip("⏳ Da approvare · non conteggiata","#7A5800");
+      } else if(t.approvazione==="Rifiutata"||t.approvazione==="Rifiutato"){
+        chips+=_chip("❌ Rifiutata · non conteggiata","#7A1A1A");
+      }
       if(chips) inner+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>"+chips+"</div>";
       inner+="</div>";
     }
