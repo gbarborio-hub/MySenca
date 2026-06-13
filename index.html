@@ -257,7 +257,7 @@ var GPT_FIGURE = ["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psico
 var GPT_COLORI = {"Giallo":"#F4C430","Verde":"#27AE60","Blu":"#2E86DE","Arancio":"#E67E22","Viola":"#8E44AD","Rosa":"#E84393","Grigio":"#95A5A6","Rosso":"#C0392B","Marrone":"#8D6E63"};
 var GPT_TIPI = ["Mattina","Pomeriggio","Notte","Mattina+Notte","Pomeriggio+Notte","Riposo","Ferie","Affiancamento","Coordinamento","Altro"];
 var GPT = {
-  struttura:"", figura:"OSS",
+  struttura:"", figura:"",
   mese:(new Date()).getMonth()+1, anno:(new Date()).getFullYear(),
   legenda:[], griglia:{}, dirty:{}, loading:false, saving:false,
   modalCell:null, modalSel:null, legendOpen:false, legendEdit:null
@@ -280,7 +280,7 @@ function fetchLegenda(){
   .catch(function(e){ console.log("Errore legenda:",e); });
 }
 function fetchGriglia(){
-  GPT.loading = true; GPT.griglia = {}; GPT.dirty = {}; render();
+  GPT.loading = true; GPT.loaded = false; GPT.griglia = {}; GPT.dirty = {}; render();
   fetch(TURNI_GRIGLIA_URL,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({struttura:GPT.struttura, figura:GPT.figura, mese:GPT.mese, anno:GPT.anno})})
   .then(function(r){return r.json();})
@@ -295,15 +295,18 @@ function fetchGriglia(){
       if(!GPT.griglia[dip]) GPT.griglia[dip]={};
       GPT.griglia[dip][day]=code;
     }
-    GPT.loading=false; render();
+    GPT.loaded=true; GPT.loading=false; render();
   })
-  .catch(function(e){ console.log("Errore griglia:",e); GPT.loading=false; render(); });
+  .catch(function(e){ console.log("Errore griglia:",e); GPT.loaded=false; GPT.loading=false; render(); });
 }
 function gptChangeSel(field, val){
   if(field==="mese"||field==="anno") GPT[field]=parseInt(val); else GPT[field]=val;
-  fetchLegenda(); fetchGriglia();
+  GPT.saveMsg=null;
+  fetchLegenda();
+  if(GPT.struttura && GPT.figura){ fetchGriglia(); }
+  else { GPT.loaded=false; GPT.griglia={}; GPT.dirty={}; render(); }
 }
-function gptRefresh(){ if(GPT.loading) return; fetchLegenda(); fetchGriglia(); }
+function gptRefresh(){ if(GPT.loading) return; fetchLegenda(); if(GPT.struttura && GPT.figura){ fetchGriglia(); } else { render(); } }
 function toggleTurniPassati(){ S.showPastTurni = !S.showPastTurni; render(); }
 function gptOpenCell(dip, day){ GPT.modalCell={dip:dip,day:day}; GPT.modalSel=(GPT.griglia[dip]&&GPT.griglia[dip][day])||""; render(); }
 function gptPickShift(code){ GPT.modalSel=code; render(); }
@@ -316,6 +319,10 @@ function gptConfirmCell(){
 }
 function gptCloseModal(){ GPT.modalCell=null; render(); }
 function saveGriglia(){
+  if(!GPT.loaded){
+    GPT.saveMsg = "⚠️ Griglia non ancora caricata. Premi 🔄 Aggiorna prima di salvare.";
+    render(); return;
+  }
   var righe=[]; var giorniMese = new Date(GPT.anno, GPT.mese, 0).getDate();
   for(var dip in GPT.dirty){
     var g={}; var row=GPT.griglia[dip]||{};
@@ -323,6 +330,7 @@ function saveGriglia(){
     righe.push({dipendente:dip, giorni:g});
   }
   if(righe.length===0) return;
+  GPT.saveMsg = null;
   GPT.saving=true; render();
   fetch(TURNI_SCRIVI_URL,{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({struttura:GPT.struttura, figura:GPT.figura, mese:GPT.mese, anno:GPT.anno,
@@ -1681,13 +1689,13 @@ function renderGP_Turni() {
   // Toolbar
   h += "<div class='section-label'><div class='section-title'>Quadro turni</div></div>";
   h += "<div class='gpt-toolbar'>";
-  h += "<select class='gpt-sel' onchange=\"gptChangeSel('struttura',this.value)\"><option value=''>Tutte le strutture</option>";
+  h += "<select class='gpt-sel' onchange=\"gptChangeSel('struttura',this.value)\"><option value=''>— Seleziona struttura —</option>";
   for(var i=0;i<STRUTTURE.length;i++){
     var sel = GPT.struttura===STRUTTURE[i].nome?"selected":"";
     h += "<option value=\""+STRUTTURE[i].nome+"\" "+sel+">"+STRUTTURE[i].nome+"</option>";
   }
   h += "</select>";
-  h += "<select class='gpt-sel' onchange=\"gptChangeSel('figura',this.value)\">";
+  h += "<select class='gpt-sel' onchange=\"gptChangeSel('figura',this.value)\"><option value=''>— Seleziona ruolo —</option>";
   for(var i=0;i<GPT_FIGURE.length;i++){
     var sel = GPT.figura===GPT_FIGURE[i]?"selected":"";
     h += "<option "+sel+">"+GPT_FIGURE[i]+"</option>";
@@ -1711,7 +1719,9 @@ function renderGP_Turni() {
   h += "<div class='gpt-legend-btn' onclick='gptToggleLegend()'>⚙ Gestisci legenda</div>";
   h += "</div>";
   // Griglia
-  if(GPT.loading){
+  if(!GPT.struttura || !GPT.figura){
+    h += "<div class='timbra-card' style='text-align:center;padding:2rem;color:var(--text-light);font-weight:700'>👆 Seleziona <b>struttura</b> e <b>ruolo</b> per visualizzare e modificare i turni.</div>";
+  } else if(GPT.loading){
     h += "<div style='display:flex;align-items:center;justify-content:center;height:30vh'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div></div>";
   } else {
     var dips = gptDip();
@@ -1744,9 +1754,10 @@ function renderGP_Turni() {
       }
       h += "</tbody></table></div>";
       var nDirty = Object.keys(GPT.dirty).length;
-      h += "<button class='gpt-save' onclick='saveGriglia()' "+((nDirty===0||GPT.saving)?"disabled":"")+">";
-      h += GPT.saving ? "Salvataggio in corso..." : (nDirty>0 ? "Salva su Notion ("+nDirty+" "+(nDirty===1?"riga modificata":"righe modificate")+")" : "Nessuna modifica");
+      h += "<button class='gpt-save' onclick='saveGriglia()' "+((nDirty===0||GPT.saving||!GPT.loaded)?"disabled":"")+">";
+      h += GPT.saving ? "Salvataggio in corso..." : (!GPT.loaded ? "Caricamento griglia..." : (nDirty>0 ? "Salva su Notion ("+nDirty+" "+(nDirty===1?"riga modificata":"righe modificate")+")" : "Nessuna modifica"));
       h += "</button>";
+      if(GPT.saveMsg) h += "<div style='margin-top:0.5rem;padding:0.6rem;border-radius:10px;background:#FEF3CD;color:#7A5800;font-size:12px;font-weight:700;text-align:center'>"+GPT.saveMsg+"</div>";
     }
   }
   // Modal selettore turno
