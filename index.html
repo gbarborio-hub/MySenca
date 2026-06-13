@@ -145,6 +145,8 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .gpt-legend-btn{padding:0.3rem 0.8rem;border-radius:14px;font-size:11.5px;font-weight:800;background:var(--white);color:var(--teal);border:1.5px dashed var(--teal);cursor:pointer}
 .gpt-refresh{background:var(--cyan);color:white;border:none;border-radius:var(--radius-sm);padding:0.55rem 0.9rem;font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif;white-space:nowrap}
 .gpt-refresh:disabled{opacity:0.6;cursor:default}
+.ts-nav{padding:0.45rem 0.9rem;border:1.5px solid var(--cyan-light);border-radius:var(--radius-sm);background:var(--white);color:var(--teal);font-size:16px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
+.ts-nav:disabled{opacity:0.4;cursor:default}
 .turni-past-btn{width:100%;padding:0.7rem;margin:0.5rem 0;border:1.5px dashed var(--text-light);border-radius:var(--radius-sm);background:transparent;color:var(--text-mid);font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .dim-toggle{width:100%;padding:0.8rem;border:1.5px dashed var(--coral);border-radius:var(--radius-sm);background:transparent;color:var(--coral);font-size:14px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .dim-lbl{display:block;font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin:0.5rem 0 0.25rem}
@@ -1680,8 +1682,128 @@ function renderDipProfilo() {
 }
 
 // ===== INTERFACCIA GESTIONE PERSONALE =====
-function renderGestionePersonale() {
-  var u = S.user;
+var GP_DIP_TIMB = [];
+var GP_DIP_TURNI = [];
+var GP_DIP_LOADING = false;
+var GP_WEEK_OFFSET = 0;
+
+function openDipDetail(i){
+  GP_DIP_DETAIL = GP_DIPENDENTI[i];
+  GP_WEEK_OFFSET = 0;
+  GP_DIP_TIMB = []; GP_DIP_TURNI = []; GP_DIP_LOADING = true;
+  render();
+  fetchDipTimbrature(GP_DIP_DETAIL);
+  fetchDipTurni(GP_DIP_DETAIL);
+}
+function fetchDipTimbrature(d){
+  fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||"")})})
+  .then(function(r){return r.text();})
+  .then(function(t){ try{ var data=JSON.parse(t); var raw=Array.isArray(data)?data:[data];
+      GP_DIP_TIMB = raw.map(function(it){ return {data:String(it.data||"").split("T")[0], oraEntrata:it.oraEntrata||"", oraUscita:it.oraUscita||"", oreLavorate:parseFloat(it.oreLavorate)||0, approvazione:it.approvazione||"", struttura:it.struttura||""}; }).filter(function(x){return x.data;});
+    }catch(e){ console.log("err timb dip",e); } GP_DIP_LOADING=false; render(); })
+  .catch(function(){ GP_DIP_LOADING=false; render(); });
+}
+function fetchDipTurni(d){
+  var nome=((d.nome||"")+" "+(d.cognome||"")).trim();
+  fetch(TURNI_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nome:nome})})
+  .then(function(r){return r.text();})
+  .then(function(t){ try{ var data=JSON.parse(t); var raw=Array.isArray(data)?data:[data];
+      GP_DIP_TURNI = raw.map(function(it){ var p=(it&&it.properties_value)?it.properties_value:it;
+        var dt=(p.Data&&p.Data.start)?String(p.Data.start).split("T")[0]:(it.data?String(it.data).split("T")[0]:"");
+        var oi=typeof p["Ora inizio"]==="string"?p["Ora inizio"]:(it.oraInizio||"");
+        var of=typeof p["Ora fine"]==="string"?p["Ora fine"]:(it.oraFine||"");
+        return {data:dt, oraInizio:oi, oraFine:of};
+      }).filter(function(x){return x.data;});
+    }catch(e){ console.log("err turni dip",e); } render(); })
+  .catch(function(){ render(); });
+}
+function _hm(x){ var p=String(x||"").split(":"); var h=parseInt(p[0]); var m=parseInt(p[1]); if(isNaN(h))return null; return h*60+(isNaN(m)?0:m); }
+function _easter(Y){ var a=Y%19,b=Math.floor(Y/100),c=Y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),hh=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-hh-k)%7,mm=Math.floor((a+11*hh+22*l)/451),mo=Math.floor((hh+l-7*mm+114)/31),da=((hh+l-7*mm+114)%31)+1; return new Date(Y,mo-1,da); }
+function _isFestivo(dt){
+  if(dt.getDay()===0) return true;
+  var key=(dt.getMonth()+1)+"-"+dt.getDate();
+  var fissi={"1-1":1,"1-6":1,"4-25":1,"5-1":1,"6-2":1,"8-15":1,"11-1":1,"12-8":1,"12-25":1,"12-26":1};
+  if(fissi[key]) return true;
+  var pq=new Date(_easter(dt.getFullYear()).getTime()+86400000);
+  if(dt.getMonth()===pq.getMonth() && dt.getDate()===pq.getDate()) return true;
+  return false;
+}
+function calcMaggiorazioni(timb, turniDip){
+  var dstr=String(timb.data).split("T")[0];
+  var s=_hm(timb.oraEntrata), e=_hm(timb.oraUscita);
+  if(!dstr || s===null || e===null) return {ore:0,nott:0,fest:0,festNott:0,straord:0};
+  if(e<=s) e+=1440;
+  var base=new Date(dstr+"T00:00:00");
+  var win=[];
+  for(var j=0;j<turniDip.length;j++){ if(turniDip[j].data===dstr){ var a=_hm(turniDip[j].oraInizio), b=_hm(turniDip[j].oraFine); if(a!==null&&b!==null){ if(b<=a)b+=1440; win.push([a,b]); } } }
+  var ore=0,nott=0,fest=0,festNott=0,straord=0;
+  for(var m=s;m<e;m++){
+    ore++;
+    var mod=((m%1440)+1440)%1440;
+    var isNight=(mod>=1320||mod<360);
+    var dt=new Date(base.getTime()+m*60000);
+    var isFest=_isFestivo(dt);
+    var inShift=false; for(var w=0;w<win.length;w++){ if(m>=win[w][0]&&m<win[w][1]){inShift=true;break;} }
+    if(isNight)nott++;
+    if(isFest)fest++;
+    if(isNight&&isFest)festNott++;
+    if(!inShift)straord++;
+  }
+  function hh(x){ return Math.round(x/60*100)/100; }
+  return {ore:hh(ore),nott:hh(nott),fest:hh(fest),festNott:hh(festNott),straord:hh(straord)};
+}
+function gpWeekStart(offset){ var d=new Date(); d.setHours(0,0,0,0); var dow=(d.getDay()+6)%7; d.setDate(d.getDate()-dow+offset*7); return d; }
+function _ymd(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function gpChangeWeek(delta){ GP_WEEK_OFFSET+=delta; render(); }
+function _chip(txt,col){ return "<span style='font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;background:"+col+"22;color:"+col+"'>"+txt+"</span>"; }
+function _totRow(lbl,val){ return "<div style='display:flex;justify-content:space-between;font-size:12px;padding:2px 0'><span style='color:var(--text-mid);font-weight:600'>"+lbl+"</span><span style='font-weight:800;color:var(--text-dark)'>"+val.toFixed(2)+" h</span></div>"; }
+function renderDipTimesheet(){
+  var h="";
+  var ws=gpWeekStart(GP_WEEK_OFFSET); var we=new Date(ws.getTime()+6*86400000);
+  var wsS=_ymd(ws), weS=_ymd(we);
+  h+="<div class='section-label'><div class='section-title'>Timbrature settimanali</div></div>";
+  h+="<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;gap:0.5rem'>";
+  h+="<button class='ts-nav' onclick='gpChangeWeek(-1)'>←</button>";
+  h+="<div style='font-size:13px;font-weight:800;color:var(--text-dark);text-align:center;flex:1'>"+fmtDateIt(wsS)+" – "+fmtDateIt(weS)+"</div>";
+  h+="<button class='ts-nav' "+(GP_WEEK_OFFSET>=0?"disabled":"")+" onclick='gpChangeWeek(1)'>→</button>";
+  h+="</div>";
+  if(GP_DIP_LOADING){ h+="<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Caricamento...</div>"; return h; }
+  var sett=GP_DIP_TIMB.filter(function(t){ return t.data>=wsS && t.data<=weS; }).sort(function(a,b){return a.data<b.data?-1:1;});
+  var tot={ore:0,nott:0,fest:0,festNott:0,straord:0};
+  if(sett.length===0){
+    h+="<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Nessuna timbratura in questa settimana</div>";
+    return h;
+  }
+  h+="<div class='ana-card'>";
+  for(var i=0;i<sett.length;i++){
+    var t=sett[i]; var mg=calcMaggiorazioni(t,GP_DIP_TURNI);
+    tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord;
+    h+="<div style='padding:0.75rem 1rem;border-bottom:1px solid var(--bg)'>";
+    h+="<div style='display:flex;justify-content:space-between;align-items:flex-start'>";
+    h+="<div><div style='font-size:13px;font-weight:800;color:var(--text-dark)'>"+fmtDateIt(t.data)+"</div>";
+    h+="<div style='font-size:12px;color:var(--text-mid)'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+" · <b>"+mg.ore.toFixed(2)+"h</b></div></div>";
+    h+="<div style='font-size:10px;font-weight:800;color:var(--text-light);text-align:right'>"+t.approvazione+"</div>";
+    h+="</div>";
+    var chips="";
+    if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
+    if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
+    if(mg.festNott>0) chips+=_chip("Fest.Nott "+mg.festNott.toFixed(2)+"h","#8E44AD");
+    if(mg.straord>0) chips+=_chip("⏱ Straord "+mg.straord.toFixed(2)+"h","#C0392B");
+    if(chips) h+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:6px'>"+chips+"</div>";
+    h+="</div>";
+  }
+  h+="</div>";
+  h+="<div class='ana-card' style='margin-top:0.5rem;background:var(--cyan-light)'><div style='padding:0.85rem 1rem'>";
+  h+="<div style='font-size:13px;font-weight:900;color:var(--teal-dark);margin-bottom:6px'>Totali settimana</div>";
+  h+=_totRow("Ore totali",tot.ore);
+  h+=_totRow("di cui notturne (22–06)",tot.nott);
+  h+=_totRow("di cui festive (dom./festivi)",tot.fest);
+  h+=_totRow("di cui festive notturne",tot.festNott);
+  h+=_totRow("di cui straordinario (fuori turno)",tot.straord);
+  h+="</div></div>";
+  return h;
+}
+function renderGestionePersonale() {  var u = S.user;
   var firstName = u.nome ? u.nome.split(" ")[0] : "utente";
   var h = "<div class=\"app-screen gp-screen\">";
   h += "<div class=\"gp-main\">";
@@ -1742,6 +1864,7 @@ function renderGP_Dipendenti() {
     h += "<div class='ana-row'><div class='ana-label'>Contratto</div><div class='ana-value'>" + (d.contratto||"—") + "</div></div>";
     h += "<div class='ana-row'><div class='ana-label'>Username</div><div class='ana-value'>" + (d.username||"—") + "</div></div>";
     h += "</div>";
+    h += renderDipTimesheet();
     h += "<div class='section-label'><div class='section-title'>Fascicolo personale</div></div>";
     h += "<div class='timbra-card' style='text-align:center;padding:2rem;color:var(--text-light)'>";
     h += "<div style='font-size:32px;margin-bottom:0.5rem'>📄</div>";
@@ -1766,7 +1889,7 @@ function renderGP_Dipendenti() {
     h += "<div class='table-card'>";
     for(var i=0; i<GP_DIPENDENTI.length; i++) {
       var d = GP_DIPENDENTI[i];
-      h += "<div class='table-row' style='cursor:pointer' onclick='GP_DIP_DETAIL=GP_DIPENDENTI[" + i + "];render()'>";
+      h += "<div class='table-row' style='cursor:pointer' onclick='openDipDetail(" + i + ")'>";
       h += "<div style='flex:1;min-width:0'>";
       h += "<div class='row-title'>" + d.nome + " " + d.cognome + "</div>";
       h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
