@@ -1768,28 +1768,40 @@ function renderDipTimesheet(){
   h+="<button class='ts-nav' "+(GP_WEEK_OFFSET>=0?"disabled":"")+" onclick='gpChangeWeek(1)'>→</button>";
   h+="</div>";
   if(GP_DIP_LOADING){ h+="<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Caricamento...</div>"; return h; }
-  var sett=GP_DIP_TIMB.filter(function(t){ return t.data>=wsS && t.data<=weS; }).sort(function(a,b){return a.data<b.data?-1:1;});
+  var giorni=["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
   var tot={ore:0,nott:0,fest:0,festNott:0,straord:0};
-  if(sett.length===0){
-    h+="<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Nessuna timbratura in questa settimana</div>";
-    return h;
-  }
   h+="<div class='ana-card'>";
-  for(var i=0;i<sett.length;i++){
-    var t=sett[i]; var mg=calcMaggiorazioni(t,GP_DIP_TURNI);
-    tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord;
-    h+="<div style='padding:0.75rem 1rem;border-bottom:1px solid var(--bg)'>";
-    h+="<div style='display:flex;justify-content:space-between;align-items:flex-start'>";
-    h+="<div><div style='font-size:13px;font-weight:800;color:var(--text-dark)'>"+fmtDateIt(t.data)+"</div>";
-    h+="<div style='font-size:12px;color:var(--text-mid)'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+" · <b>"+mg.ore.toFixed(2)+"h</b></div></div>";
-    h+="<div style='font-size:10px;font-weight:800;color:var(--text-light);text-align:right'>"+t.approvazione+"</div>";
+  for(var gi=0; gi<7; gi++){
+    var dayDate=new Date(ws.getTime()+gi*86400000);
+    var dayStr=_ymd(dayDate);
+    var festDay=_isFestivo(dayDate);
+    var dayTimb=GP_DIP_TIMB.filter(function(t){ return t.data===dayStr; }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
+    var dayOre=0;
+    var inner="";
+    for(var i=0;i<dayTimb.length;i++){
+      var t=dayTimb[i]; var mg=calcMaggiorazioni(t,GP_DIP_TURNI);
+      tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord; dayOre+=mg.ore;
+      inner+="<div style='margin-top:6px'>";
+      inner+="<div style='display:flex;justify-content:space-between;align-items:baseline'>";
+      inner+="<div style='font-size:13px;font-weight:700;color:var(--text-dark)'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+"</div>";
+      inner+="<div style='font-size:12px;font-weight:800;color:var(--teal)'>"+mg.ore.toFixed(2)+"h</div>";
+      inner+="</div>";
+      var chips="";
+      if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
+      if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
+      if(mg.festNott>0) chips+=_chip("Fest.Nott "+mg.festNott.toFixed(2)+"h","#8E44AD");
+      if(mg.straord>0) chips+=_chip("⏱ Straord "+mg.straord.toFixed(2)+"h","#C0392B");
+      if(t.approvazione==="Necessaria approvazione") chips+=_chip("⏳ Da approvare","#7A5800");
+      if(chips) inner+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>"+chips+"</div>";
+      inner+="</div>";
+    }
+    h+="<div style='padding:0.7rem 1rem;border-bottom:1px solid var(--bg)'>";
+    h+="<div style='display:flex;justify-content:space-between;align-items:center'>";
+    h+="<div style='font-size:13px;font-weight:900;color:"+(festDay?"#C0392B":"var(--text-dark)")+"'>"+giorni[gi]+" <span style='font-weight:600;color:var(--text-light);font-size:11px'>"+fmtDateIt(dayStr)+"</span></div>";
+    h+="<div style='font-size:12px;font-weight:800;color:"+(dayOre>0?"var(--text-dark)":"var(--text-light)")+"'>"+(dayOre>0?dayOre.toFixed(2)+"h":"—")+"</div>";
     h+="</div>";
-    var chips="";
-    if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
-    if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
-    if(mg.festNott>0) chips+=_chip("Fest.Nott "+mg.festNott.toFixed(2)+"h","#8E44AD");
-    if(mg.straord>0) chips+=_chip("⏱ Straord "+mg.straord.toFixed(2)+"h","#C0392B");
-    if(chips) h+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:6px'>"+chips+"</div>";
+    if(dayTimb.length===0){ h+="<div style='font-size:11px;color:var(--text-light);font-weight:600;margin-top:2px'>Nessuna timbratura</div>"; }
+    else { h+=inner; }
     h+="</div>";
   }
   h+="</div>";
