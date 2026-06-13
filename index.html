@@ -1153,7 +1153,7 @@ function renderDipTimbra() {
     h += "<button class='dim-toggle' onclick=\"S.dimOpen=true;S.dimMsg=null;render()\">🕓 Ho dimenticato di timbrare</button>";
   } else {
     h += "<div class='timbra-title'>Timbratura dimenticata</div>";
-    h += "<div style='font-size:12px;color:var(--text-light);font-weight:700;margin-bottom:0.75rem'>Inserisci gli orari reali. La timbratura verrà inviata al direttore del personale per l'approvazione.</div>";
+    h += "<div style='font-size:12px;color:var(--text-light);font-weight:700;margin-bottom:0.75rem'>Inserisci gli orari reali. La timbratura verrà inviata all'ufficio del personale per l'approvazione.</div>";
     h += "<label class='dim-lbl'>Data</label>";
     var dimOggi = (function(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");})();
     h += "<input type='date' id='dim-data' class='dim-in' max='"+dimOggi+"' value='"+dimOggi+"'>";
@@ -1241,7 +1241,7 @@ function inviaTimbraturaDimenticata() {
   .then(function(){
     S.dimOpen = false;
     S.dimMsg = null;
-    S.timbraMsg = "✅ Timbratura inviata. In attesa di approvazione del personale.";
+    S.timbraMsg = "✅ Timbratura inviata. In attesa di approvazione dell'ufficio del personale.";
     S.timbraMsgType = "ok";
     fetchTimbrature();
     render();
@@ -1292,7 +1292,7 @@ function doTimbraEntrata() {
   // Se fuori turno mostra disclaimer ma permette di procedere
   if(fuoriTurno) {
     S.timbraFuoriTurno = true;
-    S.timbraMsg = "⚠️ Attenzione: stai timbrando fuori dal tuo turno previsto. Il turno dovrà essere approvato dall'ufficio personale.";
+    S.timbraMsg = "⚠️ Attenzione: stai timbrando fuori dal tuo turno previsto. Il turno dovrà essere approvato dall'ufficio del personale.";
     S.timbraMsgType = "warn";
   } else {
     S.timbraFuoriTurno = false;
