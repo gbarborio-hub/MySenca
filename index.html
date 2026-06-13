@@ -206,6 +206,7 @@ var DATI_URL = "https://hook.eu1.make.com/y882re16wkatcqdk7zevhr24uknk78v4";
 var PRIVACY_URL = "https://hook.eu1.make.com/dmdvislgavso2dhh7ccp5iy4pa69vuox";
 var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
 var TIMBRA_URL = "https://senca-hub.duckdns.org/webhook/timbra";
+var TIMBRATURA_UPDATE_URL = "https://senca-hub.duckdns.org/webhook/timbratura-update";
 var STRUTTURE_URL = "https://senca-hub.duckdns.org/webhook/strutture";
 var PROFILO_URL = "https://senca-hub.duckdns.org/webhook/profilo";
 
@@ -370,6 +371,21 @@ function gptDelLeg(id){
 // ===== GESTIONE PERSONALE =====
 var GP_DIPENDENTI = [];
 var GP_TIMBRATURE = [];
+var GP_TIMB_BUSY = null;
+function gpTimbraturaAction(action, pageId){
+  if(!pageId){ alert("ID timbratura mancante. Premi Aggiorna e riprova."); return; }
+  if(GP_TIMB_BUSY) return;
+  if(action==="rifiuta" && !confirm("Rifiutare questa timbratura?")) return;
+  if(action==="elimina" && !confirm("Archiviare questa timbratura? Resterà conservata nello storico (a norma di legge non viene mai cancellata), ma non sarà più conteggiata. L'operazione verrà registrata col tuo nome.")) return;
+  GP_TIMB_BUSY = pageId + "|" + action; render();
+  fetch(TIMBRATURA_UPDATE_URL, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ action:action, pageId:pageId, eliminataDa:(S.user&&S.user.username)||"" })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(){ GP_TIMB_BUSY=null; setTimeout(fetchTimbratureGP, 1200); })
+  .catch(function(){ GP_TIMB_BUSY=null; alert("Errore nell'operazione. Riprova."); render(); });
+}
 var GP_FERIE_RICHIESTE = [];
 var GP_VIEW = "dipendenti";
 var GP_DIP_DETAIL = null;
@@ -1913,8 +1929,10 @@ function renderGP_Timbrature() {
       h += "<div style='font-size:12px;color:var(--text-light)'>" + fmtDateIt(t.data) + " · " + t.struttura + " · " + (t.oraEntrata||"—") + "→" + (t.oraUscita||"—") + "</div></div>";
       h += "</div>";
       h += "<div style='display:flex;gap:0.5rem'>";
-      h += "<button onclick=\"alert('Funzione in arrivo — aggiorna Notion manualmente')\" style='padding:0.4rem 0.8rem;background:#D5F0E0;color:#1A6B3A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer'>✅ Approva</button>";
-      h += "<button onclick=\"alert('Funzione in arrivo — aggiorna Notion manualmente')\" style='padding:0.4rem 0.8rem;background:#FCE4E4;color:#7A1A1A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer'>❌ Rifiuta</button>";
+      var busyA = GP_TIMB_BUSY===(t.pageId+"|approva");
+      h += "<button "+(GP_TIMB_BUSY?"disabled":"")+" onclick=\"gpTimbraturaAction('approva','"+t.pageId+"')\" style='padding:0.4rem 0.8rem;background:#D5F0E0;color:#1A6B3A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;opacity:"+(GP_TIMB_BUSY&&!busyA?"0.5":"1")+"'>"+(busyA?"...":"✅ Approva")+"</button>";
+      var busyR = GP_TIMB_BUSY===(t.pageId+"|rifiuta");
+      h += "<button "+(GP_TIMB_BUSY?"disabled":"")+" onclick=\"gpTimbraturaAction('rifiuta','"+t.pageId+"')\" style='padding:0.4rem 0.8rem;background:#FCE4E4;color:#7A1A1A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;opacity:"+(GP_TIMB_BUSY&&!busyR?"0.5":"1")+"'>"+(busyR?"...":"❌ Rifiuta")+"</button>";
       h += "</div>";
       h += "</div>";
     }
@@ -1934,7 +1952,15 @@ function renderGP_Timbrature() {
       h += "<div style='display:flex;justify-content:space-between;align-items:center'>";
       h += "<div><div style='font-size:13px;font-weight:700;color:var(--text-dark)'>" + tb.dipendente + "</div>";
       h += "<div style='font-size:11px;color:var(--text-light)'>" + fmtDateIt(tb.data) + " · " + (tb.struttura||"—") + " · " + (tb.oraEntrata||"—") + "→" + (tb.oraUscita||"—") + "</div></div>";
-      h += "<div style='padding:2px 8px;border-radius:10px;font-size:10px;font-weight:800;background:" + appBg + ";color:" + appCol + "'>" + tb.approvazione + "</div>";
+      h += "<div style='display:flex;align-items:center;gap:0.5rem'>";
+      if(tb.eliminata){
+        h += "<div style='padding:2px 8px;border-radius:10px;font-size:10px;font-weight:800;background:#E5E5E5;color:#777'>🗑 Archiviata</div>";
+      } else {
+        h += "<div style='padding:2px 8px;border-radius:10px;font-size:10px;font-weight:800;background:" + appBg + ";color:" + appCol + "'>" + tb.approvazione + "</div>";
+        var busyE = GP_TIMB_BUSY===(tb.pageId+"|elimina");
+        h += "<button "+(GP_TIMB_BUSY?"disabled":"")+" onclick=\"gpTimbraturaAction('elimina','"+tb.pageId+"')\" title='Archivia' style='padding:3px 7px;background:transparent;border:1px solid #E0C0C0;color:#A04040;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer'>"+(busyE?"...":"🗑")+"</button>";
+      }
+      h += "</div>";
       h += "</div></div>";
     }
     h += "</div>";
