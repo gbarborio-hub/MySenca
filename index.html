@@ -21,6 +21,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .field-input{width:100%;background:transparent;border:none;border-bottom:1.5px solid var(--teal);padding:8px 0 6px;font-size:15px;font-family:"Satoshi",sans-serif;color:var(--text-dark);outline:none;margin-bottom:1.5rem}
 .field-input::placeholder{color:var(--text-light)}
 .login-btn{width:100%;padding:1rem;border:1.5px solid var(--text-mid);border-radius:30px;background:transparent;font-size:16px;font-weight:700;color:var(--text-dark);cursor:pointer;font-family:"Satoshi",sans-serif;margin-top:0.5rem;transition:all 0.15s}
+.link-btn{width:100%;padding:0.6rem;border:none;background:transparent;font-size:13px;font-weight:700;color:var(--text-light);cursor:pointer;font-family:"Satoshi",sans-serif;margin-top:0.5rem}
 .login-btn:hover{background:var(--teal);color:white;border-color:var(--teal)}
 .login-btn:disabled{opacity:0.6;cursor:not-allowed}
 .login-error{font-size:13px;color:#C0392B;text-align:center;margin-top:0.75rem;display:none;padding:0.75rem;background:#FCE4E4;border-radius:8px}
@@ -852,6 +853,73 @@ function distanzaMetri(lat1, lng1, lat2, lng2) {
 }
 
 // ===== LOGIN =====
+var SESSION_KEY = "senca_session_v1";
+var BIO_KEY = "senca_bio_v1";
+function saveSession(user){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify({user:user, ts:Date.now()})); }catch(e){} }
+function loadSession(){ try{ var r=localStorage.getItem(SESSION_KEY); if(!r) return null; var d=JSON.parse(r); if(!d||!d.user) return null; if(Date.now()-d.ts > 30*24*3600*1000) return null; return d.user; }catch(e){ return null; } }
+function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} }
+function getBio(){ try{ var r=localStorage.getItem(BIO_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function clearBio(){ try{ localStorage.removeItem(BIO_KEY); }catch(e){} }
+function bioSupported(){ return !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create && window.isSecureContext); }
+function _bufToB64(buf){ var b=new Uint8Array(buf); var s=""; for(var i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
+function _b64ToBuf(b64){ var s=atob(b64); var arr=new Uint8Array(s.length); for(var i=0;i<s.length;i++) arr[i]=s.charCodeAt(i); return arr.buffer; }
+function enrollBio(user){
+  if(!bioSupported()) return Promise.reject(new Error("unsupported"));
+  var challenge=new Uint8Array(32); crypto.getRandomValues(challenge);
+  var uid=new Uint8Array(16); crypto.getRandomValues(uid);
+  return navigator.credentials.create({ publicKey:{
+    challenge:challenge,
+    rp:{ name:"Senca Hub" },
+    user:{ id:uid, name:(user.username||"utente"), displayName:(user.nome||user.username||"utente") },
+    pubKeyCredParams:[{type:"public-key",alg:-7},{type:"public-key",alg:-257}],
+    authenticatorSelection:{ authenticatorAttachment:"platform", userVerification:"required" },
+    timeout:60000, attestation:"none"
+  }}).then(function(cred){ localStorage.setItem(BIO_KEY, JSON.stringify({credId:_bufToB64(cred.rawId), username:user.username})); return true; });
+}
+function unlockBio(){
+  var bio=getBio(); if(!bio||!bioSupported()) return Promise.reject(new Error("nobio"));
+  var challenge=new Uint8Array(32); crypto.getRandomValues(challenge);
+  return navigator.credentials.get({ publicKey:{
+    challenge:challenge,
+    allowCredentials:[{ type:"public-key", id:_b64ToBuf(bio.credId) }],
+    userVerification:"required", timeout:60000
+  }}).then(function(){ return true; });
+}
+function restoreUser(u){
+  S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null;
+  if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
+  if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); }
+  if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
+  render();
+}
+function bootApp(){
+  var u=loadSession();
+  if(u){
+    if(getBio() && bioSupported()){ S.locked=true; S.pendingUser=u; renderLock(); return; }
+    restoreUser(u); return;
+  }
+  render();
+}
+function doUnlock(){
+  var u=S.pendingUser || loadSession();
+  if(!u){ S.lockErr="Sessione scaduta. Accedi con username e password."; S.locked=false; renderLogin(); return; }
+  S.lockErr=null;
+  unlockBio().then(function(){ restoreUser(u); }).catch(function(){ S.lockErr="Sblocco non riuscito. Riprova o usa la password."; if(S.locked) renderLock(); else renderLogin(); });
+}
+function usePassword(){ S.locked=false; S.lockErr=null; renderLogin(); }
+function renderLock(){
+  var nome = S.pendingUser ? (S.pendingUser.nome||S.pendingUser.username) : "";
+  var h = "<div class='login-screen'>";
+  h += "<div class='login-logo-area'><div class='login-logo-wrap'>" + LOGO_IMG + "</div></div>";
+  h += "<div class='login-body'>";
+  h += "<div class='login-greeting'>Bentornato</div>";
+  h += "<div class='login-sub'>" + nome + "</div>";
+  h += "<button class='login-btn' onclick='doUnlock()'>🔒 Sblocca con Face ID / impronta</button>";
+  h += "<button class='link-btn' onclick='usePassword()'>Usa username e password</button>";
+  if(S.lockErr) h += "<div class='login-error' style='display:block'>" + S.lockErr + "</div>";
+  h += "</div></div>";
+  document.getElementById("root").innerHTML = h;
+}
 function doLogin() {
   var uname = document.getElementById("inp-user").value.trim().toLowerCase();
   var pwd = document.getElementById("inp-pass").value.trim();
@@ -865,12 +933,17 @@ function doLogin() {
   .then(function(r){ if(!r.ok) throw new Error("network"); return r.json(); })
   .then(function(res) {
     if(res && res.ok === true && res.nome) {
-      S.loggedIn = true;
-      S.user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
-      if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
-      if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); }
-      if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
-      render();
+      var remember = (document.getElementById("inp-remember")||{}).checked !== false;
+      var user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
+      if(remember) saveSession(user); else { clearSession(); clearBio(); }
+      restoreUser(user);
+      if(remember && bioSupported() && !getBio()){
+        setTimeout(function(){
+          if(confirm("Vuoi abilitare l'accesso rapido con Face ID o impronta digitale su questo dispositivo?")){
+            enrollBio(user).then(function(){ alert("✅ Accesso biometrico abilitato."); }).catch(function(){});
+          }
+        }, 700);
+      }
     } else {
       err.textContent = "Credenziali non valide. Riprova.";
       err.style.display = "block";
@@ -885,7 +958,7 @@ function doLogin() {
     btn.innerHTML = "Accedi";
   });
 }
-function doLogout() { S.loggedIn=false; S.user=null; S.dipView="home"; render(); }
+function doLogout() { clearSession(); clearBio(); S.loggedIn=false; S.user=null; S.dipView="home"; S.locked=false; S.pendingUser=null; render(); }
 
 function isAdmin() { return S.user && (S.user.ruolo==="Admin" || S.user.ruolo==="Operatore"); }
 function isDipendente() { return S.user && S.user.ruolo==="Dipendente"; }
@@ -907,10 +980,16 @@ function renderLogin() {
   h += "<div class=\"login-body\">";
   h += "<div class=\"login-greeting\">Bentornato!</div>";
   h += "<div class=\"login-sub\">Accedi alla tua dashboard</div>";
+  if(getBio() && loadSession()){
+    h += "<button class=\"login-btn\" onclick=\"doUnlock()\" style=\"margin-bottom:0.6rem\">🔒 Sblocca con Face ID / impronta</button>";
+    h += "<div style=\"text-align:center;font-size:12px;color:var(--text-light);margin-bottom:0.75rem\">oppure accedi manualmente</div>";
+  }
+  if(S.lockErr){ h += "<div class=\"login-error\" style=\"display:block;margin-bottom:0.5rem\">" + S.lockErr + "</div>"; S.lockErr=null; }
   h += "<label class=\"field-label\">Username</label>";
   h += "<input class=\"field-input\" id=\"inp-user\" type=\"text\" placeholder=\"Il tuo username\" autocapitalize=\"none\"/>";
   h += "<label class=\"field-label\">Password</label>";
   h += "<input class=\"field-input\" id=\"inp-pass\" type=\"password\" placeholder=\"La tua password\"/>";
+  h += "<label style=\"display:flex;align-items:center;gap:0.5rem;font-size:13px;font-weight:600;color:var(--text-mid);margin:0.5rem 0 0.85rem;cursor:pointer\"><input type=\"checkbox\" id=\"inp-remember\" checked style=\"width:16px;height:16px\"/> Ricorda accesso su questo dispositivo</label>";
   h += "<button class=\"login-btn\" id=\"login-btn\" onclick=\"doLogin()\">Accedi</button>";
   h += "<div class=\"login-error\" id=\"login-err\">Credenziali non valide. Riprova.</div>";
   h += "</div></div>";
@@ -1742,6 +1821,17 @@ function tsSave(){
   var s=_hm(entrata), e=_hm(uscita); if(e<=s)e+=1440;
   var entrataDt=new Date(data+"T"+entrata+":00"); var uscitaDt=new Date(entrataDt.getTime()+(e-s)*60000);
   if(uscitaDt>new Date()){ S.tsErr="⚠️ Non puoi inserire orari nel futuro."; render(); return; }
+  // Blocco sovrapposizioni con altre timbrature del dipendente
+  var newIv=_timbInterval({data:data,oraEntrata:entrata,oraUscita:uscita});
+  for(var oi=0;oi<GP_DIP_TIMB.length;oi++){
+    var ex=GP_DIP_TIMB[oi];
+    if(f.mode==="edit" && ex.id===f.pageId) continue;
+    if(ex.approvazione==="Rifiutata"||ex.approvazione==="Rifiutato") continue;
+    if(_overlaps(newIv,_timbInterval(ex))){
+      S.tsErr="⛔ Si sovrappone alla timbratura del "+fmtDateIt(ex.data)+" ("+(ex.oraEntrata||"?")+"–"+(ex.oraUscita||"?")+"). Modifica gli orari.";
+      render(); return;
+    }
+  }
   var d=GP_DIP_DETAIL; var nome=((d.nome||"")+" "+(d.cognome||"")).trim();
   var ore=Math.round((e-s)/60*100)/100;
   var payload={ nome:nome, username:d.username||"", struttura:struttura, data:data, oraEntrata:entrata, oraUscita:uscita, oreTotali:ore, stato:(f.mode==="edit"?"Modificata ufficio":"Inserita ufficio"), approvazione:"Approvata", turno:"", note:(f.mode==="edit"?("Modificata da ufficio personale ("+((S.user&&S.user.username)||"")+") - originale archiviata"):("Inserita da ufficio personale ("+((S.user&&S.user.username)||"")+")")), lat:null, lng:null };
@@ -1751,6 +1841,14 @@ function tsSave(){
        .catch(function(){ S.tsSaving=false; S.tsErr="⚠️ Errore nel salvataggio. Riprova."; render(); });
 }
 function _hm(x){ var p=String(x||"").split(":"); var h=parseInt(p[0]); var m=parseInt(p[1]); if(isNaN(h))return null; return h*60+(isNaN(m)?0:m); }
+function _timbInterval(t){
+  var s=_hm(t.oraEntrata), e=_hm(t.oraUscita);
+  if(!t.data||s===null||e===null) return null;
+  if(e<=s) e+=1440;
+  var startTs=new Date(String(t.data).split("T")[0]+"T00:00:00").getTime()+s*60000;
+  return {start:startTs, end:startTs+(e-s)*60000};
+}
+function _overlaps(a,b){ return !!(a && b && a.start < b.end && b.start < a.end); }
 function _easter(Y){ var a=Y%19,b=Math.floor(Y/100),c=Y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),hh=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-hh-k)%7,mm=Math.floor((a+11*hh+22*l)/451),mo=Math.floor((hh+l-7*mm+114)/31),da=((hh+l-7*mm+114)%31)+1; return new Date(Y,mo-1,da); }
 function _isFestivo(dt){
   if(dt.getDay()===0) return true;
@@ -2461,7 +2559,7 @@ function renderPrivacy() {
   return m;
 }
 
-render();
+bootApp();
 </script>
 </body>
 </html>
