@@ -1806,7 +1806,7 @@ function fetchDipTurni(d){
 }
 function _tuPost(action, pageId){ return fetch(TIMBRATURA_UPDATE_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:action,pageId:pageId,eliminataDa:(S.user&&S.user.username)||""})}).then(function(r){return r.json();}); }
 function _createTimb(payload){ return fetch(TIMBRA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(function(r){return r.json();}); }
-function tsOpenAdd(){ S.tsForm={mode:"add",pageId:null,data:_ymd(new Date()),struttura:(GP_DIP_DETAIL&&GP_DIP_DETAIL.struttura)||"",oraEntrata:"",oraUscita:""}; S.tsErr=null; render(); }
+function tsOpenAdd(){ S.tsForm={mode:"add",pageId:null,data:_ymd(new Date()),struttura:((GP_DIP_DETAIL&&GP_DIP_DETAIL.struttura)||"").split(",")[0].trim(),oraEntrata:"",oraUscita:""}; S.tsErr=null; render(); }
 function tsOpenEdit(pageId){ var t=null; for(var i=0;i<GP_DIP_TIMB.length;i++){ if(GP_DIP_TIMB[i].id===pageId){t=GP_DIP_TIMB[i];break;} } if(!t)return; S.tsForm={mode:"edit",pageId:pageId,data:t.data,struttura:t.struttura||"",oraEntrata:t.oraEntrata||"",oraUscita:t.oraUscita||""}; S.tsErr=null; render(); }
 function tsCancel(){ S.tsForm=null; S.tsErr=null; render(); }
 function tsDelete(pageId){
@@ -2197,15 +2197,17 @@ function renderDipComunicazioni(){
 var GP_DIP_FORM=null; var GP_DIP_SAVING=false; var GP_DIP_FORMERR=null;
 var GP_DIP_MANSIONI=["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo","Altro"];
 var GP_DIP_CONTRATTI=["Dipendente","Libero professionista","Tirocinio","Altro"];
-function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",mansione:"",contratto:"",struttura:"",oreSettimanali:"",attivo:true,note:""}; GP_DIP_FORMERR=null; render(); }
-function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",mansione:"",contratto:"",struttura:"",strutture:[],oreSettimanali:"",attivo:true,note:""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",strutture:(d.struttura?d.struttura.split(",").map(function(x){return x.trim();}).filter(Boolean):[]),oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||""}; GP_DIP_FORMERR=null; render(); }
 function dipFormCancel(){ GP_DIP_FORM=null; GP_DIP_FORMERR=null; render(); }
 function _dipFormSync(){ var f=GP_DIP_FORM; if(!f) return; function gv(id){var e=document.getElementById(id);return e?e.value:undefined;} var v;
-  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-username"); if(v!==undefined)f.username=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-struttura"); if(v!==undefined)f.struttura=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
+  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-username"); if(v!==undefined)f.username=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
 }
+function dipFormToggleStruttura(idx){ _dipFormSync(); var sn=STRUTTURE[idx]&&STRUTTURE[idx].nome; if(!sn) return; if(!GP_DIP_FORM.strutture) GP_DIP_FORM.strutture=[]; var i=GP_DIP_FORM.strutture.indexOf(sn); if(i>=0) GP_DIP_FORM.strutture.splice(i,1); else GP_DIP_FORM.strutture.push(sn); render(); }
 function dipFormSave(){ _dipFormSync(); var f=GP_DIP_FORM; if(!f) return;
   if(!(f.nome||"").trim()){ GP_DIP_FORMERR="⚠️ Il nome è obbligatorio."; render(); return; }
   if(!(f.cognome||"").trim()){ GP_DIP_FORMERR="⚠️ Il cognome è obbligatorio."; render(); return; }
+  f.struttura=(f.strutture||[]).join(", ");
   GP_DIP_SAVING=true; GP_DIP_FORMERR=null; render();
   fetch("https://senca-hub.duckdns.org/webhook/dipendente-salva",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})
   .then(function(r){return r.text();}).then(function(){ GP_DIP_SAVING=false; GP_DIP_FORM=null; GP_DIP_DETAIL=null; setTimeout(function(){ fetchDipendentiGP(); },1000); })
@@ -2226,9 +2228,11 @@ function renderDipAnagForm(){
   h+="</select></div><div style='flex:1'><label class='dim-lbl'>Contratto</label><select id='df-contratto' class='dim-in'><option value=''>—</option>";
   for(var j=0;j<GP_DIP_CONTRATTI.length;j++){ h+="<option value=\""+GP_DIP_CONTRATTI[j]+"\" "+(f.contratto===GP_DIP_CONTRATTI[j]?"selected":"")+">"+GP_DIP_CONTRATTI[j]+"</option>"; }
   h+="</select></div></div>";
-  h+="<label class='dim-lbl'>Struttura principale</label><select id='df-struttura' class='dim-in'><option value=''>—</option>";
-  for(var s=0;s<STRUTTURE.length;s++){ var sn=STRUTTURE[s].nome; h+="<option value=\""+_esc(sn)+"\" "+(f.struttura===sn?"selected":"")+">"+_esc(sn)+"</option>"; }
-  h+="</select>";
+  h+="<label class='dim-lbl'>Strutture (una o più)</label>";
+  h+="<div style='border:1px solid var(--cyan-light);border-radius:10px;padding:6px;margin-bottom:8px'>";
+  if(STRUTTURE.length===0) h+="<div style='font-size:12px;color:var(--text-light);padding:4px'>Nessuna struttura caricata</div>";
+  for(var s=0;s<STRUTTURE.length;s++){ var sn=STRUTTURE[s].nome; var ck=(f.strutture||[]).indexOf(sn)>=0; h+="<label style='display:flex;align-items:center;gap:8px;padding:4px;font-size:13px;font-weight:600;cursor:pointer'><input type='checkbox' "+(ck?"checked":"")+" onchange='dipFormToggleStruttura("+s+")'> "+_esc(sn)+"</label>"; }
+  h+="</div>";
   h+="<label class='dim-lbl'>Ore settimanali</label><input type='number' id='df-ore' class='dim-in' value=\""+_esc(f.oreSettimanali)+"\">";
   h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:13px;font-weight:700;color:var(--text-mid);margin:0.5rem 0;cursor:pointer'><input type='checkbox' id='df-attivo' "+(f.attivo?"checked":"")+" style='width:16px;height:16px'> Dipendente attivo</label>";
   h+="<label class='dim-lbl'>Note</label><textarea id='df-note' class='dim-in' rows='2'>"+_esc(f.note)+"</textarea>";
