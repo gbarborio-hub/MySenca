@@ -404,10 +404,10 @@ var GP_VIEW = "dipendenti";
 var GP_DIP_DETAIL = null;
 
 function fetchDipendentiGP() {
-  fetch("https://senca-hub.duckdns.org/webhook/dipendenti", {
+  fetch("https://senca-hub.duckdns.org/webhook/gp-dipendenti", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({action:"get_dipendenti"})
+    body: JSON.stringify({})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
@@ -415,19 +415,14 @@ function fetchDipendentiGP() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       GP_DIPENDENTI = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        function rt(v){ if(typeof v==="string") return v; if(Array.isArray(v)&&v[0]) return v[0].plain_text||(v[0].text&&v[0].text.content)||""; return ""; }
-        function sl(v){ if(typeof v==="string") return v; if(v&&v.name) return v.name; return ""; }
-        var nome = item.nome || item.name || rt(p.Nome) || rt(p.Name) || "";
-        var cognome = item.cognome || rt(p.Cognome) || "";
-        var email = item.email || rt(p.Email) || (p.Email&&p.Email.email) || "";
-        var telefono = item.telefono || rt(p.Telefono) || (p.Telefono&&p.Telefono.phone_number) || "";
-        var mansione = item.mansione || rt(p.Mansione) || sl(p.Mansione) || "";
-        var struttura = item.struttura || sl(p["Struttura principale"]) || rt(p["Struttura principale"]) || sl(p.Struttura) || rt(p.Struttura) || "";
-        var contratto = item.contratto || sl(p["Tipo contratto"]) || "";
-        var username = item.username || rt(p.Username) || "";
-        var pageId = item["Page ID"] || item.id || "";
-        return {nome:nome, cognome:cognome, email:email, telefono:telefono, mansione:mansione, struttura:struttura, contratto:contratto, username:username, pageId:pageId};
+        return {
+          pageId:item.pageId||item.id||"", nome:item.nome||"", cognome:item.cognome||"",
+          cf:item.cf||"", nascita:(item.nascita?String(item.nascita).split("T")[0]:""),
+          email:item.email||"", telefono:item.telefono||"", username:item.username||"",
+          mansione:item.mansione||"", contratto:item.contratto||"", struttura:item.struttura||"",
+          oreSettimanali:(item.oreSettimanali===0||item.oreSettimanali)?item.oreSettimanali:"",
+          attivo:item.attivo!==false, note:item.note||""
+        };
       }).filter(function(d){ return d.nome; });
       render();
     } catch(e) { console.log("Errore fetch dipendenti GP:", e); }
@@ -2199,7 +2194,52 @@ function renderDipComunicazioni(){
   }
   return h;
 }
+var GP_DIP_FORM=null; var GP_DIP_SAVING=false; var GP_DIP_FORMERR=null;
+var GP_DIP_MANSIONI=["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo","Altro"];
+var GP_DIP_CONTRATTI=["Dipendente","Libero professionista","Tirocinio","Altro"];
+function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",mansione:"",contratto:"",struttura:"",oreSettimanali:"",attivo:true,note:""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||""}; GP_DIP_FORMERR=null; render(); }
+function dipFormCancel(){ GP_DIP_FORM=null; GP_DIP_FORMERR=null; render(); }
+function _dipFormSync(){ var f=GP_DIP_FORM; if(!f) return; function gv(id){var e=document.getElementById(id);return e?e.value:undefined;} var v;
+  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-username"); if(v!==undefined)f.username=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-struttura"); if(v!==undefined)f.struttura=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
+}
+function dipFormSave(){ _dipFormSync(); var f=GP_DIP_FORM; if(!f) return;
+  if(!(f.nome||"").trim()){ GP_DIP_FORMERR="⚠️ Il nome è obbligatorio."; render(); return; }
+  if(!(f.cognome||"").trim()){ GP_DIP_FORMERR="⚠️ Il cognome è obbligatorio."; render(); return; }
+  GP_DIP_SAVING=true; GP_DIP_FORMERR=null; render();
+  fetch("https://senca-hub.duckdns.org/webhook/dipendente-salva",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})
+  .then(function(r){return r.text();}).then(function(){ GP_DIP_SAVING=false; GP_DIP_FORM=null; GP_DIP_DETAIL=null; setTimeout(function(){ fetchDipendentiGP(); },1000); })
+  .catch(function(){ GP_DIP_SAVING=false; GP_DIP_FORMERR="⚠️ Errore nel salvataggio. Riprova."; render(); });
+}
+function renderDipAnagForm(){
+  var f=GP_DIP_FORM; var isEdit=!!f.pageId; var h="";
+  h+="<div class='section-label'><div class='section-title'>"+(isEdit?"Modifica anagrafica":"Nuovo dipendente")+"</div></div>";
+  h+="<div class='ana-card' style='padding:1rem'>";
+  h+="<div style='display:flex;gap:0.5rem'><div style='flex:1'><label class='dim-lbl'>Nome *</label><input id='df-nome' class='dim-in' value=\""+_esc(f.nome)+"\"></div><div style='flex:1'><label class='dim-lbl'>Cognome *</label><input id='df-cognome' class='dim-in' value=\""+_esc(f.cognome)+"\"></div></div>";
+  h+="<label class='dim-lbl'>Codice fiscale</label><input id='df-cf' class='dim-in' value=\""+_esc(f.cf)+"\">";
+  h+="<label class='dim-lbl'>Data di nascita</label><input type='date' id='df-nascita' class='dim-in' value=\""+_esc(f.nascita)+"\">";
+  h+="<label class='dim-lbl'>Email</label><input id='df-email' class='dim-in' value=\""+_esc(f.email)+"\">";
+  h+="<label class='dim-lbl'>Telefono</label><input id='df-telefono' class='dim-in' value=\""+_esc(f.telefono)+"\">";
+  h+="<label class='dim-lbl'>Username (accesso app)</label><input id='df-username' class='dim-in' value=\""+_esc(f.username)+"\">";
+  h+="<div style='display:flex;gap:0.5rem'><div style='flex:1'><label class='dim-lbl'>Mansione</label><select id='df-mansione' class='dim-in'><option value=''>—</option>";
+  for(var i=0;i<GP_DIP_MANSIONI.length;i++){ h+="<option value=\""+GP_DIP_MANSIONI[i]+"\" "+(f.mansione===GP_DIP_MANSIONI[i]?"selected":"")+">"+GP_DIP_MANSIONI[i]+"</option>"; }
+  h+="</select></div><div style='flex:1'><label class='dim-lbl'>Contratto</label><select id='df-contratto' class='dim-in'><option value=''>—</option>";
+  for(var j=0;j<GP_DIP_CONTRATTI.length;j++){ h+="<option value=\""+GP_DIP_CONTRATTI[j]+"\" "+(f.contratto===GP_DIP_CONTRATTI[j]?"selected":"")+">"+GP_DIP_CONTRATTI[j]+"</option>"; }
+  h+="</select></div></div>";
+  h+="<label class='dim-lbl'>Struttura principale</label><select id='df-struttura' class='dim-in'><option value=''>—</option>";
+  for(var s=0;s<STRUTTURE.length;s++){ var sn=STRUTTURE[s].nome; h+="<option value=\""+_esc(sn)+"\" "+(f.struttura===sn?"selected":"")+">"+_esc(sn)+"</option>"; }
+  h+="</select>";
+  h+="<label class='dim-lbl'>Ore settimanali</label><input type='number' id='df-ore' class='dim-in' value=\""+_esc(f.oreSettimanali)+"\">";
+  h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:13px;font-weight:700;color:var(--text-mid);margin:0.5rem 0;cursor:pointer'><input type='checkbox' id='df-attivo' "+(f.attivo?"checked":"")+" style='width:16px;height:16px'> Dipendente attivo</label>";
+  h+="<label class='dim-lbl'>Note</label><textarea id='df-note' class='dim-in' rows='2'>"+_esc(f.note)+"</textarea>";
+  if(GP_DIP_FORMERR) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:#7A1A1A'>"+GP_DIP_FORMERR+"</div>";
+  h+="<div style='display:flex;gap:0.5rem;margin-top:0.6rem'><button class='ts-save' "+(GP_DIP_SAVING?"disabled":"")+" onclick='dipFormSave()'>"+(GP_DIP_SAVING?"Salvataggio...":"💾 Salva")+"</button><button class='ts-cancel' onclick='dipFormCancel()'>Annulla</button></div>";
+  h+="</div>";
+  h+="<div style='font-size:11px;color:var(--text-light);text-align:center;margin-top:0.5rem;padding:0 1rem'>Lo username serve per l'accesso all'app. Le credenziali di login (password) si gestiscono separatamente.</div>";
+  return h;
+}
 function renderGP_Dipendenti() {
+  if(GP_DIP_FORM) return renderDipAnagForm();
   var h = "";
 
   // Dettaglio dipendente
@@ -2216,6 +2256,7 @@ function renderGP_Dipendenti() {
     h += "<div class='ana-row'><div class='ana-label'>Contratto</div><div class='ana-value'>" + (d.contratto||"—") + "</div></div>";
     h += "<div class='ana-row'><div class='ana-label'>Username</div><div class='ana-value'>" + (d.username||"—") + "</div></div>";
     h += "</div>";
+    h += "<button class='update-btn' style='background:var(--teal)' onclick='dipFormOpenEdit()'>✏️ Modifica anagrafica</button>";
     h += renderDipTimesheet();
     h += "<div class='section-label'><div class='section-title'>Fascicolo personale</div></div>";
     h += "<div class='timbra-card' style='text-align:center;padding:2rem;color:var(--text-light)'>";
@@ -2233,7 +2274,7 @@ function renderGP_Dipendenti() {
   }
 
   h += "<div class='section-label'><div class='section-title'>Dipendenti</div>";
-  h += "<div style='background:var(--teal);color:white;border-radius:20px;padding:0.4rem 1rem;font-size:12px;font-weight:800;cursor:pointer' onclick=\"alert('Funzione in arrivo!')\">+ Nuovo</div></div>";
+  h += "<div style='background:var(--teal);color:white;border-radius:20px;padding:0.4rem 1rem;font-size:12px;font-weight:800;cursor:pointer' onclick=\"dipFormOpenAdd()\">+ Nuovo</div></div>";
 
   if(GP_DIPENDENTI.length === 0) {
     h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Caricamento dipendenti...</div></div>";
