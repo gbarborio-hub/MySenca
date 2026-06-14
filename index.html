@@ -147,6 +147,13 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .gpt-refresh:disabled{opacity:0.6;cursor:default}
 .ts-nav{padding:0.45rem 0.9rem;border:1.5px solid var(--cyan-light);border-radius:var(--radius-sm);background:var(--white);color:var(--teal);font-size:16px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .ts-nav:disabled{opacity:0.4;cursor:default}
+.ts-add{width:100%;padding:0.7rem;margin-bottom:0.6rem;border:1.5px dashed var(--teal);border-radius:var(--radius-sm);background:transparent;color:var(--teal);font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
+.ts-save{flex:1;padding:0.7rem;border:none;border-radius:var(--radius-sm);background:var(--teal);color:white;font-size:14px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
+.ts-save:disabled{opacity:0.6;cursor:default}
+.ts-cancel{padding:0.7rem 1rem;border:none;border-radius:var(--radius-sm);background:transparent;color:var(--text-light);font-size:13px;font-weight:700;cursor:pointer;font-family:"Satoshi",sans-serif}
+.ts-mini{padding:3px 9px;border:1px solid var(--cyan-light);border-radius:8px;background:var(--white);color:var(--teal);font-size:11px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
+.ts-mini.del{border-color:#E0C0C0;color:#A04040}
+.ts-mini:disabled{opacity:0.5;cursor:default}
 .turni-past-btn{width:100%;padding:0.7rem;margin:0.5rem 0;border:1.5px dashed var(--text-light);border-radius:var(--radius-sm);background:transparent;color:var(--text-mid);font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .dim-toggle{width:100%;padding:0.8rem;border:1.5px dashed var(--coral);border-radius:var(--radius-sm);background:transparent;color:var(--coral);font-size:14px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .dim-lbl{display:block;font-size:11px;font-weight:800;color:var(--text-mid);text-transform:uppercase;margin:0.5rem 0 0.25rem}
@@ -1699,7 +1706,7 @@ function fetchDipTimbrature(d){
   fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||"")})})
   .then(function(r){return r.text();})
   .then(function(t){ try{ var data=JSON.parse(t); var raw=Array.isArray(data)?data:[data];
-      GP_DIP_TIMB = raw.map(function(it){ return {data:String(it.data||"").split("T")[0], oraEntrata:it.oraEntrata||"", oraUscita:it.oraUscita||"", oreLavorate:parseFloat(it.oreLavorate)||0, approvazione:it.approvazione||"", struttura:it.struttura||""}; }).filter(function(x){return x.data;});
+      GP_DIP_TIMB = raw.map(function(it){ return {id:it.id||"", data:String(it.data||"").split("T")[0], oraEntrata:it.oraEntrata||"", oraUscita:it.oraUscita||"", oreLavorate:parseFloat(it.oreLavorate)||0, approvazione:it.approvazione||"", struttura:it.struttura||""}; }).filter(function(x){return x.data;});
     }catch(e){ console.log("err timb dip",e); } GP_DIP_LOADING=false; render(); })
   .catch(function(){ GP_DIP_LOADING=false; render(); });
 }
@@ -1716,6 +1723,32 @@ function fetchDipTurni(d){
       }).filter(function(x){return x.data;});
     }catch(e){ console.log("err turni dip",e); } render(); })
   .catch(function(){ render(); });
+}
+function _tuPost(action, pageId){ return fetch(TIMBRATURA_UPDATE_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:action,pageId:pageId,eliminataDa:(S.user&&S.user.username)||""})}).then(function(r){return r.json();}); }
+function _createTimb(payload){ return fetch(TIMBRA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(function(r){return r.json();}); }
+function tsOpenAdd(){ S.tsForm={mode:"add",pageId:null,data:_ymd(new Date()),struttura:(GP_DIP_DETAIL&&GP_DIP_DETAIL.struttura)||"",oraEntrata:"",oraUscita:""}; S.tsErr=null; render(); }
+function tsOpenEdit(pageId){ var t=null; for(var i=0;i<GP_DIP_TIMB.length;i++){ if(GP_DIP_TIMB[i].id===pageId){t=GP_DIP_TIMB[i];break;} } if(!t)return; S.tsForm={mode:"edit",pageId:pageId,data:t.data,struttura:t.struttura||"",oraEntrata:t.oraEntrata||"",oraUscita:t.oraUscita||""}; S.tsErr=null; render(); }
+function tsCancel(){ S.tsForm=null; S.tsErr=null; render(); }
+function tsDelete(pageId){
+  if(!confirm("Archiviare questa timbratura? Resta conservata in archivio a norma di legge e non sarà più conteggiata. L'operazione viene registrata col tuo nome.")) return;
+  S.tsBusy=pageId; render();
+  _tuPost("elimina",pageId).then(function(){ S.tsBusy=null; setTimeout(function(){ fetchDipTimbrature(GP_DIP_DETAIL); },1000); }).catch(function(){ S.tsBusy=null; alert("Errore nell'archiviazione. Riprova."); render(); });
+}
+function tsSave(){
+  var f=S.tsForm; if(!f) return;
+  function gv(id){ var el=document.getElementById(id); return el?el.value:""; }
+  var data=gv("ts-data"), struttura=gv("ts-struttura"), entrata=gv("ts-entrata"), uscita=gv("ts-uscita");
+  if(!data||!struttura||!entrata||!uscita){ S.tsErr="⚠️ Compila data, struttura, entrata e uscita."; render(); return; }
+  var s=_hm(entrata), e=_hm(uscita); if(e<=s)e+=1440;
+  var entrataDt=new Date(data+"T"+entrata+":00"); var uscitaDt=new Date(entrataDt.getTime()+(e-s)*60000);
+  if(uscitaDt>new Date()){ S.tsErr="⚠️ Non puoi inserire orari nel futuro."; render(); return; }
+  var d=GP_DIP_DETAIL; var nome=((d.nome||"")+" "+(d.cognome||"")).trim();
+  var ore=Math.round((e-s)/60*100)/100;
+  var payload={ nome:nome, username:d.username||"", struttura:struttura, data:data, oraEntrata:entrata, oraUscita:uscita, oreTotali:ore, stato:(f.mode==="edit"?"Modificata ufficio":"Inserita ufficio"), approvazione:"Approvata", turno:"", note:(f.mode==="edit"?("Modificata da ufficio personale ("+((S.user&&S.user.username)||"")+") - originale archiviata"):("Inserita da ufficio personale ("+((S.user&&S.user.username)||"")+")")), lat:null, lng:null };
+  S.tsSaving=true; S.tsErr=null; render();
+  var chain = (f.mode==="edit" && f.pageId) ? _tuPost("elimina",f.pageId).then(function(){ return _createTimb(payload); }) : _createTimb(payload);
+  chain.then(function(){ S.tsForm=null; S.tsSaving=false; setTimeout(function(){ fetchDipTimbrature(GP_DIP_DETAIL); },1100); })
+       .catch(function(){ S.tsSaving=false; S.tsErr="⚠️ Errore nel salvataggio. Riprova."; render(); });
 }
 function _hm(x){ var p=String(x||"").split(":"); var h=parseInt(p[0]); var m=parseInt(p[1]); if(isNaN(h))return null; return h*60+(isNaN(m)?0:m); }
 function _easter(Y){ var a=Y%19,b=Math.floor(Y/100),c=Y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),hh=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-hh-k)%7,mm=Math.floor((a+11*hh+22*l)/451),mo=Math.floor((hh+l-7*mm+114)/31),da=((hh+l-7*mm+114)%31)+1; return new Date(Y,mo-1,da); }
@@ -1767,6 +1800,27 @@ function renderDipTimesheet(){
   h+="<div style='font-size:13px;font-weight:800;color:var(--text-dark);text-align:center;flex:1'>"+fmtDateIt(wsS)+" – "+fmtDateIt(weS)+"</div>";
   h+="<button class='ts-nav' "+(GP_WEEK_OFFSET>=0?"disabled":"")+" onclick='gpChangeWeek(1)'>→</button>";
   h+="</div>";
+  if(S.tsForm){
+    var f=S.tsForm;
+    h+="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.6rem;border:1.5px solid var(--cyan)'>";
+    h+="<div style='font-size:13px;font-weight:900;color:var(--teal-dark);margin-bottom:0.4rem'>"+(f.mode==="edit"?"✏️ Modifica timbratura":"➕ Nuova timbratura")+"</div>";
+    if(f.mode==="edit") h+="<div style='font-size:11px;color:var(--text-light);font-weight:600;margin-bottom:0.5rem'>L'originale verrà archiviata (resta nell'archivio a norma di legge) e sostituita da questa versione corretta.</div>";
+    h+="<label class='dim-lbl'>Data</label><input type='date' id='ts-data' class='dim-in' max='"+_ymd(new Date())+"' value='"+f.data+"'>";
+    h+="<label class='dim-lbl'>Struttura</label><select id='ts-struttura' class='dim-in'><option value=''>-- Seleziona --</option>";
+    for(var si=0;si<STRUTTURE.length;si++){ h+="<option value=\""+STRUTTURE[si].nome+"\" "+(f.struttura===STRUTTURE[si].nome?"selected":"")+">"+STRUTTURE[si].nome+"</option>"; }
+    h+="</select>";
+    h+="<div style='display:flex;gap:0.5rem'>";
+    h+="<div style='flex:1'><label class='dim-lbl'>Entrata</label><input type='time' id='ts-entrata' class='dim-in' value='"+f.oraEntrata+"'></div>";
+    h+="<div style='flex:1'><label class='dim-lbl'>Uscita</label><input type='time' id='ts-uscita' class='dim-in' value='"+f.oraUscita+"'></div>";
+    h+="</div>";
+    if(S.tsErr) h+="<div style='margin-top:0.5rem;font-size:12px;font-weight:700;color:#7A1A1A'>"+S.tsErr+"</div>";
+    h+="<div style='display:flex;gap:0.5rem;margin-top:0.7rem'>";
+    h+="<button class='ts-save' "+(S.tsSaving?"disabled":"")+" onclick='tsSave()'>"+(S.tsSaving?"Salvataggio...":"💾 Salva")+"</button>";
+    h+="<button class='ts-cancel' onclick='tsCancel()'>Annulla</button>";
+    h+="</div></div>";
+  } else {
+    h+="<button class='ts-add' onclick='tsOpenAdd()'>➕ Aggiungi timbratura</button>";
+  }
   if(GP_DIP_LOADING){ h+="<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Caricamento...</div>"; return h; }
   var giorni=["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"];
   var tot={ore:0,nott:0,fest:0,festNott:0,straord:0};
@@ -1799,6 +1853,10 @@ function renderDipTimesheet(){
         chips+=_chip("❌ Rifiutata · non conteggiata","#7A1A1A");
       }
       if(chips) inner+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>"+chips+"</div>";
+      inner+="<div style='display:flex;gap:0.4rem;margin-top:6px'>";
+      inner+="<button class='ts-mini' onclick=\"tsOpenEdit('"+t.id+"')\">✏️ Modifica</button>";
+      inner+="<button class='ts-mini del' "+(S.tsBusy===t.id?"disabled":"")+" onclick=\"tsDelete('"+t.id+"')\">"+(S.tsBusy===t.id?"...":"🗑 Elimina")+"</button>";
+      inner+="</div>";
       inner+="</div>";
     }
     h+="<div style='padding:0.7rem 1rem;border-bottom:1px solid var(--bg)'>";
