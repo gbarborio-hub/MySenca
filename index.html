@@ -2201,7 +2201,7 @@ function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nasci
 function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",strutture:(d.struttura?d.struttura.split(",").map(function(x){return x.trim();}).filter(Boolean):[]),oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||""}; GP_DIP_FORMERR=null; render(); }
 function dipFormCancel(){ GP_DIP_FORM=null; GP_DIP_FORMERR=null; render(); }
 function _dipFormSync(){ var f=GP_DIP_FORM; if(!f) return; function gv(id){var e=document.getElementById(id);return e?e.value:undefined;} var v;
-  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-username"); if(v!==undefined)f.username=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
+  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
 }
 function dipFormToggleStruttura(idx){ _dipFormSync(); var sn=STRUTTURE[idx]&&STRUTTURE[idx].nome; if(!sn) return; if(!GP_DIP_FORM.strutture) GP_DIP_FORM.strutture=[]; var i=GP_DIP_FORM.strutture.indexOf(sn); if(i>=0) GP_DIP_FORM.strutture.splice(i,1); else GP_DIP_FORM.strutture.push(sn); render(); }
 function dipFormSave(){ _dipFormSync(); var f=GP_DIP_FORM; if(!f) return;
@@ -2209,7 +2209,8 @@ function dipFormSave(){ _dipFormSync(); var f=GP_DIP_FORM; if(!f) return;
   if(!(f.cognome||"").trim()){ GP_DIP_FORMERR="⚠️ Il cognome è obbligatorio."; render(); return; }
   f.struttura=(f.strutture||[]).join(", ");
   GP_DIP_SAVING=true; GP_DIP_FORMERR=null; render();
-  fetch("https://senca-hub.duckdns.org/webhook/dipendente-salva",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)})
+  var payload=Object.assign({},f); delete payload.strutture; delete payload.username;
+  fetch("https://senca-hub.duckdns.org/webhook/dipendente-salva",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
   .then(function(r){return r.text();}).then(function(){ GP_DIP_SAVING=false; GP_DIP_FORM=null; GP_DIP_DETAIL=null; setTimeout(function(){ fetchDipendentiGP(); },1000); })
   .catch(function(){ GP_DIP_SAVING=false; GP_DIP_FORMERR="⚠️ Errore nel salvataggio. Riprova."; render(); });
 }
@@ -2222,7 +2223,6 @@ function renderDipAnagForm(){
   h+="<label class='dim-lbl'>Data di nascita</label><input type='date' id='df-nascita' class='dim-in' value=\""+_esc(f.nascita)+"\">";
   h+="<label class='dim-lbl'>Email</label><input id='df-email' class='dim-in' value=\""+_esc(f.email)+"\">";
   h+="<label class='dim-lbl'>Telefono</label><input id='df-telefono' class='dim-in' value=\""+_esc(f.telefono)+"\">";
-  h+="<label class='dim-lbl'>Username (accesso app)</label><input id='df-username' class='dim-in' value=\""+_esc(f.username)+"\">";
   h+="<div style='display:flex;gap:0.5rem'><div style='flex:1'><label class='dim-lbl'>Mansione</label><select id='df-mansione' class='dim-in'><option value=''>—</option>";
   for(var i=0;i<GP_DIP_MANSIONI.length;i++){ h+="<option value=\""+GP_DIP_MANSIONI[i]+"\" "+(f.mansione===GP_DIP_MANSIONI[i]?"selected":"")+">"+GP_DIP_MANSIONI[i]+"</option>"; }
   h+="</select></div><div style='flex:1'><label class='dim-lbl'>Contratto</label><select id='df-contratto' class='dim-in'><option value=''>—</option>";
@@ -2239,7 +2239,7 @@ function renderDipAnagForm(){
   if(GP_DIP_FORMERR) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:#7A1A1A'>"+GP_DIP_FORMERR+"</div>";
   h+="<div style='display:flex;gap:0.5rem;margin-top:0.6rem'><button class='ts-save' "+(GP_DIP_SAVING?"disabled":"")+" onclick='dipFormSave()'>"+(GP_DIP_SAVING?"Salvataggio...":"💾 Salva")+"</button><button class='ts-cancel' onclick='dipFormCancel()'>Annulla</button></div>";
   h+="</div>";
-  h+="<div style='font-size:11px;color:var(--text-light);text-align:center;margin-top:0.5rem;padding:0 1rem'>Lo username serve per l'accesso all'app. Le credenziali di login (password) si gestiscono separatamente.</div>";
+  h+="<div style='font-size:11px;color:var(--text-light);text-align:center;margin-top:0.5rem;padding:0 1rem'>L'utente web app e le credenziali di accesso (username e password) non si gestiscono da qui: vengono attivati esclusivamente su Notion dall'amministratore.</div>";
   return h;
 }
 function renderGP_Dipendenti() {
