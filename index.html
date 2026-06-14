@@ -156,6 +156,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .ts-mini.del{border-color:#E0C0C0;color:#A04040}
 .com-pill{padding:5px 12px;border:1.5px solid var(--cyan-light);border-radius:14px;background:var(--white);color:var(--text-mid);font-size:12px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .com-pill.on{background:var(--teal);border-color:var(--teal);color:white}
+.nav-badge{display:inline-block;min-width:16px;padding:0 4px;background:#E03B3B;color:#fff;border-radius:9px;font-size:10px;font-weight:800;line-height:16px;text-align:center;vertical-align:top}
 .ts-mini:disabled{opacity:0.5;cursor:default}
 .turni-past-btn{width:100%;padding:0.7rem;margin:0.5rem 0;border:1.5px dashed var(--text-light);border-radius:var(--radius-sm);background:transparent;color:var(--text-mid);font-size:13px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
 .dim-toggle{width:100%;padding:0.8rem;border:1.5px dashed var(--coral);border-radius:var(--radius-sm);background:transparent;color:var(--coral);font-size:14px;font-weight:800;cursor:pointer;font-family:"Satoshi",sans-serif}
@@ -890,7 +891,7 @@ function unlockBio(){
 function restoreUser(u){
   S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null;
   if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
-  if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); }
+  if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); if("Notification" in window && Notification.permission==="default"){ try{ Notification.requestPermission(); }catch(e){} } startComPoll(); }
   if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
   render();
 }
@@ -1019,7 +1020,7 @@ function renderDipendente() {
     for(var t=0; t<tabs.length; t++) {
       var tact = (S.dipTab===tabs[t]||(t===0&&!S.dipTab)) ? "active" : "inactive";
       var lbl = tabs[t];
-      if(tabs[t]==="Avvisi"){ var nUn=dipComUnread(); if(nUn>0) lbl="Avvisi ("+nUn+")"; }
+      if(tabs[t]==="Avvisi"){ var nUn=dipComUnread(); lbl="🔔"+(nUn>0?" <span class='nav-badge'>"+nUn+"</span>":""); }
       h += "<div class=\"nav-tab " + tact + "\" onclick=\"S.dipTab='" + tabs[t] + "';render()\">" + lbl + "</div>";
     }
     h += "</div></div>";
@@ -2036,32 +2037,43 @@ var COM_LETTA_URL="https://senca-hub.duckdns.org/webhook/comunicazione-letta";
 var COM_LETTURE_URL="https://senca-hub.duckdns.org/webhook/comunicazione-letture";
 var COM_RUOLI=["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo","Altro"];
 var COM_SENT=[]; var COM_SENT_LOADING=false;
-var COM_FORM={tipo:"Tutti",singoli:[],fileName:"",fileB64:"",fileType:"",link:""};
+var COM_FORM={tipo:"Tutti",struttura:"",ruolo:"",singoli:[],conferma:true,titolo:"",messaggio:"",link:"",fileName:"",fileB64:"",fileType:""};
 var COM_SENDING=false; var COM_MSG=null; var COM_READERS={};
 var DIP_COMS=[]; var DIP_COMS_LOADING=false; var DIP_COM_SEL=null;
+var COM_SEEN={}; var COM_FIRST=true; var COM_POLL=null;
 
+function _esc(x){ return String(x==null?"":x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function comSync(){ var el;
+  el=document.getElementById("com-titolo"); if(el) COM_FORM.titolo=el.value;
+  el=document.getElementById("com-messaggio"); if(el) COM_FORM.messaggio=el.value;
+  el=document.getElementById("com-link"); if(el) COM_FORM.link=el.value;
+  el=document.getElementById("com-struttura"); if(el) COM_FORM.struttura=el.value;
+  el=document.getElementById("com-ruolo"); if(el) COM_FORM.ruolo=el.value;
+  el=document.getElementById("com-conferma"); if(el) COM_FORM.conferma=el.checked;
+}
 function comGPLoad(){ COM_SENT_LOADING=true; render();
   fetch(COM_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({all:true})})
   .then(function(r){return r.text();}).then(function(t){ try{ var d=JSON.parse(t); COM_SENT=Array.isArray(d)?d:[]; }catch(e){ COM_SENT=[]; } COM_SENT_LOADING=false; render(); })
   .catch(function(){ COM_SENT_LOADING=false; render(); });
 }
-function comSetTipo(v){ COM_FORM.tipo=v; render(); }
-function comToggleSingolo(u){ var i=COM_FORM.singoli.indexOf(u); if(i>=0) COM_FORM.singoli.splice(i,1); else COM_FORM.singoli.push(u); render(); }
-function comFilePick(input){ var f=input.files&&input.files[0]; if(!f) return; if(f.size>18*1024*1024){ COM_MSG="⚠️ File troppo grande (max ~18MB)."; render(); return; } var rd=new FileReader(); rd.onload=function(){ COM_FORM.fileB64=String(rd.result); COM_FORM.fileName=f.name; COM_FORM.fileType=f.type||"application/octet-stream"; render(); }; rd.readAsDataURL(f); }
-function comClearFile(){ COM_FORM.fileName=""; COM_FORM.fileB64=""; COM_FORM.fileType=""; render(); }
+function comSetTipo(v){ comSync(); COM_FORM.tipo=v; render(); }
+function comSetConferma(){ comSync(); render(); }
+function comToggleSingolo(u){ comSync(); var i=COM_FORM.singoli.indexOf(u); if(i>=0) COM_FORM.singoli.splice(i,1); else COM_FORM.singoli.push(u); render(); }
+function comFilePick(input){ comSync(); var f=input.files&&input.files[0]; if(!f) return; if(f.size>18*1024*1024){ COM_MSG="⚠️ File troppo grande (max ~18MB)."; render(); return; } var rd=new FileReader(); rd.onload=function(){ COM_FORM.fileB64=String(rd.result); COM_FORM.fileName=f.name; COM_FORM.fileType=f.type||"application/octet-stream"; render(); }; rd.readAsDataURL(f); }
+function comClearFile(){ comSync(); COM_FORM.fileName=""; COM_FORM.fileB64=""; COM_FORM.fileType=""; render(); }
 function comSend(){
-  var titolo=((document.getElementById("com-titolo")||{}).value||"").trim();
-  var messaggio=((document.getElementById("com-messaggio")||{}).value||"").trim();
+  comSync();
+  var titolo=(COM_FORM.titolo||"").trim();
+  var messaggio=(COM_FORM.messaggio||"").trim();
   if(!titolo){ COM_MSG="⚠️ Inserisci un titolo."; render(); return; }
-  var tipo=COM_FORM.tipo; var dest="";
-  if(tipo==="Struttura"){ dest=(document.getElementById("com-struttura")||{}).value||""; if(!dest){ COM_MSG="⚠️ Seleziona una struttura."; render(); return; } }
-  else if(tipo==="Ruolo"){ dest=(document.getElementById("com-ruolo")||{}).value||""; if(!dest){ COM_MSG="⚠️ Seleziona un ruolo."; render(); return; } }
-  else if(tipo==="Singoli"){ if(COM_FORM.singoli.length===0){ COM_MSG="⚠️ Seleziona almeno un dipendente."; render(); return; } dest=COM_FORM.singoli.join(","); }
-  var link=((document.getElementById("com-link")||{}).value||"").trim();
-  var payload={ titolo:titolo, messaggio:messaggio, mittente:(S.user&&S.user.username)||"", tipoDestinatari:tipo, destinatari:dest, linkAllegato:link, fileBase64:COM_FORM.fileB64||"", fileName:COM_FORM.fileName||"", contentType:COM_FORM.fileType||"" };
+  var tipo=COM_FORM.tipo; var struttura="", ruolo="", singoli=[];
+  if(tipo==="Mirata"){ struttura=COM_FORM.struttura||""; ruolo=COM_FORM.ruolo||""; if(!struttura && !ruolo){ COM_MSG="⚠️ Scegli una struttura e/o un ruolo (oppure usa Tutti)."; render(); return; } }
+  else if(tipo==="Singoli"){ if(COM_FORM.singoli.length===0){ COM_MSG="⚠️ Seleziona almeno un dipendente."; render(); return; } singoli=COM_FORM.singoli.slice(); }
+  var tipoSel = singoli.length?"Singoli":(struttura?"Struttura":(ruolo?"Ruolo":"Tutti"));
+  var payload={ titolo:titolo, messaggio:messaggio, mittente:(S.user&&S.user.username)||"", tipoDestinatari:tipoSel, destinatari:JSON.stringify({struttura:struttura,ruolo:ruolo,singoli:singoli}), confermaLettura:!!COM_FORM.conferma, linkAllegato:(COM_FORM.link||"").trim(), fileBase64:COM_FORM.fileB64||"", fileName:COM_FORM.fileName||"", contentType:COM_FORM.fileType||"" };
   COM_SENDING=true; COM_MSG="⏳ Invio in corso..."; render();
   fetch(COM_CREA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
-  .then(function(r){return r.text();}).then(function(){ COM_SENDING=false; COM_MSG="✅ Comunicazione inviata."; COM_FORM={tipo:"Tutti",singoli:[],fileName:"",fileB64:"",fileType:"",link:""}; setTimeout(function(){ comGPLoad(); },1300); })
+  .then(function(r){return r.text();}).then(function(){ COM_SENDING=false; COM_MSG="✅ Comunicazione inviata."; COM_FORM={tipo:"Tutti",struttura:"",ruolo:"",singoli:[],conferma:true,titolo:"",messaggio:"",link:"",fileName:"",fileB64:"",fileType:""}; setTimeout(function(){ comGPLoad(); },1300); })
   .catch(function(){ COM_SENDING=false; COM_MSG="⚠️ Errore nell'invio. Riprova."; render(); });
 }
 function comViewReaders(commId){ COM_READERS[commId]={loading:true,list:[]}; render();
@@ -2069,24 +2081,45 @@ function comViewReaders(commId){ COM_READERS[commId]={loading:true,list:[]}; ren
   .then(function(r){return r.text();}).then(function(t){ var d=[]; try{ d=JSON.parse(t); }catch(e){} COM_READERS[commId]={loading:false,list:Array.isArray(d)?d:[]}; render(); })
   .catch(function(){ COM_READERS[commId]={loading:false,list:[]}; render(); });
 }
-function _comTarget(c){ if(c.tipo==="Tutti") return "👥 Tutti"; if(c.tipo==="Struttura") return "🏠 Struttura: "+c.destinatari; if(c.tipo==="Ruolo") return "🏷 Ruolo: "+c.destinatari; if(c.tipo==="Singoli"){ var n=(c.destinatari||"").split(",").filter(Boolean).length; return "👤 "+n+" destinatari"; } return ""; }
+function _comTarget(c){
+  if(c.destSingoli>0) return "👤 "+c.destSingoli+" destinatari";
+  var parts=[];
+  if(c.destStruttura) parts.push("🏠 "+c.destStruttura);
+  if(c.destRuolo) parts.push("🏷 "+c.destRuolo);
+  if(parts.length===0) return "👥 Tutti";
+  return parts.join(" · ");
+}
 function renderGP_Comunicazioni(){
   var h="";
   h+="<div class='section-label'><div class='section-title'>Nuova comunicazione</div></div>";
   h+="<div class='ana-card' style='padding:1rem'>";
-  h+="<label class='dim-lbl'>Titolo</label><input id='com-titolo' class='dim-in' placeholder='Oggetto'>";
-  h+="<label class='dim-lbl'>Messaggio</label><textarea id='com-messaggio' class='dim-in' rows='4' placeholder='Testo della comunicazione'></textarea>";
+  h+="<label class='dim-lbl'>Titolo</label><input id='com-titolo' class='dim-in' placeholder='Oggetto' value=\""+_esc(COM_FORM.titolo)+"\">";
+  h+="<label class='dim-lbl'>Messaggio</label><textarea id='com-messaggio' class='dim-in' rows='4' placeholder='Testo della comunicazione'>"+_esc(COM_FORM.messaggio)+"</textarea>";
   h+="<label class='dim-lbl'>Destinatari</label><div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'>";
-  var tipi=[["Tutti","Tutti"],["Struttura","Per struttura"],["Ruolo","Per ruolo"],["Singoli","Singoli"]];
+  var tipi=[["Tutti","Tutti"],["Mirata","Struttura / Ruolo"],["Singoli","Singoli"]];
   for(var i=0;i<tipi.length;i++){ var act=COM_FORM.tipo===tipi[i][0]; h+="<button class='com-pill"+(act?" on":"")+"' onclick=\"comSetTipo('"+tipi[i][0]+"')\">"+tipi[i][1]+"</button>"; }
   h+="</div>";
-  if(COM_FORM.tipo==="Struttura"){ h+="<select id='com-struttura' class='dim-in'><option value=''>— Seleziona struttura —</option>"; for(var s=0;s<STRUTTURE.length;s++){ h+="<option value=\""+STRUTTURE[s].nome+"\">"+STRUTTURE[s].nome+"</option>"; } h+="</select>"; }
-  else if(COM_FORM.tipo==="Ruolo"){ h+="<select id='com-ruolo' class='dim-in'><option value=''>— Seleziona ruolo —</option>"; for(var r=0;r<COM_RUOLI.length;r++){ h+="<option value=\""+COM_RUOLI[r]+"\">"+COM_RUOLI[r]+"</option>"; } h+="</select>"; }
-  else if(COM_FORM.tipo==="Singoli"){ h+="<div style='max-height:180px;overflow:auto;border:1px solid var(--cyan-light);border-radius:10px;padding:6px;margin-bottom:8px'>"; if(GP_DIPENDENTI.length===0) h+="<div style='font-size:12px;color:var(--text-light);padding:6px'>Nessun dipendente caricato (apri prima Dipendenti)</div>"; for(var d=0;d<GP_DIPENDENTI.length;d++){ var dp=GP_DIPENDENTI[d]; var un=dp.username||""; if(!un) continue; var ck=COM_FORM.singoli.indexOf(un)>=0; h+="<label style='display:flex;align-items:center;gap:8px;padding:5px;font-size:13px;font-weight:600;cursor:pointer'><input type='checkbox' "+(ck?"checked":"")+" onchange=\"comToggleSingolo('"+un+"')\"> "+((dp.nome||"")+" "+(dp.cognome||"")).trim()+" <span style='color:var(--text-light);font-weight:500'>("+un+")</span></label>"; } h+="</div>"; }
+  if(COM_FORM.tipo==="Mirata"){
+    h+="<div style='display:flex;gap:0.5rem'>";
+    h+="<div style='flex:1'><label class='dim-lbl'>Struttura</label><select id='com-struttura' class='dim-in'><option value=''>— Tutte —</option>";
+    for(var s=0;s<STRUTTURE.length;s++){ var sn=STRUTTURE[s].nome; h+="<option value=\""+_esc(sn)+"\" "+(COM_FORM.struttura===sn?"selected":"")+">"+_esc(sn)+"</option>"; }
+    h+="</select></div>";
+    h+="<div style='flex:1'><label class='dim-lbl'>Ruolo</label><select id='com-ruolo' class='dim-in'><option value=''>— Tutti —</option>";
+    for(var r=0;r<COM_RUOLI.length;r++){ h+="<option value=\""+COM_RUOLI[r]+"\" "+(COM_FORM.ruolo===COM_RUOLI[r]?"selected":"")+">"+COM_RUOLI[r]+"</option>"; }
+    h+="</select></div></div>";
+    h+="<div style='font-size:11px;color:var(--text-light);margin-bottom:8px'>Se scegli sia struttura che ruolo, arriva solo a chi ha entrambi (es. infermieri della struttura X).</div>";
+  }
+  else if(COM_FORM.tipo==="Singoli"){
+    h+="<div style='max-height:180px;overflow:auto;border:1px solid var(--cyan-light);border-radius:10px;padding:6px;margin-bottom:8px'>";
+    if(GP_DIPENDENTI.length===0) h+="<div style='font-size:12px;color:var(--text-light);padding:6px'>Nessun dipendente caricato (apri prima Dipendenti)</div>";
+    for(var d=0;d<GP_DIPENDENTI.length;d++){ var dp=GP_DIPENDENTI[d]; var un=dp.username||""; if(!un) continue; var ck=COM_FORM.singoli.indexOf(un)>=0; h+="<label style='display:flex;align-items:center;gap:8px;padding:5px;font-size:13px;font-weight:600;cursor:pointer'><input type='checkbox' "+(ck?"checked":"")+" onchange=\"comToggleSingolo('"+un+"')\"> "+_esc(((dp.nome||"")+" "+(dp.cognome||"")).trim())+" <span style='color:var(--text-light);font-weight:500'>("+_esc(un)+")</span></label>"; }
+    h+="</div>";
+  }
   h+="<label class='dim-lbl'>Allegato (file su Notion)</label>";
-  if(COM_FORM.fileName){ h+="<div style='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:8px'>📎 "+COM_FORM.fileName+" <button class='ts-mini del' onclick='comClearFile()'>rimuovi</button></div>"; }
+  if(COM_FORM.fileName){ h+="<div style='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:8px'>📎 "+_esc(COM_FORM.fileName)+" <button class='ts-mini del' onclick='comClearFile()'>rimuovi</button></div>"; }
   else { h+="<input type='file' onchange='comFilePick(this)' style='margin-bottom:8px;font-size:13px;width:100%'>"; }
-  h+="<label class='dim-lbl'>oppure Link allegato (Drive/Nextcloud)</label><input id='com-link' class='dim-in' placeholder='https://...'>";
+  h+="<label class='dim-lbl'>oppure Link allegato (Drive/Nextcloud)</label><input id='com-link' class='dim-in' placeholder='https://...' value=\""+_esc(COM_FORM.link)+"\">";
+  h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:13px;font-weight:700;color:var(--text-mid);margin:0.4rem 0 0.2rem;cursor:pointer'><input type='checkbox' id='com-conferma' "+(COM_FORM.conferma?"checked":"")+" onchange='comSetConferma()' style='width:16px;height:16px'> Richiedi conferma di lettura</label>";
   if(COM_MSG) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:var(--teal-dark)'>"+COM_MSG+"</div>";
   h+="<button class='ts-save' style='width:100%;margin-top:6px' "+(COM_SENDING?"disabled":"")+" onclick='comSend()'>"+(COM_SENDING?"Invio...":"📤 Invia comunicazione")+"</button>";
   h+="</div>";
@@ -2096,26 +2129,45 @@ function renderGP_Comunicazioni(){
   else if(COM_SENT.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessuna comunicazione inviata</div>"; }
   else { for(var i=0;i<COM_SENT.length;i++){ var c=COM_SENT[i];
       h+="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.5rem'>";
-      h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:800;color:var(--text-dark)'>"+(c.titolo||"(senza titolo)")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(c.dataInvio)+"</div></div>";
-      h+="<div style='font-size:12px;color:var(--text-mid);margin:4px 0'>"+_comTarget(c)+"</div>";
-      if(c.allegatoNome) h+="<div style='font-size:12px;color:var(--teal);font-weight:700'>📎 "+c.allegatoNome+"</div>";
-      if(c.linkAllegato) h+="<div style='font-size:12px'><a href='"+c.linkAllegato+"' target='_blank' style='color:var(--teal);font-weight:700'>🔗 Link allegato</a></div>";
-      h+="<div style='display:flex;align-items:center;gap:10px;margin-top:6px'><span style='font-size:12px;font-weight:800;color:var(--teal-dark)'>✓ Letture: "+(c.lettiCount||0)+"</span><button class='ts-mini' onclick=\"comViewReaders('"+c.id+"')\">Chi ha letto</button></div>";
-      var rd=COM_READERS[c.id];
-      if(rd){ h+="<div style='margin-top:6px;border-top:1px solid var(--bg);padding-top:6px'>"; if(rd.loading) h+="<div style='font-size:12px;color:var(--text-light)'>Caricamento...</div>"; else if(rd.list.length===0) h+="<div style='font-size:12px;color:var(--text-light)'>Ancora nessuna lettura</div>"; else { for(var k=0;k<rd.list.length;k++){ h+="<div style='font-size:12px;color:var(--text-mid)'>✓ "+(rd.list[k].nome||rd.list[k].username)+" · "+fmtDateIt(rd.list[k].lettoIl)+"</div>"; } } h+="</div>"; }
+      h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:800;color:var(--text-dark)'>"+_esc(c.titolo||"(senza titolo)")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(c.dataInvio)+"</div></div>";
+      h+="<div style='font-size:12px;color:var(--text-mid);margin:4px 0;text-transform:capitalize'>"+_comTarget(c)+"</div>";
+      if(c.allegatoNome) h+="<div style='font-size:12px;color:var(--teal);font-weight:700'>📎 "+_esc(c.allegatoNome)+"</div>";
+      if(c.linkAllegato) h+="<div style='font-size:12px'><a href='"+_esc(c.linkAllegato)+"' target='_blank' style='color:var(--teal);font-weight:700'>🔗 Link allegato</a></div>";
+      if(c.confermaLettura){
+        h+="<div style='display:flex;align-items:center;gap:10px;margin-top:6px'><span style='font-size:12px;font-weight:800;color:var(--teal-dark)'>✓ Letture: "+(c.lettiCount||0)+"</span><button class='ts-mini' onclick=\"comViewReaders('"+c.id+"')\">Chi ha letto</button></div>";
+        var rd=COM_READERS[c.id];
+        if(rd){ h+="<div style='margin-top:6px;border-top:1px solid var(--bg);padding-top:6px'>"; if(rd.loading) h+="<div style='font-size:12px;color:var(--text-light)'>Caricamento...</div>"; else if(rd.list.length===0) h+="<div style='font-size:12px;color:var(--text-light)'>Ancora nessuna lettura</div>"; else { for(var k=0;k<rd.list.length;k++){ h+="<div style='font-size:12px;color:var(--text-mid)'>✓ "+_esc(rd.list[k].nome||rd.list[k].username)+" · "+fmtDateIt(rd.list[k].lettoIl)+"</div>"; } } h+="</div>"; }
+      } else {
+        h+="<div style='margin-top:6px;font-size:12px;color:var(--text-light);font-weight:600'>Senza conferma di lettura</div>";
+      }
       h+="</div>";
   } }
   return h;
 }
-function fetchDipComs(){ DIP_COMS_LOADING=true; render();
+function comNotify(newOnes){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  try{
+    if(newOnes.length===1) new Notification("Nuova comunicazione", {body:(newOnes[0].titolo||"Hai una nuova comunicazione")});
+    else if(newOnes.length>1) new Notification("Nuove comunicazioni", {body:"Hai "+newOnes.length+" nuove comunicazioni"});
+  }catch(e){}
+}
+function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()) fetchDipComs(true); else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
+function fetchDipComs(silent){ if(!silent){ DIP_COMS_LOADING=true; render(); }
   var struttura=(PROFILO_DIP&&PROFILO_DIP.struttura)||"";
-  fetch(COM_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(S.user&&S.user.username)||"", struttura:struttura, ruolo:(S.user&&S.user.ruolo)||""})})
-  .then(function(r){return r.text();}).then(function(t){ try{ var d=JSON.parse(t); DIP_COMS=Array.isArray(d)?d:[]; }catch(e){ DIP_COMS=[]; } DIP_COMS_LOADING=false; render(); })
-  .catch(function(){ DIP_COMS_LOADING=false; render(); });
+  var ruolo=(PROFILO_DIP&&PROFILO_DIP.mansione)||(S.user&&S.user.ruolo)||"";
+  fetch(COM_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(S.user&&S.user.username)||"", struttura:struttura, ruolo:ruolo})})
+  .then(function(r){return r.text();}).then(function(t){ try{ var d=JSON.parse(t); DIP_COMS=Array.isArray(d)?d:[]; }catch(e){ DIP_COMS=[]; }
+    var newOnes=DIP_COMS.filter(function(c){ return !c.letto && !COM_SEEN[c.id]; });
+    if(!COM_FIRST && newOnes.length) comNotify(newOnes);
+    for(var i=0;i<DIP_COMS.length;i++) COM_SEEN[DIP_COMS[i].id]=true;
+    var wasFirst=COM_FIRST; COM_FIRST=false; DIP_COMS_LOADING=false;
+    if(!silent || newOnes.length>0 || wasFirst) render();
+  })
+  .catch(function(){ DIP_COMS_LOADING=false; if(!silent) render(); });
 }
 function dipComUnread(){ var n=0; for(var i=0;i<DIP_COMS.length;i++){ if(!DIP_COMS[i].letto) n++; } return n; }
 function dipOpenCom(idx){ var c=DIP_COMS[idx]; if(!c) return; DIP_COM_SEL=c;
-  if(!c.letto){ c.letto=true; fetch(COM_LETTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({comunicazioneId:c.id, username:(S.user&&S.user.username)||"", nome:(S.user&&S.user.nome)||""})}).catch(function(){}); }
+  if(!c.letto){ c.letto=true; if(c.confermaLettura){ fetch(COM_LETTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({comunicazioneId:c.id, username:(S.user&&S.user.username)||"", nome:(S.user&&S.user.nome)||""})}).catch(function(){}); } }
   render();
 }
 function dipCloseCom(){ DIP_COM_SEL=null; render(); }
@@ -2125,12 +2177,12 @@ function renderDipComunicazioni(){
     var c=DIP_COM_SEL;
     h+="<button onclick='dipCloseCom()' style='background:none;border:none;font-size:14px;font-weight:800;color:var(--teal);cursor:pointer;font-family:Satoshi,sans-serif;margin-bottom:0.5rem'>← Indietro</button>";
     h+="<div class='ana-card' style='padding:1rem'>";
-    h+="<div style='font-size:18px;font-weight:900;color:var(--text-dark)'>"+(c.titolo||"")+"</div>";
-    h+="<div style='font-size:11px;color:var(--text-light);margin:4px 0 10px'>"+fmtDateIt(c.dataInvio)+" · da "+(c.mittente||"ufficio personale")+"</div>";
-    h+="<div style='font-size:14px;color:var(--text-mid);white-space:pre-wrap;line-height:1.5'>"+(c.messaggio||"")+"</div>";
-    if(c.allegatoUrl) h+="<div style='margin-top:12px'><a href='"+c.allegatoUrl+"' target='_blank' class='ts-save' style='display:inline-block;text-decoration:none;padding:0.6rem 1rem'>📎 Scarica "+(c.allegatoNome||"allegato")+"</a></div>";
-    else if(c.allegatoNome) h+="<div style='margin-top:12px;font-size:12px;color:var(--text-light)'>📎 "+c.allegatoNome+"</div>";
-    if(c.linkAllegato) h+="<div style='margin-top:10px'><a href='"+c.linkAllegato+"' target='_blank' style='color:var(--teal);font-weight:700'>🔗 Apri link allegato</a></div>";
+    h+="<div style='font-size:18px;font-weight:900;color:var(--text-dark)'>"+_esc(c.titolo||"")+"</div>";
+    h+="<div style='font-size:11px;color:var(--text-light);margin:4px 0 10px'>"+fmtDateIt(c.dataInvio)+" · da "+_esc(c.mittente||"ufficio personale")+"</div>";
+    h+="<div style='font-size:14px;color:var(--text-mid);white-space:pre-wrap;line-height:1.5'>"+_esc(c.messaggio||"")+"</div>";
+    if(c.allegatoUrl) h+="<div style='margin-top:12px'><a href='"+_esc(c.allegatoUrl)+"' target='_blank' class='ts-save' style='display:inline-block;text-decoration:none;padding:0.6rem 1rem'>📎 Scarica "+_esc(c.allegatoNome||"allegato")+"</a></div>";
+    else if(c.allegatoNome) h+="<div style='margin-top:12px;font-size:12px;color:var(--text-light)'>📎 "+_esc(c.allegatoNome)+"</div>";
+    if(c.linkAllegato) h+="<div style='margin-top:10px'><a href='"+_esc(c.linkAllegato)+"' target='_blank' style='color:var(--teal);font-weight:700'>🔗 Apri link allegato</a></div>";
     h+="</div>";
     return h;
   }
@@ -2140,8 +2192,8 @@ function renderDipComunicazioni(){
   if(DIP_COMS.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessuna comunicazione</div>"; return h; }
   for(var i=0;i<DIP_COMS.length;i++){ var c=DIP_COMS[i];
     h+="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.5rem;cursor:pointer;"+(!c.letto?"border-left:4px solid var(--teal)":"")+"' onclick='dipOpenCom("+i+")'>";
-    h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:"+(c.letto?"700":"900")+";color:var(--text-dark)'>"+(!c.letto?"🔵 ":"")+(c.titolo||"(senza titolo)")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(c.dataInvio)+"</div></div>";
-    var prev=(c.messaggio||"").slice(0,80); h+="<div style='font-size:12px;color:var(--text-mid);margin-top:3px'>"+prev+((c.messaggio||"").length>80?"…":"")+"</div>";
+    h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:"+(c.letto?"700":"900")+";color:var(--text-dark)'>"+(!c.letto?"🔵 ":"")+_esc(c.titolo||"(senza titolo)")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(c.dataInvio)+"</div></div>";
+    var prev=_esc((c.messaggio||"").slice(0,80)); h+="<div style='font-size:12px;color:var(--text-mid);margin-top:3px'>"+prev+((c.messaggio||"").length>80?"…":"")+"</div>";
     if(c.allegatoNome||c.linkAllegato) h+="<div style='font-size:11px;color:var(--teal);font-weight:700;margin-top:3px'>📎 Allegato</div>";
     h+="</div>";
   }
