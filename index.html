@@ -424,7 +424,12 @@ function fetchDipendentiGP() {
           email:item.email||"", telefono:item.telefono||"", username:item.username||"",
           mansione:item.mansione||"", contratto:item.contratto||"", struttura:item.struttura||"",
           oreSettimanali:(item.oreSettimanali===0||item.oreSettimanali)?item.oreSettimanali:"",
-          attivo:item.attivo!==false, note:item.note||""
+          attivo:item.attivo!==false, note:item.note||"",
+          dataAssunzione:(item.dataAssunzione?String(item.dataAssunzione).split("T")[0]:""),
+          monteFerie:(item.monteFerie===0||item.monteFerie)?item.monteFerie:"",
+          monteRol:(item.monteRol===0||item.monteRol)?item.monteRol:"",
+          residuoFerieIniz:(item.residuoFerieIniz===0||item.residuoFerieIniz)?item.residuoFerieIniz:"",
+          residuoRolIniz:(item.residuoRolIniz===0||item.residuoRolIniz)?item.residuoRolIniz:""
         };
       }).filter(function(d){ return d.nome; });
       render();
@@ -484,6 +489,7 @@ function fetchFerieRichiesteGP() {
           dataInizio: item.dataInizio || "",
           dataFine: item.dataFine || "",
           giorni: item.giorni || 0,
+          oreRichieste: item.oreRichieste || item.giorni || 0,
           noteDipendente: item.noteDipendente || "",
           pageId: item.id || ""
         };
@@ -493,7 +499,16 @@ function fetchFerieRichiesteGP() {
   })
   .catch(function(e){ console.log("Errore fetch ferie GP:", e); });
 }
-var FERIE_SALDO_URL = "https://hook.eu1.make.com/vltcargb3vtf232f931qb7jm22wij60w";
+var GP_FERIE_BUSY = null;
+function gpFerieAction(action, pageId){
+  if(GP_FERIE_BUSY) return;
+  GP_FERIE_BUSY = pageId; render();
+  fetch("https://senca-hub.duckdns.org/webhook/ferie-update",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:action, pageId:pageId})})
+  .then(function(r){ return r.text(); })
+  .then(function(){ GP_FERIE_BUSY=null; setTimeout(function(){ fetchFerieRichiesteGP(); }, 900); })
+  .catch(function(){ GP_FERIE_BUSY=null; alert("Errore nell'operazione. Riprova."); render(); });
+}
+var FERIE_SALDO_URL = "https://senca-hub.duckdns.org/webhook/ferie-saldo";
 var FERIE_RICHIESTA_URL = "https://senca-hub.duckdns.org/webhook/ferie-richiesta";
 var FERIE_LETTURA_URL = "https://senca-hub.duckdns.org/webhook/ferie-lettura";
 
@@ -512,12 +527,12 @@ function fetchFerieSaldo() {
       var data = JSON.parse(text);
       var p = (data && data.properties_value) ? data.properties_value : data;
       FERIE_SALDO = {
-        ferieMaturate: p["Ferie maturate"] || 0,
-        ferieGodute: p["Ferie godute"] || 0,
-        ferieResidue: p["Ferie residue"] || 0,
-        rolMaturate: p["ROL maturate"] || 0,
-        rolGodute: p["ROL godute"] || 0,
-        rolResidue: p["ROL residue"] || 0,
+        ferieMaturate: p.ferieMaturate!=null ? p.ferieMaturate : (p["Ferie maturate"] || 0),
+        ferieGodute: p.ferieGodute!=null ? p.ferieGodute : (p["Ferie godute"] || 0),
+        ferieResidue: p.ferieResidue!=null ? p.ferieResidue : (p["Ferie residue"] || 0),
+        rolMaturate: p.rolMaturate!=null ? p.rolMaturate : (p["ROL maturate"] || 0),
+        rolGodute: p.rolGodute!=null ? p.rolGodute : (p["ROL godute"] || 0),
+        rolResidue: p.rolResidue!=null ? p.rolResidue : (p["ROL residue"] || 0),
         tipoContratto: (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : ""
       };
       render();
@@ -2200,11 +2215,12 @@ function renderDipComunicazioni(){
 var GP_DIP_FORM=null; var GP_DIP_SAVING=false; var GP_DIP_FORMERR=null;
 var GP_DIP_MANSIONI=["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo","Altro"];
 var GP_DIP_CONTRATTI=["Dipendente","Libero professionista","Tirocinio","Altro"];
-function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",mansione:"",contratto:"",struttura:"",strutture:[],oreSettimanali:"",attivo:true,note:""}; GP_DIP_FORMERR=null; render(); }
-function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",strutture:(d.struttura?d.struttura.split(",").map(function(x){return x.trim();}).filter(Boolean):[]),oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",mansione:"",contratto:"",struttura:"",strutture:[],oreSettimanali:"",attivo:true,note:"",dataAssunzione:"",monteFerie:"",monteRol:"",residuoFerieIniz:"",residuoRolIniz:""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",strutture:(d.struttura?d.struttura.split(",").map(function(x){return x.trim();}).filter(Boolean):[]),oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||"",dataAssunzione:d.dataAssunzione||"",monteFerie:(d.monteFerie===0||d.monteFerie)?d.monteFerie:"",monteRol:(d.monteRol===0||d.monteRol)?d.monteRol:"",residuoFerieIniz:(d.residuoFerieIniz===0||d.residuoFerieIniz)?d.residuoFerieIniz:"",residuoRolIniz:(d.residuoRolIniz===0||d.residuoRolIniz)?d.residuoRolIniz:""}; GP_DIP_FORMERR=null; render(); }
 function dipFormCancel(){ GP_DIP_FORM=null; GP_DIP_FORMERR=null; render(); }
 function _dipFormSync(){ var f=GP_DIP_FORM; if(!f) return; function gv(id){var e=document.getElementById(id);return e?e.value:undefined;} var v;
   v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
+  v=gv("df-assunzione"); if(v!==undefined)f.dataAssunzione=v; v=gv("df-monteferie"); if(v!==undefined)f.monteFerie=v; v=gv("df-monterol"); if(v!==undefined)f.monteRol=v; v=gv("df-resferie"); if(v!==undefined)f.residuoFerieIniz=v; v=gv("df-resrol"); if(v!==undefined)f.residuoRolIniz=v;
 }
 function dipFormToggleStruttura(idx){ _dipFormSync(); var sn=STRUTTURE[idx]&&STRUTTURE[idx].nome; if(!sn) return; if(!GP_DIP_FORM.strutture) GP_DIP_FORM.strutture=[]; var i=GP_DIP_FORM.strutture.indexOf(sn); if(i>=0) GP_DIP_FORM.strutture.splice(i,1); else GP_DIP_FORM.strutture.push(sn); render(); }
 function dipFormSave(){ _dipFormSync(); var f=GP_DIP_FORM; if(!f) return;
@@ -2238,6 +2254,11 @@ function renderDipAnagForm(){
   h+="</div>";
   h+="<label class='dim-lbl'>Ore settimanali</label><input type='number' id='df-ore' class='dim-in' value=\""+_esc(f.oreSettimanali)+"\">";
   h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:13px;font-weight:700;color:var(--text-mid);margin:0.5rem 0;cursor:pointer'><input type='checkbox' id='df-attivo' "+(f.attivo?"checked":"")+" style='width:16px;height:16px'> Dipendente attivo</label>";
+  h+="<div style='border-top:1px solid var(--bg);margin:0.6rem 0;padding-top:0.4rem'><div style='font-size:13px;font-weight:900;color:var(--teal-dark);margin-bottom:0.3rem'>Configurazione ferie / ROL (ore)</div>";
+  h+="<label class='dim-lbl'>Data assunzione</label><input type='date' id='df-assunzione' class='dim-in' value=\""+_esc(f.dataAssunzione)+"\">";
+  h+="<div style='display:flex;gap:0.5rem'><div style='flex:1'><label class='dim-lbl'>Monte ferie annuo (h)</label><input type='number' id='df-monteferie' class='dim-in' value=\""+_esc(f.monteFerie)+"\"></div><div style='flex:1'><label class='dim-lbl'>Monte ROL annuo (h)</label><input type='number' id='df-monterol' class='dim-in' value=\""+_esc(f.monteRol)+"\"></div></div>";
+  h+="<div style='display:flex;gap:0.5rem'><div style='flex:1'><label class='dim-lbl'>Residuo ferie iniziale (h)</label><input type='number' id='df-resferie' class='dim-in' value=\""+_esc(f.residuoFerieIniz)+"\"></div><div style='flex:1'><label class='dim-lbl'>Residuo ROL iniziale (h)</label><input type='number' id='df-resrol' class='dim-in' value=\""+_esc(f.residuoRolIniz)+"\"></div></div>";
+  h+="<div style='font-size:11px;color:var(--text-light)'>Il residuo iniziale è il pregresso al 1° gennaio (o all'avvio del sistema). Da lì il saldo matura mese per mese e scala in automatico con le richieste approvate.</div></div>";
   h+="<label class='dim-lbl'>Note</label><textarea id='df-note' class='dim-in' rows='2'>"+_esc(f.note)+"</textarea>";
   if(GP_DIP_FORMERR) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:#7A1A1A'>"+GP_DIP_FORMERR+"</div>";
   h+="<div style='display:flex;gap:0.5rem;margin-top:0.6rem'><button class='ts-save' "+(GP_DIP_SAVING?"disabled":"")+" onclick='dipFormSave()'>"+(GP_DIP_SAVING?"Salvataggio...":"💾 Salva")+"</button><button class='ts-cancel' onclick='dipFormCancel()'>Annulla</button></div>";
@@ -2511,8 +2532,9 @@ function renderGP_Ferie() {
       h += "<div style='font-size:12px;color:var(--text-light)'>" + fmtDateIt(r.dataInizio) + (r.dataFine && r.dataFine!==r.dataInizio?" → "+fmtDateIt(r.dataFine):"") + " · " + r.oreRichieste + "h</div></div>";
       h += "</div>";
       h += "<div style='display:flex;gap:0.5rem'>";
-      h += "<button onclick=\"alert('Approva su Notion nel DB Richieste ferie e ROL')\" style='padding:0.4rem 0.8rem;background:#D5F0E0;color:#1A6B3A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer'>✅ Approva</button>";
-      h += "<button onclick=\"alert('Rifiuta su Notion nel DB Richieste ferie e ROL')\" style='padding:0.4rem 0.8rem;background:#FCE4E4;color:#7A1A1A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer'>❌ Rifiuta</button>";
+      var fbusy = GP_FERIE_BUSY === r.pageId;
+      h += "<button " + (fbusy?"disabled":"") + " onclick=\"gpFerieAction('approva','" + r.pageId + "')\" style='padding:0.4rem 0.8rem;background:#D5F0E0;color:#1A6B3A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer'>" + (fbusy?"...":"✅ Approva") + "</button>";
+      h += "<button " + (fbusy?"disabled":"") + " onclick=\"gpFerieAction('rifiuta','" + r.pageId + "')\" style='padding:0.4rem 0.8rem;background:#FCE4E4;color:#7A1A1A;border:none;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer'>" + (fbusy?"...":"❌ Rifiuta") + "</button>";
       h += "</div>";
       h += "</div>";
     }
