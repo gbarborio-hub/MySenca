@@ -576,6 +576,7 @@ function inviaRichiestaFerie(tipo, dataInizio, dataFine, oreRichieste, note) {
     body: JSON.stringify({
       dipendente: S.user.nome,
       username: S.user.username,
+      struttura: (PROFILO_DIP && PROFILO_DIP.struttura) || "",
       tipo: tipo,
       dataInizio: dataInizio,
       dataFine: dataFine,
