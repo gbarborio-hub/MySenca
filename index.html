@@ -285,9 +285,12 @@ function gptLeg(code){ for(var i=0;i<GPT.legenda.length;i++){ if(GPT.legenda[i].
 function gptDip(){
   var st = (GPT.struttura||"").toLowerCase();
   var fg = (GPT.figura||"").toLowerCase();
-  var byS = GP_DIPENDENTI.filter(function(d){ return !st || (d.struttura||"").toLowerCase()===st; });
-  var byF = byS.filter(function(d){ return (d.mansione||"").toLowerCase().indexOf(fg)>=0; });
-  return byF.length>0 ? byF : byS;
+  return GP_DIPENDENTI.filter(function(d){
+    var strutture = (d.struttura||"").toLowerCase().split(",").map(function(x){return x.trim();}).filter(Boolean);
+    var sOk = !st || strutture.indexOf(st)>=0;
+    var fOk = !fg || (d.mansione||"").toLowerCase()===fg;
+    return sOk && fOk;
+  });
 }
 function gptKey(d){ return (d.nome + " " + (d.cognome||"")).trim(); }
 function fetchLegenda(){
