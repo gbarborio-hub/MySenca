@@ -1008,7 +1008,9 @@ function renderDipendente() {
   // Header identico all'admin
   h += "<div class=\"app-header\">";
   h += "<div class=\"app-greeting\">Buongiorno,<br>" + (u.nome ? u.nome.split(" ")[0] : "utente") + "</div>";
-  h += "<div style='display:flex;align-items:center;gap:0.5rem'>";
+  h += "<div style='display:flex;align-items:center;gap:0.6rem'>";
+  var nUnB = dipComUnread();
+  h += "<div onclick=\"S.dipTab='Avvisi';render()\" title='Comunicazioni' style='position:relative;cursor:pointer;color:var(--teal);display:flex;align-items:center'><svg viewBox='0 0 24 24' width='26' height='26' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 01-3.46 0'/></svg>" + (nUnB>0 ? "<span class='nav-badge' style='position:absolute;top:-5px;right:-7px'>"+nUnB+"</span>" : "") + "</div>";
   if(u.mansione) h += "<div style='font-size:12px;font-weight:700;color:var(--teal)'>" + u.mansione + "</div>";
   h += "<div class=\"app-logo\" style='cursor:pointer' onclick=\"S.dipTab='Contatti';render()\" title='Contatti utili'>" + LOGO_IMG + "</div>";
   h += "</div></div>";
@@ -1016,12 +1018,10 @@ function renderDipendente() {
   // Tab nav dipendente — nascondi se in Contatti
   if(tab !== "Contatti") {
     h += "<div style='padding:0 1rem'><div class=\"nav-tabs\">";
-    var tabs = ["Home","Avvisi","Ferie/ROL","Informazioni"];
+    var tabs = ["Home","Ferie/ROL","Informazioni"];
     for(var t=0; t<tabs.length; t++) {
       var tact = (S.dipTab===tabs[t]||(t===0&&!S.dipTab)) ? "active" : "inactive";
-      var lbl = tabs[t];
-      if(tabs[t]==="Avvisi"){ var nUn=dipComUnread(); lbl="🔔"+(nUn>0?" <span class='nav-badge'>"+nUn+"</span>":""); }
-      h += "<div class=\"nav-tab " + tact + "\" onclick=\"S.dipTab='" + tabs[t] + "';render()\">" + lbl + "</div>";
+      h += "<div class=\"nav-tab " + tact + "\" onclick=\"S.dipTab='" + tabs[t] + "';render()\">" + tabs[t] + "</div>";
     }
     h += "</div></div>";
   } else {
