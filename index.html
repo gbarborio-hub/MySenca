@@ -398,7 +398,7 @@ function gpTimbraturaAction(action, pageId){
   GP_TIMB_BUSY = pageId + "|" + action; render();
   fetch(TIMBRATURA_UPDATE_URL, {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ action:action, pageId:pageId, eliminataDa:(S.user&&S.user.username)||"" })
+    body: JSON.stringify({ action:action, pageId:pageId, eliminataDa:(S.user&&S.user.username)||"", motivo:"Cancellata" })
   })
   .then(function(r){ return r.json(); })
   .then(function(){ GP_TIMB_BUSY=null; setTimeout(fetchTimbratureGP, 1200); })
@@ -1849,7 +1849,7 @@ function fetchDipTimbrature(d){
   fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||""),includeDeleted:true})})
   .then(function(r){return r.text();})
   .then(function(t){ try{ var data=JSON.parse(t); var raw=Array.isArray(data)?data:[data];
-      GP_DIP_TIMB = raw.map(function(it){ return {id:it.id||"", data:String(it.data||"").split("T")[0], oraEntrata:it.oraEntrata||"", oraUscita:it.oraUscita||"", oreLavorate:parseFloat(it.oreLavorate)||0, approvazione:it.approvazione||"", struttura:it.struttura||"", eliminata:it.eliminata||false, eliminataDa:it.eliminataDa||""}; }).filter(function(x){return x.data;});
+      GP_DIP_TIMB = raw.map(function(it){ return {id:it.id||"", data:String(it.data||"").split("T")[0], oraEntrata:it.oraEntrata||"", oraUscita:it.oraUscita||"", oreLavorate:parseFloat(it.oreLavorate)||0, approvazione:it.approvazione||"", struttura:it.struttura||"", eliminata:it.eliminata||false, eliminataDa:it.eliminataDa||"", motivoRimozione:it.motivoRimozione||""}; }).filter(function(x){return x.data;});
     }catch(e){ console.log("err timb dip",e); } GP_DIP_LOADING=false; render(); })
   .catch(function(){ GP_DIP_LOADING=false; render(); });
 }
@@ -1867,7 +1867,7 @@ function fetchDipTurni(d){
     }catch(e){ console.log("err turni dip",e); } render(); })
   .catch(function(){ render(); });
 }
-function _tuPost(action, pageId){ return fetch(TIMBRATURA_UPDATE_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:action,pageId:pageId,eliminataDa:(S.user&&S.user.username)||""})}).then(function(r){return r.json();}); }
+function _tuPost(action, pageId, motivo){ return fetch(TIMBRATURA_UPDATE_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:action,pageId:pageId,eliminataDa:(S.user&&S.user.username)||"",motivo:(motivo||"Cancellata")})}).then(function(r){return r.json();}); }
 function _createTimb(payload){ return fetch(TIMBRA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(function(r){return r.json();}); }
 function tsOpenAdd(){ S.tsForm={mode:"add",pageId:null,data:_ymd(new Date()),struttura:((GP_DIP_DETAIL&&GP_DIP_DETAIL.struttura)||"").split(",")[0].trim(),oraEntrata:"",oraUscita:""}; S.tsErr=null; render(); }
 function tsOpenEdit(pageId){ var t=null; for(var i=0;i<GP_DIP_TIMB.length;i++){ if(GP_DIP_TIMB[i].id===pageId){t=GP_DIP_TIMB[i];break;} } if(!t)return; S.tsForm={mode:"edit",pageId:pageId,data:t.data,struttura:t.struttura||"",oraEntrata:t.oraEntrata||"",oraUscita:t.oraUscita||""}; S.tsErr=null; render(); }
@@ -1875,7 +1875,7 @@ function tsCancel(){ S.tsForm=null; S.tsErr=null; render(); }
 function tsDelete(pageId){
   if(!confirm("Archiviare questa timbratura? Resta conservata in archivio a norma di legge e non sarà più conteggiata. L'operazione viene registrata col tuo nome.")) return;
   S.tsBusy=pageId; render();
-  _tuPost("elimina",pageId).then(function(){ S.tsBusy=null; setTimeout(function(){ fetchDipTimbrature(GP_DIP_DETAIL); },1000); }).catch(function(){ S.tsBusy=null; alert("Errore nell'archiviazione. Riprova."); render(); });
+  _tuPost("elimina",pageId,"Cancellata").then(function(){ S.tsBusy=null; setTimeout(function(){ fetchDipTimbrature(GP_DIP_DETAIL); },1000); }).catch(function(){ S.tsBusy=null; alert("Errore nell'archiviazione. Riprova."); render(); });
 }
 function tsSave(){
   var f=S.tsForm; if(!f) return;
@@ -1900,7 +1900,7 @@ function tsSave(){
   var ore=Math.round((e-s)/60*100)/100;
   var payload={ nome:nome, username:d.username||"", struttura:struttura, data:data, oraEntrata:entrata, oraUscita:uscita, oreTotali:ore, stato:(f.mode==="edit"?"Modificata ufficio":"Inserita ufficio"), approvazione:"Approvata", turno:"", note:(f.mode==="edit"?("Modificata da ufficio personale ("+((S.user&&S.user.username)||"")+") - originale archiviata"):("Inserita da ufficio personale ("+((S.user&&S.user.username)||"")+")")), lat:null, lng:null };
   S.tsSaving=true; S.tsErr=null; render();
-  var chain = (f.mode==="edit" && f.pageId) ? _tuPost("elimina",f.pageId).then(function(){ return _createTimb(payload); }) : _createTimb(payload);
+  var chain = (f.mode==="edit" && f.pageId) ? _tuPost("elimina",f.pageId,"Modificata").then(function(){ return _createTimb(payload); }) : _createTimb(payload);
   chain.then(function(){ S.tsForm=null; S.tsSaving=false; setTimeout(function(){ fetchDipTimbrature(GP_DIP_DETAIL); },1100); })
        .catch(function(){ S.tsSaving=false; S.tsErr="⚠️ Errore nel salvataggio. Riprova."; render(); });
 }
@@ -2008,7 +2008,8 @@ function renderDipTimesheet(){
       inner+="</div>";
       var chips="";
       if(t.eliminata){
-        chips+=_chip("🗑 Cancellata"+(t.eliminataDa?" da "+t.eliminataDa:"")+" · non conteggiata","#7A1A1A");
+        var _isMod=(t.motivoRimozione==="Modificata");
+        chips+=_chip((_isMod?"✏️ Modificata":"🗑 Cancellata")+(t.eliminataDa?" da "+t.eliminataDa:"")+" · non conteggiata", _isMod?"#8A5A00":"#7A1A1A");
       } else if(rifiutata){
         chips+=_chip("❌ Rifiutata · non conteggiata","#7A1A1A");
       } else if(conta){
@@ -2531,14 +2532,15 @@ function expCancellate(){
   if(!_expReady())return; var ym=expGetMese();
   expEnsureData(ym,function(data,rg){
     var p=function(n){return String(n).padStart(2,"0");}; var rows=[];
-    var elim=data.timb.filter(function(t){return t.eliminata;}).sort(function(a,b){return (String(a.data)<String(b.data))?-1:1;});
+    var elim=data.timb.filter(function(t){ return t.eliminata || t.approvazione==="Rifiutata" || t.approvazione==="Rifiutato"; }).sort(function(a,b){return (String(a.data)<String(b.data))?-1:1;});
     for(var i=0;i<elim.length;i++){ var t=elim[i]; var ds=String(t.data).split("T")[0]; var le=t.lastEdit?new Date(t.lastEdit):null;
       var leStr=le?(p(le.getDate())+"/"+p(le.getMonth()+1)+"/"+le.getFullYear()+" "+p(le.getHours())+":"+p(le.getMinutes())):"—";
-      rows.push([fmtDateIt(ds),(t.oraEntrata||"—")+" → "+(t.oraUscita||"—"),(t.struttura||"—"),(t.approvazione||"—"),(t.eliminataDa||"—"),leStr]);
+      var tipo=t.eliminata?(t.motivoRimozione==="Modificata"?"Modificata":"Cancellata"):"Rifiutata";
+      rows.push([fmtDateIt(ds),tipo,(t.oraEntrata||"—")+" → "+(t.oraUscita||"—"),(t.struttura||"—"),(t.eliminataDa||"—"),leStr]);
     }
     var doc=new window.jspdf.jsPDF({unit:"pt",format:"a4",orientation:"landscape"});
-    var y=_expHeader(doc,"Timbrature cancellate / modificate (archivio a norma di legge)",rg);
-    doc.autoTable({head:[["Data","Orario","Struttura","Stato","Cancellata da","Data/ora modifica"]],body:rows.length?rows:[["—","—","—","—","—","Nessuna nel periodo"]],startY:y,styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[122,26,26]}});
+    var y=_expHeader(doc,"Timbrature cancellate / modificate / rifiutate (archivio a norma di legge)",rg);
+    doc.autoTable({head:[["Data","Tipo","Orario","Struttura","Eseguita da","Data/ora operazione"]],body:rows.length?rows:[["—","—","—","—","—","Nessuna nel periodo"]],startY:y,styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[122,26,26]}});
     _expFooter(doc,"Documento scaricato il"); doc.save("Timbrature_cancellate_modificate_"+ym+".pdf");
   });
 }
