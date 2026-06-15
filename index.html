@@ -1890,6 +1890,7 @@ function tsSave(){
   for(var oi=0;oi<GP_DIP_TIMB.length;oi++){
     var ex=GP_DIP_TIMB[oi];
     if(f.mode==="edit" && ex.id===f.pageId) continue;
+    if(ex.eliminata) continue;
     if(ex.approvazione==="Rifiutata"||ex.approvazione==="Rifiutato") continue;
     if(_overlaps(newIv,_timbInterval(ex))){
       S.tsErr="⛔ Si sovrappone alla timbratura del "+fmtDateIt(ex.data)+" ("+(ex.oraEntrata||"?")+"–"+(ex.oraUscita||"?")+"). Modifica gli orari.";
