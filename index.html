@@ -733,6 +733,7 @@ function fetchTurni() {
         .sort(function(a,b){ return a.data > b.data ? 1 : -1; });
       S.loadingTurni = false;
       render();
+      checkShiftReminders();
     } catch(e) {
       console.log("Errore fetch turni:", e);
       S.loadingTurni = false;
@@ -2199,7 +2200,38 @@ function comNotify(newOnes){
     else if(newOnes.length>1) new Notification("Nuove comunicazioni", {body:"Hai "+newOnes.length+" nuove comunicazioni"});
   }catch(e){}
 }
-function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()){ fetchDipComs(true); fetchFerieRichieste(true); } else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
+// ===== PROMEMORIA TURNI =====
+var SHIFTNOTIF_KEY="senca_shiftnotif_v1";
+function _shiftStore(){ try{ return JSON.parse(localStorage.getItem(SHIFTNOTIF_KEY)||"{}"); }catch(e){ return {}; } }
+function _shiftFired(date,key){ var s=_shiftStore(); return !!(s[date]&&s[date][key]); }
+function _shiftMark(date,key){ var s=_shiftStore(); var fresh={}; fresh[date]=s[date]||{}; fresh[date][key]=1; try{ localStorage.setItem(SHIFTNOTIF_KEY,JSON.stringify(fresh)); }catch(e){} }
+function _hm(date,hm){ var p=String(hm||"").split(":"); if(p.length<2) return null; var d=new Date(date+"T00:00:00"); d.setHours(parseInt(p[0],10)||0, parseInt(p[1],10)||0, 0, 0); return d; }
+function checkShiftReminders(){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  if(!isDipendente()) return;
+  var now=new Date();
+  var pad=function(n){ return (n<10?"0":"")+n; };
+  var today=now.getFullYear()+"-"+pad(now.getMonth()+1)+"-"+pad(now.getDate());
+  for(var i=0;i<TURNI_DIP.length;i++){
+    var t=TURNI_DIP[i];
+    if(t.data!==today || !t.oraInizio || !t.oraFine) continue;
+    var start=_hm(t.data,t.oraInizio); var end=_hm(t.data,t.oraFine);
+    if(!start||!end) continue;
+    if(end<=start) end=new Date(end.getTime()+86400000);
+    var id=(t.titolo||t.tipo||"turno")+"_"+t.oraInizio+"_"+t.oraFine;
+    var preStart=new Date(start.getTime()-10*60000);
+    if(now>=preStart && now<start && !_shiftFired(today,id+"_start")){
+      try{ new Notification("Tra 10 minuti inizia il turno", {body:"Ricordati di timbrare l'entrata ("+t.oraInizio+(t.struttura?" · "+t.struttura:"")+")"}); }catch(e){}
+      _shiftMark(today,id+"_start");
+    }
+    var postEnd=new Date(end.getTime()+10*60000);
+    if(now>=postEnd && now<new Date(postEnd.getTime()+40*60000) && !_shiftFired(today,id+"_end")){
+      try{ new Notification("Turno terminato", {body:"Il turno è finito alle "+t.oraFine+": ricordati di timbrare l'uscita."}); }catch(e){}
+      _shiftMark(today,id+"_end");
+    }
+  }
+}
+function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()){ fetchDipComs(true); fetchFerieRichieste(true); checkShiftReminders(); } else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
 function fetchDipComs(silent){ if(!silent){ DIP_COMS_LOADING=true; render(); }
   var struttura=(PROFILO_DIP&&PROFILO_DIP.struttura)||"";
   var ruolo=(PROFILO_DIP&&PROFILO_DIP.mansione)||(S.user&&S.user.ruolo)||"";
