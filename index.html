@@ -1037,7 +1037,7 @@ function renderDipendente() {
   // Tab nav dipendente — nascondi se in Contatti
   if(tab !== "Contatti") {
     h += "<div style='padding:0 1rem'><div class=\"nav-tabs\">";
-    var tabs = ["Home","Ferie/ROL","Documenti","Informazioni"];
+    var tabs = ["Home","Ferie/ROL","Informazioni"];
     for(var t=0; t<tabs.length; t++) {
       var tact = (S.dipTab===tabs[t]||(t===0&&!S.dipTab)) ? "active" : "inactive";
       h += "<div class=\"nav-tab " + tact + "\" onclick=\"S.dipTab='" + tabs[t] + "';render()\">" + tabs[t] + "</div>";
@@ -1106,13 +1106,6 @@ function renderDipHome() {
   h += "<div class=\"dip-half-label\">Il mio</div>";
   h += "<div class=\"dip-half-value\">Profilo</div>";
   h += "</div>";
-  h += "</div>";
-
-  // Card segnalazione evento
-  h += "<div class=\"timbra-card-big\" style='background:var(--coral);min-height:90px;cursor:pointer' onclick=\"S.dipTab='segnalazione';render()\">";
-  h += "<div class=\"timbra-card-big-orb\"></div>";
-  h += "<div class=\"timbra-card-big-title\" style='font-size:22px'>⚠️ Segnala evento</div>";
-  h += "<div class=\"timbra-card-big-sub\">Incidente · Data breach</div>";
   h += "</div>";
 
   // Card Documenti
@@ -1750,10 +1743,46 @@ function renderDipTurni() {
   return h;
 }
 
+var APP_TICKET_URL="https://senca-hub.duckdns.org/webhook/app-ticket";
+var TICKET_OPEN=false; var TICKET_BUSY=false; var TICKET_MSG=null;
+var PROF_REFRESHING=false;
+function profRefresh(){ PROF_REFRESHING=true; render(); fetchProfilo(); fetchContatti(); setTimeout(function(){ PROF_REFRESHING=false; render(); },1100); }
+function ticketOpen(){ TICKET_OPEN=true; TICKET_MSG=null; render(); }
+function ticketClose(){ TICKET_OPEN=false; TICKET_BUSY=false; TICKET_MSG=null; render(); }
+function ticketSubmit(){
+  var tit=(document.getElementById("tk-titolo")||{}).value||"";
+  var cat=(document.getElementById("tk-cat")||{}).value||"Problema";
+  var desc=(document.getElementById("tk-desc")||{}).value||"";
+  if(!tit.trim()||!desc.trim()){ TICKET_MSG="⚠️ Compila titolo e descrizione."; render(); return; }
+  TICKET_BUSY=true; TICKET_MSG="⏳ Invio..."; render();
+  var payload={ titolo:tit.trim(), categoria:cat, descrizione:desc.trim(), username:(S.user&&S.user.username)||"", nome:(S.user&&S.user.nome)||"", ruolo:(S.user&&S.user.ruolo)||"" };
+  fetch(APP_TICKET_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+  .then(function(r){return r.text();}).then(function(){ TICKET_BUSY=false; TICKET_OPEN=false; render(); setTimeout(function(){ alert("Segnalazione inviata. Grazie!"); },50); })
+  .catch(function(){ TICKET_BUSY=false; TICKET_MSG="⚠️ Errore nell'invio. Riprova."; render(); });
+}
+function renderTicketModal(){
+  if(!TICKET_OPEN) return "";
+  var h="<div class='gpt-modal-bg' onclick=\"if(event.target===this)ticketClose()\"><div class='gpt-modal'>";
+  h+="<div class='gpt-modal-title'>Segnala un problema dell'app</div>";
+  h+="<div style='font-size:12px;color:var(--text-light);margin-bottom:0.6rem'>Descrivi il bug o il problema: la segnalazione arriverà a chi gestisce l'applicazione.</div>";
+  h+="<label class='dim-lbl'>Titolo</label><input id='tk-titolo' class='gpt-mini-input' placeholder='es. Non riesco a timbrare'>";
+  h+="<label class='dim-lbl'>Categoria</label><select id='tk-cat' class='gpt-mini-input'><option>Bug</option><option selected>Problema</option><option>Suggerimento</option></select>";
+  h+="<label class='dim-lbl'>Descrizione</label><textarea id='tk-desc' class='gpt-mini-input' rows='4' placeholder='Cosa è successo, in quale schermata, cosa ti aspettavi...'></textarea>";
+  if(TICKET_MSG) h+="<div style='font-size:13px;font-weight:700;color:var(--coral);margin:4px 0'>"+TICKET_MSG+"</div>";
+  h+="<div style='display:flex;gap:0.5rem;margin-top:0.6rem'><button class='ts-save' "+(TICKET_BUSY?"disabled":"")+" onclick='ticketSubmit()'>"+(TICKET_BUSY?"Invio...":"Invia segnalazione")+"</button><button class='ts-cancel' onclick='ticketClose()'>Annulla</button></div>";
+  h+="</div></div>";
+  return h;
+}
 function renderDipProfilo() {
   var u = S.user;
   var p = PROFILO_DIP;
   var h = "";
+
+  // Refresh in alto (rotella)
+  h += "<div style='display:flex;justify-content:flex-end;margin-bottom:0.4rem'>";
+  h += "<button onclick='profRefresh()' aria-label='Aggiorna' style='background:var(--white);border:1.5px solid var(--cyan-light);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0'>";
+  h += "<svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='var(--teal)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'"+(PROF_REFRESHING?" style='animation:spin 0.9s linear infinite;transform-origin:50% 50%'":"")+"><path d='M23 4v6h-6'/><path d='M1 20v-6h6'/><path d='M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15'/></svg>";
+  h += "</button></div>";
 
   // Card header con nome
   h += "<div class='stat-card'><div class='stat-card-orb'></div>";
@@ -1782,7 +1811,11 @@ function renderDipProfilo() {
     h += "</div>";
   }
 
-  h += "<button class='update-btn' onclick=\"fetchProfilo()\">Aggiorna</button>";
+  h += "<div style='display:flex;gap:0.5rem;margin-top:0.75rem'>";
+  h += "<button onclick='ticketOpen()' style='flex:1;background:var(--white);border:1.5px solid var(--cyan-light);border-radius:12px;padding:0.6rem 0.4rem;font-size:12px;font-weight:800;color:var(--teal-dark);cursor:pointer;font-family:Satoshi,sans-serif'>🛠️ Segnala un problema</button>";
+  h += "<button onclick=\"S.dipTab='segnalazione';render()\" style='flex:1;background:var(--white);border:1.5px solid var(--coral);border-radius:12px;padding:0.6rem 0.4rem;font-size:12px;font-weight:800;color:var(--coral);cursor:pointer;font-family:Satoshi,sans-serif'>⚠️ Segnala evento</button>";
+  h += "</div>";
+  h += renderTicketModal();
   return h;
 }
 
