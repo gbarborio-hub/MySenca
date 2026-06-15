@@ -910,7 +910,7 @@ function unlockBio(){
 function restoreUser(u){
   S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null;
   if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
-  if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); if("Notification" in window && Notification.permission==="default"){ try{ Notification.requestPermission(); }catch(e){} } startComPoll(); }
+  if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); fetchDipDocs(); if("Notification" in window && Notification.permission==="default"){ try{ Notification.requestPermission(); }catch(e){} } startComPoll(); }
   if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
   render();
 }
@@ -1037,7 +1037,7 @@ function renderDipendente() {
   // Tab nav dipendente — nascondi se in Contatti
   if(tab !== "Contatti") {
     h += "<div style='padding:0 1rem'><div class=\"nav-tabs\">";
-    var tabs = ["Home","Ferie/ROL","Informazioni"];
+    var tabs = ["Home","Ferie/ROL","Documenti","Informazioni"];
     for(var t=0; t<tabs.length; t++) {
       var tact = (S.dipTab===tabs[t]||(t===0&&!S.dipTab)) ? "active" : "inactive";
       h += "<div class=\"nav-tab " + tact + "\" onclick=\"S.dipTab='" + tabs[t] + "';render()\">" + tabs[t] + "</div>";
@@ -1055,6 +1055,7 @@ function renderDipendente() {
   else if(tab === "Avvisi") h += renderDipComunicazioni();
   else if(tab === "Ferie/ROL") h += renderDipFerie();
   else if(tab === "Informazioni") h += renderDipInfo();
+  else if(tab === "Documenti") h += renderDipDocumenti();
   else if(tab === "Contatti") h += renderDipContatti();
   else if(tab === "segnalazione") h += renderDipSegnalazione();
   else if(tab === "timbra") h += renderDipTimbra();
@@ -1804,9 +1805,11 @@ function openDipDetail(i){
   GP_DIP_DETAIL = GP_DIPENDENTI[i];
   GP_WEEK_OFFSET = 0;
   GP_DIP_TIMB = []; GP_DIP_TURNI = []; GP_DIP_LOADING = true;
+  GP_DOCS = []; GPDOC_FORM = null; GPDOC_MSG = null;
   render();
   fetchDipTimbrature(GP_DIP_DETAIL);
   fetchDipTurni(GP_DIP_DETAIL);
+  fetchGPDocs(GP_DIP_DETAIL.username);
 }
 function fetchDipTimbrature(d){
   fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||"")})})
@@ -2274,6 +2277,107 @@ function renderDipAnagForm(){
   h+="<div style='font-size:11px;color:var(--text-light);text-align:center;margin-top:0.5rem;padding:0 1rem'>L'utente web app e le credenziali di accesso (username e password) non si gestiscono da qui: vengono attivati esclusivamente su Notion dall'amministratore.</div>";
   return h;
 }
+// ===== DOCUMENTI =====
+var DOC_CARICA_URL="https://senca-hub.duckdns.org/webhook/documento-carica";
+var DOC_LISTA_URL="https://senca-hub.duckdns.org/webhook/documenti-lista";
+var DOC_TIPI=["Certificato medico","Documento identità","Contratto","Busta paga","Altro"];
+var DIP_DOCS=[]; var DIP_DOCS_LOADING=false;
+var DOC_FORM={tipo:"Certificato medico",note:"",link:"",fileName:"",fileB64:"",fileType:""};
+var DOC_UPLOADING=false; var DOC_MSG=null;
+var GP_DOCS=[]; var GP_DOCS_LOADING=false;
+var GPDOC_FORM=null; var GPDOC_UPLOADING=false; var GPDOC_MSG=null;
+
+function _docCard(d){
+  var h="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.5rem'>";
+  h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:800;color:var(--text-dark)'>"+_esc(d.tipo||"Documento")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(d.dataCaricamento)+"</div></div>";
+  if(d.allegatoNome) h+="<div style='font-size:12px;color:var(--text-mid);margin-top:2px'>"+_esc(d.allegatoNome)+"</div>";
+  if(d.note) h+="<div style='font-size:12px;color:var(--text-light);margin-top:2px'>"+_esc(d.note)+"</div>";
+  var link=d.allegatoUrl||d.linkAllegato;
+  if(link) h+="<div style='margin-top:6px'><a href='"+_esc(link)+"' target='_blank' style='color:var(--teal);font-weight:700;font-size:13px'>📎 Apri / scarica</a></div>";
+  if(d.caricatoDa) h+="<div style='font-size:10px;color:var(--text-light);margin-top:4px'>Caricato da "+_esc(d.caricatoDa)+"</div>";
+  h+="</div>";
+  return h;
+}
+function _readFileTo(input, target, cb){ var f=input.files&&input.files[0]; if(!f){ cb(false); return; } if(f.size>18*1024*1024){ cb(false,"big"); return; } var rd=new FileReader(); rd.onload=function(){ target.fileB64=String(rd.result); target.fileName=f.name; target.fileType=f.type||"application/octet-stream"; cb(true); }; rd.readAsDataURL(f); }
+
+function fetchDipDocs(){ DIP_DOCS_LOADING=true; render();
+  fetch(DOC_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(S.user&&S.user.username)||""})})
+  .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);DIP_DOCS=Array.isArray(d)?d:[];}catch(e){DIP_DOCS=[];} DIP_DOCS_LOADING=false; render(); })
+  .catch(function(){ DIP_DOCS_LOADING=false; render(); });
+}
+function docSync(){ var el; el=document.getElementById("doc-tipo"); if(el)DOC_FORM.tipo=el.value; el=document.getElementById("doc-link"); if(el)DOC_FORM.link=el.value; el=document.getElementById("doc-note"); if(el)DOC_FORM.note=el.value; }
+function docFilePick(input){ docSync(); _readFileTo(input,DOC_FORM,function(ok,why){ if(!ok && why==="big") DOC_MSG="⚠️ File troppo grande (max ~18MB)."; render(); }); }
+function docClearFile(){ docSync(); DOC_FORM.fileName=""; DOC_FORM.fileB64=""; DOC_FORM.fileType=""; render(); }
+function docUpload(){ docSync(); if(!DOC_FORM.fileB64 && !(DOC_FORM.link||"").trim()){ DOC_MSG="⚠️ Allega un file o inserisci un link."; render(); return; }
+  var payload={ username:(S.user&&S.user.username)||"", dipendente:(S.user&&S.user.nome)||"", tipo:DOC_FORM.tipo||"Altro", note:DOC_FORM.note||"", caricatoDa:(S.user&&S.user.username)||"", linkAllegato:(DOC_FORM.link||"").trim(), fileBase64:DOC_FORM.fileB64||"", fileName:DOC_FORM.fileName||"", contentType:DOC_FORM.fileType||"" };
+  DOC_UPLOADING=true; DOC_MSG="⏳ Caricamento..."; render();
+  fetch(DOC_CARICA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+  .then(function(r){return r.text();}).then(function(){ DOC_UPLOADING=false; DOC_MSG="✅ Documento caricato."; DOC_FORM={tipo:"Certificato medico",note:"",link:"",fileName:"",fileB64:"",fileType:""}; setTimeout(function(){ fetchDipDocs(); },1300); })
+  .catch(function(){ DOC_UPLOADING=false; DOC_MSG="⚠️ Errore nel caricamento. Riprova."; render(); });
+}
+function renderDipDocumenti(){
+  var h="";
+  h+="<div class='section-label'><div class='section-title'>Carica un documento</div></div>";
+  h+="<div class='ana-card' style='padding:1rem'>";
+  h+="<label class='dim-lbl'>Tipo documento</label><select id='doc-tipo' class='dim-in'>";
+  for(var i=0;i<DOC_TIPI.length;i++){ h+="<option value=\""+DOC_TIPI[i]+"\" "+(DOC_FORM.tipo===DOC_TIPI[i]?"selected":"")+">"+DOC_TIPI[i]+"</option>"; }
+  h+="</select>";
+  h+="<label class='dim-lbl'>File</label>";
+  if(DOC_FORM.fileName){ h+="<div style='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:8px'>📎 "+_esc(DOC_FORM.fileName)+" <button class='ts-mini del' onclick='docClearFile()'>rimuovi</button></div>"; }
+  else { h+="<input type='file' onchange='docFilePick(this)' style='margin-bottom:8px;font-size:13px;width:100%'>"; }
+  h+="<label class='dim-lbl'>oppure Link</label><input id='doc-link' class='dim-in' placeholder='https://...' value=\""+_esc(DOC_FORM.link)+"\">";
+  h+="<label class='dim-lbl'>Note</label><input id='doc-note' class='dim-in' value=\""+_esc(DOC_FORM.note)+"\">";
+  if(DOC_MSG) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:var(--teal-dark)'>"+DOC_MSG+"</div>";
+  h+="<button class='ts-save' style='width:100%;margin-top:6px' "+(DOC_UPLOADING?"disabled":"")+" onclick='docUpload()'>"+(DOC_UPLOADING?"Caricamento...":"📤 Carica documento")+"</button>";
+  h+="</div>";
+  h+="<div class='section-label'><div class='section-title'>I miei documenti</div></div>";
+  h+="<button class='update-btn' onclick='fetchDipDocs()'>Aggiorna</button>";
+  if(DIP_DOCS_LOADING){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light)'>Caricamento...</div>"; return h; }
+  if(DIP_DOCS.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessun documento caricato</div>"; return h; }
+  for(var j=0;j<DIP_DOCS.length;j++){ h+=_docCard(DIP_DOCS[j]); }
+  return h;
+}
+function fetchGPDocs(username){ GP_DOCS_LOADING=true; render();
+  fetch(DOC_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:username||""})})
+  .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);GP_DOCS=Array.isArray(d)?d:[];}catch(e){GP_DOCS=[];} GP_DOCS_LOADING=false; render(); })
+  .catch(function(){ GP_DOCS_LOADING=false; render(); });
+}
+function gpDocOpenAdd(){ GPDOC_FORM={tipo:"Busta paga",note:"",link:"",fileName:"",fileB64:"",fileType:""}; GPDOC_MSG=null; render(); }
+function gpDocCancel(){ GPDOC_FORM=null; GPDOC_MSG=null; render(); }
+function gpDocSync(){ if(!GPDOC_FORM)return; var el; el=document.getElementById("gpdoc-tipo"); if(el)GPDOC_FORM.tipo=el.value; el=document.getElementById("gpdoc-link"); if(el)GPDOC_FORM.link=el.value; el=document.getElementById("gpdoc-note"); if(el)GPDOC_FORM.note=el.value; }
+function gpDocFilePick(input){ gpDocSync(); _readFileTo(input,GPDOC_FORM,function(ok,why){ if(!ok && why==="big") GPDOC_MSG="⚠️ File troppo grande (max ~18MB)."; render(); }); }
+function gpDocClearFile(){ gpDocSync(); GPDOC_FORM.fileName=""; GPDOC_FORM.fileB64=""; GPDOC_FORM.fileType=""; render(); }
+function gpDocUpload(){ gpDocSync(); var f=GPDOC_FORM; var d=GP_DIP_DETAIL; if(!f||!d)return; if(!f.fileB64 && !(f.link||"").trim()){ GPDOC_MSG="⚠️ Allega un file o un link."; render(); return; }
+  var payload={ username:d.username||"", dipendente:((d.nome||"")+" "+(d.cognome||"")).trim(), tipo:f.tipo||"Altro", note:f.note||"", caricatoDa:(S.user&&S.user.username)||"", linkAllegato:(f.link||"").trim(), fileBase64:f.fileB64||"", fileName:f.fileName||"", contentType:f.fileType||"" };
+  GPDOC_UPLOADING=true; GPDOC_MSG="⏳ Caricamento..."; render();
+  fetch(DOC_CARICA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+  .then(function(r){return r.text();}).then(function(){ GPDOC_UPLOADING=false; GPDOC_FORM=null; setTimeout(function(){ fetchGPDocs(d.username); },1300); })
+  .catch(function(){ GPDOC_UPLOADING=false; GPDOC_MSG="⚠️ Errore. Riprova."; render(); });
+}
+function renderGPDocSection(){
+  var h="<div class='section-label'><div class='section-title'>Documenti</div></div>";
+  if(GPDOC_FORM){
+    var f=GPDOC_FORM;
+    h+="<div class='ana-card' style='padding:1rem;border:1.5px solid var(--cyan)'>";
+    h+="<label class='dim-lbl'>Tipo</label><select id='gpdoc-tipo' class='dim-in'>";
+    for(var i=0;i<DOC_TIPI.length;i++){ h+="<option value=\""+DOC_TIPI[i]+"\" "+(f.tipo===DOC_TIPI[i]?"selected":"")+">"+DOC_TIPI[i]+"</option>"; }
+    h+="</select>";
+    h+="<label class='dim-lbl'>File</label>";
+    if(f.fileName){ h+="<div style='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:8px'>📎 "+_esc(f.fileName)+" <button class='ts-mini del' onclick='gpDocClearFile()'>rimuovi</button></div>"; }
+    else { h+="<input type='file' onchange='gpDocFilePick(this)' style='margin-bottom:8px;font-size:13px;width:100%'>"; }
+    h+="<label class='dim-lbl'>oppure Link</label><input id='gpdoc-link' class='dim-in' placeholder='https://...' value=\""+_esc(f.link)+"\">";
+    h+="<label class='dim-lbl'>Note</label><input id='gpdoc-note' class='dim-in' value=\""+_esc(f.note)+"\">";
+    if(GPDOC_MSG) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:var(--teal-dark)'>"+GPDOC_MSG+"</div>";
+    h+="<div style='display:flex;gap:0.5rem;margin-top:0.6rem'><button class='ts-save' "+(GPDOC_UPLOADING?"disabled":"")+" onclick='gpDocUpload()'>"+(GPDOC_UPLOADING?"Caricamento...":"📤 Carica")+"</button><button class='ts-cancel' onclick='gpDocCancel()'>Annulla</button></div>";
+    h+="</div>";
+  } else {
+    h+="<button class='ts-add' onclick='gpDocOpenAdd()'>➕ Carica documento</button>";
+  }
+  if(GP_DOCS_LOADING){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light)'>Caricamento...</div>"; return h; }
+  if(GP_DOCS.length===0){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light);font-weight:700'>Nessun documento</div>"; return h; }
+  for(var k=0;k<GP_DOCS.length;k++){ h+=_docCard(GP_DOCS[k]); }
+  return h;
+}
 function renderGP_Dipendenti() {
   if(GP_DIP_FORM) return renderDipAnagForm();
   var h = "";
@@ -2294,17 +2398,7 @@ function renderGP_Dipendenti() {
     h += "</div>";
     h += "<button class='update-btn' style='background:var(--teal)' onclick='dipFormOpenEdit()'>✏️ Modifica anagrafica</button>";
     h += renderDipTimesheet();
-    h += "<div class='section-label'><div class='section-title'>Fascicolo personale</div></div>";
-    h += "<div class='timbra-card' style='text-align:center;padding:2rem;color:var(--text-light)'>";
-    h += "<div style='font-size:32px;margin-bottom:0.5rem'>📄</div>";
-    h += "<div style='font-weight:700'>Upload documenti</div>";
-    h += "<div style='font-size:12px;margin-top:4px'>Funzione in arrivo — connessione Nextcloud</div>";
-    h += "</div>";
-    h += "<div class='timbra-card' style='text-align:center;padding:2rem;color:var(--text-light)'>";
-    h += "<div style='font-size:32px;margin-bottom:0.5rem'>💰</div>";
-    h += "<div style='font-weight:700'>Buste paga</div>";
-    h += "<div style='font-size:12px;margin-top:4px'>Funzione in arrivo</div>";
-    h += "</div>";
+    h += renderGPDocSection();
     h += "<button class='update-btn' style='background:var(--coral)' onclick=\"GP_DIP_DETAIL=null;render()\">← Indietro</button>";
     return h;
   }
