@@ -209,6 +209,8 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 }
 
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -2439,6 +2441,123 @@ function renderGPDocSection(){
   for(var k=0;k<GP_DOCS.length;k++){ h+=_docCard(GP_DOCS[k], true); }
   return h;
 }
+// ===== EXPORT PDF TIMBRATURE =====
+var EXP_BUSY=false;
+function _expMonthDefault(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function _expRange(ym){ var p=String(ym).split("-"); var y=+p[0], m=+p[1]; var last=new Date(y,m,0).getDate(); return {y:y,m:m,last:last,from:y+"-"+String(m).padStart(2,"0")+"-01",to:y+"-"+String(m).padStart(2,"0")+"-"+String(last).padStart(2,"0")}; }
+function _dowIt(dt){ return ["Do","Lu","Ma","Me","Gi","Ve","Sa"][dt.getDay()]; }
+function _minToH(min){ min=Math.max(0,Math.round(min)); return Math.floor(min/60)+":"+String(min%60).padStart(2,"0"); }
+function _fmtGenNow(){ var d=new Date(); var p=function(n){return String(n).padStart(2,"0");}; return p(d.getDate())+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+function expGetMese(){ var el=document.getElementById("exp-mese"); return (el&&el.value)||_expMonthDefault(); }
+function expGetStruttura(){ var el=document.getElementById("exp-struttura"); return (el&&el.value)||""; }
+function _expReady(){ if(!window.jspdf||!window.jspdf.jsPDF){ alert("Componente PDF non ancora pronto. Riprova tra qualche secondo."); return false; } return true; }
+function expEnsureData(ym, cb){
+  var d=GP_DIP_DETAIL; if(!d) return; var rg=_expRange(ym);
+  EXP_BUSY=true; render();
+  var out={timb:[],ferie:[]}; var done=0;
+  function fin(){ done++; if(done>=2){ EXP_BUSY=false; render(); cb(out,rg); } }
+  fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||""),includeDeleted:true,dateFrom:rg.from,dateTo:rg.to})})
+    .then(function(r){return r.text();}).then(function(t){ try{var a=JSON.parse(t); out.timb=Array.isArray(a)?a:[];}catch(e){} fin(); }).catch(fin);
+  fetch(FERIE_LETTURA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||"")})})
+    .then(function(r){return r.text();}).then(function(t){ try{var a=JSON.parse(t); out.ferie=Array.isArray(a)?a:[];}catch(e){} fin(); }).catch(fin);
+}
+function _expHeader(doc,titolo,rg){
+  var d=GP_DIP_DETAIL; var mesi=["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+  doc.setFontSize(14); doc.setFont("helvetica","bold"); doc.text("Senca Senior Care",40,40);
+  doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.text(titolo,40,60);
+  doc.setFontSize(10);
+  doc.text("Dipendente: "+(((d.nome||"")+" "+(d.cognome||"")).trim()||"—"),40,78);
+  doc.text("Qualifica: "+(d.mansione||"—"),40,92);
+  doc.text("Periodo: "+mesi[rg.m-1]+" "+rg.y,40,106);
+  return 122;
+}
+function _expFooter(doc,label){ var ph=doc.internal.pageSize.getHeight(); doc.setFontSize(8); doc.setFont("helvetica","italic"); doc.text((label||"Documento generato il")+" "+_fmtGenNow(),40,ph-24); }
+function expPerStruttura(){
+  if(!_expReady())return; var ym=expGetMese(); var struttura=expGetStruttura();
+  expEnsureData(ym,function(data,rg){
+    var p=function(n){return String(n).padStart(2,"0");}; var rows=[]; var totMin=0;
+    for(var day=1;day<=rg.last;day++){
+      var ds=rg.y+"-"+p(rg.m)+"-"+p(day);
+      var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata && (!struttura||t.struttura===struttura); });
+      if(!dayT.length) continue;
+      dayT.sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
+      var stamps=[]; var dayMin=0;
+      for(var i=0;i<dayT.length;i++){ var t=dayT[i]; if(t.oraEntrata)stamps.push("E "+t.oraEntrata); if(t.oraUscita)stamps.push("U "+t.oraUscita); if(t.approvazione==="Regolare"||t.approvazione==="Approvata"){ var mg=calcMaggiorazioni({data:ds,oraEntrata:t.oraEntrata,oraUscita:t.oraUscita},GP_DIP_TURNI); dayMin+=Math.round(mg.ore*60); } }
+      totMin+=dayMin; var dt=new Date(ds+"T00:00:00");
+      rows.push([_dowIt(dt)+" "+p(day)+"/"+p(rg.m)+"/"+rg.y,_minToH(dayMin),stamps.join("   ")]);
+    }
+    var doc=new window.jspdf.jsPDF({unit:"pt",format:"a4"});
+    var y=_expHeader(doc,"Riepilogo timbrature - struttura: "+(struttura||"tutte"),rg);
+    doc.autoTable({head:[["Data","Presenza","Timbrature"]],body:rows.length?rows:[["—","—","Nessuna timbratura nel periodo"]],startY:y,styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[26,107,90]},columnStyles:{0:{cellWidth:140},1:{cellWidth:70}}});
+    var fy=doc.lastAutoTable.finalY+18; doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.text("Totale ore: "+_minToH(totMin),40,fy);
+    _expFooter(doc); doc.save("Riepilogo_struttura_"+(struttura||"tutte").replace(/\s+/g,"_")+"_"+ym+".pdf");
+  });
+}
+function expMensile(){
+  if(!_expReady())return; var ym=expGetMese();
+  expEnsureData(ym,function(data,rg){
+    var p=function(n){return String(n).padStart(2,"0");};
+    function tipoAbbr(tp){ tp=(tp||"").toLowerCase(); if(tp.indexOf("feri")>=0)return"FERIE"; if(tp.indexOf("malat")>=0)return"MALATTIA"; if(tp.indexOf("permess")>=0)return"PERMESSO"; if(tp.indexOf("rol")>=0)return"ROL"; return (tp||"ASSENZA").toUpperCase(); }
+    var absByDay={};
+    for(var fi=0;fi<data.ferie.length;fi++){ var fr=data.ferie[fi]; if((fr.stato||"")!=="Approvata")continue; var di=String(fr.dataInizio||"").split("T")[0]; if(!di)continue; var dfn=String(fr.dataFine||di).split("T")[0]; var cur=new Date(di+"T00:00:00"); var end=new Date((dfn||di)+"T00:00:00"); var g=0; while(cur<=end&&g<400){ absByDay[cur.getFullYear()+"-"+p(cur.getMonth()+1)+"-"+p(cur.getDate())]=tipoAbbr(fr.tipo); cur=new Date(cur.getTime()+86400000); g++; } }
+    var rows=[]; var tot={ord:0,fest:0,nott:0,straord:0,riposo:0}; var totAbs={};
+    for(var day=1;day<=rg.last;day++){
+      var ds=rg.y+"-"+p(rg.m)+"-"+p(day); var dt=new Date(ds+"T00:00:00"); var festivo=_isFestivo(dt);
+      var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata; }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
+      var stamps=[]; var wmin=0,nmin=0,fmin=0,smin=0;
+      for(var i=0;i<dayT.length;i++){ var t=dayT[i]; if(t.oraEntrata)stamps.push("E"+t.oraEntrata.replace(":","")); if(t.oraUscita)stamps.push("U"+t.oraUscita.replace(":","")); if(t.approvazione==="Regolare"||t.approvazione==="Approvata"){ var mg=calcMaggiorazioni({data:ds,oraEntrata:t.oraEntrata,oraUscita:t.oraUscita},GP_DIP_TURNI); wmin+=Math.round(mg.ore*60); nmin+=Math.round(mg.nott*60); fmin+=Math.round(mg.fest*60); smin+=Math.round(mg.straord*60); } }
+      var turno=""; for(var w=0;w<GP_DIP_TURNI.length;w++){ if(GP_DIP_TURNI[w].data===ds){ turno=(GP_DIP_TURNI[w].oraInizio||"")+"-"+(GP_DIP_TURNI[w].oraFine||""); break; } }
+      var causale="",ore="";
+      if(wmin>0){ ore=_minToH(wmin); causale=festivo?"FESTIVA":"ORDINARIE"; if(smin>0)causale+=" +STR"; if(nmin>0)causale+=" +NOTT"; if(festivo)tot.fest+=wmin; else tot.ord+=wmin; tot.nott+=nmin; tot.straord+=smin; }
+      else if(absByDay[ds]){ causale=absByDay[ds]; totAbs[causale]=(totAbs[causale]||0)+1; }
+      else if(festivo){ causale="FESTIVO"; }
+      else if(!turno){ causale="RIPOSO"; tot.riposo++; }
+      else { causale="ASSENTE"; }
+      rows.push([p(day)+" "+_dowIt(dt),turno||"riposo",stamps.join(" "),ore,causale]);
+    }
+    var doc=new window.jspdf.jsPDF({unit:"pt",format:"a4"});
+    var y=_expHeader(doc,"Riepilogo mensile presenze e assenze",rg);
+    doc.autoTable({head:[["GG","Turno","Timbrature","Ore","Causale"]],body:rows,startY:y,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[26,107,90]},columnStyles:{0:{cellWidth:48},1:{cellWidth:75},3:{cellWidth:42}}});
+    var fy=doc.lastAutoTable.finalY+18; if(fy>740){ doc.addPage(); fy=50; }
+    doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.text("Totali mensili",40,fy); fy+=15; doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    var lines=["Ordinarie diurne: "+_minToH(tot.ord),"Festive: "+_minToH(tot.fest),"di cui notturne: "+_minToH(tot.nott),"Straordinario: "+_minToH(tot.straord),"Totale presenze: "+_minToH(tot.ord+tot.fest)];
+    for(var kk in totAbs){ lines.push("Assenza "+kk+": "+totAbs[kk]+" gg"); }
+    lines.push("Riposi: "+tot.riposo+" gg");
+    for(var li=0;li<lines.length;li++){ doc.text(lines[li],40,fy); fy+=13; }
+    _expFooter(doc); doc.save("Riepilogo_mensile_"+((GP_DIP_DETAIL.cognome||"dip")).replace(/\s+/g,"_")+"_"+ym+".pdf");
+  });
+}
+function expCancellate(){
+  if(!_expReady())return; var ym=expGetMese();
+  expEnsureData(ym,function(data,rg){
+    var p=function(n){return String(n).padStart(2,"0");}; var rows=[];
+    var elim=data.timb.filter(function(t){return t.eliminata;}).sort(function(a,b){return (String(a.data)<String(b.data))?-1:1;});
+    for(var i=0;i<elim.length;i++){ var t=elim[i]; var ds=String(t.data).split("T")[0]; var le=t.lastEdit?new Date(t.lastEdit):null;
+      var leStr=le?(p(le.getDate())+"/"+p(le.getMonth()+1)+"/"+le.getFullYear()+" "+p(le.getHours())+":"+p(le.getMinutes())):"—";
+      rows.push([fmtDateIt(ds),(t.oraEntrata||"—")+" → "+(t.oraUscita||"—"),(t.struttura||"—"),(t.approvazione||"—"),(t.eliminataDa||"—"),leStr]);
+    }
+    var doc=new window.jspdf.jsPDF({unit:"pt",format:"a4",orientation:"landscape"});
+    var y=_expHeader(doc,"Timbrature cancellate / modificate (archivio a norma di legge)",rg);
+    doc.autoTable({head:[["Data","Orario","Struttura","Stato","Cancellata da","Data/ora modifica"]],body:rows.length?rows:[["—","—","—","—","—","Nessuna nel periodo"]],startY:y,styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[122,26,26]}});
+    _expFooter(doc,"Documento scaricato il"); doc.save("Timbrature_cancellate_modificate_"+ym+".pdf");
+  });
+}
+function renderExportPanel(){
+  var d=GP_DIP_DETAIL; if(!d) return "";
+  var strutture=String(d.struttura||"").split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
+  var h="<div class='section-label'><div class='section-title'>Esporta riepiloghi (PDF)</div></div>";
+  h+="<div class='ana-card' style='padding:1rem'>";
+  h+="<label class='dim-lbl'>Mese</label><input type='month' id='exp-mese' class='dim-in' value='"+_expMonthDefault()+"'>";
+  if(strutture.length){ h+="<label class='dim-lbl'>Struttura (per il foglio per struttura)</label><select id='exp-struttura' class='dim-in'>"; for(var i=0;i<strutture.length;i++){ h+="<option value=\""+_esc(strutture[i])+"\">"+_esc(strutture[i])+"</option>"; } h+="</select>"; }
+  h+="<div style='display:flex;flex-direction:column;gap:0.45rem;margin-top:0.7rem'>";
+  h+="<button class='ts-save' "+(EXP_BUSY?"disabled":"")+" onclick='expPerStruttura()'>"+(EXP_BUSY?"Attendere...":"📄 Riepilogo per struttura")+"</button>";
+  h+="<button class='ts-save' "+(EXP_BUSY?"disabled":"")+" onclick='expMensile()'>"+(EXP_BUSY?"Attendere...":"📄 Riepilogo mensile dipendente")+"</button>";
+  h+="<button class='ts-save' style='background:var(--coral)' "+(EXP_BUSY?"disabled":"")+" onclick='expCancellate()'>"+(EXP_BUSY?"Attendere...":"📄 Cancellate / modificate (legale)")+"</button>";
+  h+="</div>";
+  h+="<div style='font-size:11px;color:var(--text-light);margin-top:0.5rem'>Ogni PDF riporta la data e l'ora di generazione.</div>";
+  h+="</div>";
+  return h;
+}
 function renderGP_Dipendenti() {
   if(GP_DIP_FORM) return renderDipAnagForm();
   var h = "";
@@ -2459,6 +2578,7 @@ function renderGP_Dipendenti() {
     h += "</div>";
     h += "<button class='update-btn' style='background:var(--teal)' onclick='dipFormOpenEdit()'>✏️ Modifica anagrafica</button>";
     h += renderDipTimesheet();
+    h += renderExportPanel();
     h += renderGPDocSection();
     h += "<button class='update-btn' style='background:var(--coral)' onclick=\"GP_DIP_DETAIL=null;render()\">← Indietro</button>";
     return h;
