@@ -541,7 +541,12 @@ function fetchFerieSaldo() {
   .catch(function(e){ console.log("Errore fetch ferie saldo:", e); });
 }
 
-function fetchFerieRichieste() {
+var FERIE_SEEN = {}; var FERIE_FIRST = true;
+function ferieNotify(changed){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  try{ for(var i=0;i<changed.length;i++){ var c=changed[i]; new Notification("Richiesta "+(c.stato==="Approvata"?"approvata ✅":"rifiutata ❌"), {body:(c.tipo||"Richiesta")+" del "+fmtDateIt(c.dataInizio)}); } }catch(e){}
+}
+function fetchFerieRichieste(silent) {
   fetch(FERIE_LETTURA_URL, {
     method: "POST",
     headers:{"Content-Type":"application/json"},
@@ -553,17 +558,17 @@ function fetchFerieRichieste() {
       var data = JSON.parse(text);
       var raw = Array.isArray(data) ? data : [data];
       FERIE_RICHIESTE = raw.map(function(item) {
-        var p = (item && item.properties_value) ? item.properties_value : item;
-        var tipo = (p.Tipo && p.Tipo.name) ? p.Tipo.name : "";
-        var stato = (p.Stato && p.Stato.name) ? p.Stato.name : "";
-        var dataInizio = (p["Data inizio"] && p["Data inizio"].start) ? p["Data inizio"].start.split("T")[0] : "";
-        var dataFine = (p["Data fine"] && p["Data fine"].start) ? p["Data fine"].start.split("T")[0] : "";
-        var oreRichieste = p["Ore richieste"] || 0;
-        var noteAdmin = typeof p["Note admin"] === "string" ? p["Note admin"] : "";
-        return {tipo:tipo, stato:stato, dataInizio:dataInizio, dataFine:dataFine, oreRichieste:oreRichieste, noteAdmin:noteAdmin};
+        return { id:item.id||"", tipo:item.tipo||"", stato:item.stato||"", dataInizio:item.dataInizio||"", dataFine:item.dataFine||"", oreRichieste:item.oreRichieste||0, noteAdmin:item.noteDirettore||"" };
       }).filter(function(r){ return r.tipo; })
         .sort(function(a,b){ return a.dataInizio > b.dataInizio ? -1 : 1; });
-      render();
+      var changed=[];
+      for(var i=0;i<FERIE_RICHIESTE.length;i++){ var r=FERIE_RICHIESTE[i]; var prev=FERIE_SEEN[r.id];
+        if(!FERIE_FIRST && prev==="In attesa" && (r.stato==="Approvata"||r.stato==="Rifiutata")) changed.push(r);
+        FERIE_SEEN[r.id]=r.stato;
+      }
+      if(changed.length){ ferieNotify(changed); fetchFerieSaldo(); }
+      var wasFirst=FERIE_FIRST; FERIE_FIRST=false;
+      if(!silent || changed.length>0 || wasFirst) render();
     } catch(e) { console.log("Errore fetch ferie richieste:", e); }
   })
   .catch(function(e){ console.log("Errore fetch ferie richieste:", e); });
@@ -1184,8 +1189,10 @@ function renderDipFerie() {
     h += "</div>";
   }
 
-  if(FERIE_RICHIESTE.length > 0) {
-    h += "<div class='section-label'><div class='section-title'>Storico richieste</div></div>";
+  h += "<div class='section-label'><div class='section-title'>Le mie richieste</div></div>";
+  if(FERIE_RICHIESTE.length === 0) {
+    h += "<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessuna richiesta inviata</div>";
+  } else {
     h += "<div class='ana-card'>";
     for(var i=0; i<FERIE_RICHIESTE.length; i++) {
       var r = FERIE_RICHIESTE[i];
@@ -2165,7 +2172,7 @@ function comNotify(newOnes){
     else if(newOnes.length>1) new Notification("Nuove comunicazioni", {body:"Hai "+newOnes.length+" nuove comunicazioni"});
   }catch(e){}
 }
-function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()) fetchDipComs(true); else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
+function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()){ fetchDipComs(true); fetchFerieRichieste(true); } else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
 function fetchDipComs(silent){ if(!silent){ DIP_COMS_LOADING=true; render(); }
   var struttura=(PROFILO_DIP&&PROFILO_DIP.struttura)||"";
   var ruolo=(PROFILO_DIP&&PROFILO_DIP.mansione)||(S.user&&S.user.ruolo)||"";
