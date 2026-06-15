@@ -1037,16 +1037,17 @@ function renderDipendente() {
 
   // Tab nav dipendente — nascondi se in Contatti
   if(tab !== "Contatti") {
-    h += "<div style='padding:0 1rem'><div class=\"nav-tabs\">";
+    h += "<div style='padding:0 1rem'><div style='display:flex;align-items:center;gap:0.5rem'><div class=\"nav-tabs\" style='flex:1'>";
     var tabs = ["Home","Ferie/ROL","Informazioni"];
     for(var t=0; t<tabs.length; t++) {
       var tact = (S.dipTab===tabs[t]||(t===0&&!S.dipTab)) ? "active" : "inactive";
       h += "<div class=\"nav-tab " + tact + "\" onclick=\"S.dipTab='" + tabs[t] + "';render()\">" + tabs[t] + "</div>";
     }
-    h += "</div></div>";
+    h += "</div>" + refreshWheelHtml() + "</div></div>";
   } else {
-    h += "<div style='padding:0.5rem 1rem'>";
+    h += "<div style='padding:0.5rem 1rem;display:flex;align-items:center;justify-content:space-between'>";
     h += "<button onclick=\"S.dipTab='Home';render()\" style='background:none;border:none;font-size:14px;font-weight:800;color:var(--teal);cursor:pointer;font-family:Satoshi,sans-serif'>← Torna alla home</button>";
+    h += refreshWheelHtml();
     h += "</div>";
   }
 
@@ -1116,7 +1117,6 @@ function renderDipHome() {
   h += "<div class=\"timbra-card-big-sub\">Contratti · Buste paga · Certificati</div>";
   h += "</div>";
 
-  h += "<button class=\"update-btn\" onclick=\"render()\">Aggiornamenti</button>";
   return h;
 }
 
@@ -1196,7 +1196,6 @@ function renderDipFerie() {
     h += "</div>";
   }
 
-  h += "<button class='update-btn' onclick=\"fetchFerieSaldo();fetchFerieRichieste()\">Aggiorna</button>";
   return h;
 }
 
@@ -1232,7 +1231,6 @@ function renderDipInfo() {
   }
   h += "</div>";
 
-  h += "<button class='update-btn' onclick=\"fetchTurni();fetchTimbrature()\">Aggiorna</button>";
   return h;
 }
 
@@ -1312,7 +1310,6 @@ function renderDipTimbra() {
     }
   }
   h += "</div>";
-  h += "<button class='update-btn' onclick=\"fetchTimbrature()\" style='margin-top:0.75rem'>Aggiorna timbrature</button>";
   return h;
 }
 
@@ -1535,7 +1532,6 @@ function renderDipContatti() {
     h += "<div class='timbra-card'>";
     h += "<div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Caricamento contatti...</div>";
     h += "</div>";
-    h += "<button class='update-btn' onclick=\"fetchContatti()\">Aggiorna</button>";
     return h;
   }
   h += "<div class='section-label'><div class='section-title'>Contatti utili</div></div>";
@@ -1570,7 +1566,6 @@ function renderDipContatti() {
     h += "</div>";
   });
 
-  h += "<button class='update-btn' onclick=\"fetchContatti()\">Aggiorna</button>";
   return h;
 }
 
@@ -1740,14 +1735,31 @@ function renderDipTurni() {
       }
     }
   }
-  h += "<button class='update-btn' onclick=\"S.loadingTurni=true;fetchTurni()\">Aggiorna</button>";
   return h;
 }
 
 var APP_TICKET_URL="https://senca-hub.duckdns.org/webhook/app-ticket";
 var TICKET_OPEN=false; var TICKET_BUSY=false; var TICKET_MSG=null;
-var PROF_REFRESHING=false;
-function profRefresh(){ PROF_REFRESHING=true; render(); fetchProfilo(); fetchContatti(); setTimeout(function(){ PROF_REFRESHING=false; render(); },1100); }
+var REFRESHING=false;
+function refreshWheelHtml(){
+  var sp = REFRESHING ? " style='animation:spin 0.9s linear infinite;transform-origin:50% 50%'" : "";
+  return "<button onclick='dipRefresh()' aria-label='Aggiorna' style='background:var(--white);border:1.5px solid var(--cyan-light);border-radius:50%;width:34px;height:34px;min-width:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0'>"
+    + "<svg viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='var(--teal)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'" + sp + "><path d='M23 4v6h-6'/><path d='M1 20v-6h6'/><path d='M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15'/></svg>"
+    + "</button>";
+}
+function dipRefresh(){
+  REFRESHING=true; render();
+  var tab=S.dipTab||"Home";
+  if(tab==="Ferie/ROL"){ fetchFerieSaldo(); fetchFerieRichieste(); }
+  else if(tab==="Documenti"){ fetchDipDocs(); }
+  else if(tab==="Avvisi"){ fetchDipComs(); }
+  else if(tab==="turni"){ fetchTurni(); }
+  else if(tab==="timbra"){ fetchTimbrature(); }
+  else if(tab==="Home"){ fetchTurni(); fetchTimbrature(); }
+  else if(tab==="profilo"||tab==="Informazioni"||tab==="Contatti"){ fetchProfilo(); fetchContatti(); }
+  else { fetchProfilo(); }
+  setTimeout(function(){ REFRESHING=false; render(); },1000);
+}
 function ticketOpen(){ TICKET_OPEN=true; TICKET_MSG=null; render(); }
 function ticketClose(){ TICKET_OPEN=false; TICKET_BUSY=false; TICKET_MSG=null; render(); }
 function ticketSubmit(){
@@ -1778,12 +1790,6 @@ function renderDipProfilo() {
   var u = S.user;
   var p = PROFILO_DIP;
   var h = "";
-
-  // Refresh in alto (rotella)
-  h += "<div style='display:flex;justify-content:flex-end;margin-bottom:0.4rem'>";
-  h += "<button onclick='profRefresh()' aria-label='Aggiorna' style='background:var(--white);border:1.5px solid var(--cyan-light);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0'>";
-  h += "<svg viewBox='0 0 24 24' width='18' height='18' fill='none' stroke='var(--teal)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'"+(PROF_REFRESHING?" style='animation:spin 0.9s linear infinite;transform-origin:50% 50%'":"")+"><path d='M23 4v6h-6'/><path d='M1 20v-6h6'/><path d='M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15'/></svg>";
-  h += "</button></div>";
 
   // Card header con nome
   h += "<div class='stat-card'><div class='stat-card-orb'></div>";
@@ -1825,6 +1831,7 @@ var GP_DIP_TIMB = [];
 var GP_DIP_TURNI = [];
 var GP_DIP_LOADING = false;
 var GP_WEEK_OFFSET = 0;
+var GP_SHOW_DELETED = false;
 
 function openDipDetail(i){
   GP_DIP_DETAIL = GP_DIPENDENTI[i];
@@ -1837,7 +1844,7 @@ function openDipDetail(i){
   fetchGPDocs(GP_DIP_DETAIL.username);
 }
 function fetchDipTimbrature(d){
-  fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||"")})})
+  fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||""),includeDeleted:true})})
   .then(function(r){return r.text();})
   .then(function(t){ try{ var data=JSON.parse(t); var raw=Array.isArray(data)?data:[data];
       GP_DIP_TIMB = raw.map(function(it){ return {id:it.id||"", data:String(it.data||"").split("T")[0], oraEntrata:it.oraEntrata||"", oraUscita:it.oraUscita||"", oreLavorate:parseFloat(it.oreLavorate)||0, approvazione:it.approvazione||"", struttura:it.struttura||""}; }).filter(function(x){return x.data;});
@@ -1953,6 +1960,7 @@ function renderDipTimesheet(){
   h+="<div style='font-size:13px;font-weight:800;color:var(--text-dark);text-align:center;flex:1'>"+fmtDateIt(wsS)+" – "+fmtDateIt(weS)+"</div>";
   h+="<button class='ts-nav' "+(GP_WEEK_OFFSET>=0?"disabled":"")+" onclick='gpChangeWeek(1)'>→</button>";
   h+="</div>";
+  h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:0.6rem;cursor:pointer'><input type='checkbox' "+(GP_SHOW_DELETED?"checked":"")+" onchange='GP_SHOW_DELETED=this.checked;render()' style='width:16px;height:16px'> Mostra timbrature eliminate</label>";
   if(S.tsForm){
     var f=S.tsForm;
     h+="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.6rem;border:1.5px solid var(--cyan)'>";
@@ -1982,20 +1990,22 @@ function renderDipTimesheet(){
     var dayDate=new Date(ws.getTime()+gi*86400000);
     var dayStr=_ymd(dayDate);
     var festDay=_isFestivo(dayDate);
-    var dayTimb=GP_DIP_TIMB.filter(function(t){ return t.data===dayStr; }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
+    var dayTimb=GP_DIP_TIMB.filter(function(t){ return t.data===dayStr && (GP_SHOW_DELETED || !t.eliminata); }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
     var dayOre=0;
     var inner="";
     for(var i=0;i<dayTimb.length;i++){
       var t=dayTimb[i]; var mg=calcMaggiorazioni(t,GP_DIP_TURNI);
-      var conta=(t.approvazione==="Regolare"||t.approvazione==="Approvata");
+      var conta=(t.approvazione==="Regolare"||t.approvazione==="Approvata") && !t.eliminata;
       if(conta){ tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord; dayOre+=mg.ore; }
-      inner+="<div style='margin-top:6px;opacity:"+(conta?"1":"0.55")+"'>";
+      inner+="<div style='margin-top:6px;opacity:"+(conta?"1":(t.eliminata?"0.45":"0.55"))+"'>";
       inner+="<div style='display:flex;justify-content:space-between;align-items:baseline'>";
-      inner+="<div style='font-size:13px;font-weight:700;color:var(--text-dark)'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+"</div>";
+      inner+="<div style='font-size:13px;font-weight:700;color:var(--text-dark);text-decoration:"+(t.eliminata?"line-through":"none")+"'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+"</div>";
       inner+="<div style='font-size:12px;font-weight:800;color:"+(conta?"var(--teal)":"var(--text-light)")+"'>"+mg.ore.toFixed(2)+"h</div>";
       inner+="</div>";
       var chips="";
-      if(conta){
+      if(t.eliminata){
+        chips+=_chip("🗑 Eliminata"+(t.eliminataDa?" da "+t.eliminataDa:"")+" · non conteggiata","#7A1A1A");
+      } else if(conta){
         if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
         if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
         if(mg.festNott>0) chips+=_chip("Fest.Nott "+mg.festNott.toFixed(2)+"h","#8E44AD");
@@ -2006,10 +2016,12 @@ function renderDipTimesheet(){
         chips+=_chip("❌ Rifiutata · non conteggiata","#7A1A1A");
       }
       if(chips) inner+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>"+chips+"</div>";
-      inner+="<div style='display:flex;gap:0.4rem;margin-top:6px'>";
-      inner+="<button class='ts-mini' onclick=\"tsOpenEdit('"+t.id+"')\">✏️ Modifica</button>";
-      inner+="<button class='ts-mini del' "+(S.tsBusy===t.id?"disabled":"")+" onclick=\"tsDelete('"+t.id+"')\">"+(S.tsBusy===t.id?"...":"🗑 Elimina")+"</button>";
-      inner+="</div>";
+      if(!t.eliminata){
+        inner+="<div style='display:flex;gap:0.4rem;margin-top:6px'>";
+        inner+="<button class='ts-mini' onclick=\"tsOpenEdit('"+t.id+"')\">✏️ Modifica</button>";
+        inner+="<button class='ts-mini del' "+(S.tsBusy===t.id?"disabled":"")+" onclick=\"tsDelete('"+t.id+"')\">"+(S.tsBusy===t.id?"...":"🗑 Elimina")+"</button>";
+        inner+="</div>";
+      }
       inner+="</div>";
     }
     h+="<div style='padding:0.7rem 1rem;border-bottom:1px solid var(--bg)'>";
@@ -2267,7 +2279,6 @@ function renderDipComunicazioni(){
     return h;
   }
   h+="<div class='section-label'><div class='section-title'>Comunicazioni</div></div>";
-  h+="<button class='update-btn' onclick='fetchDipComs()'>Aggiorna</button>";
   if(DIP_COMS_LOADING){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light)'>Caricamento...</div>"; return h; }
   if(DIP_COMS.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessuna comunicazione</div>"; return h; }
   for(var i=0;i<DIP_COMS.length;i++){ var c=DIP_COMS[i];
@@ -2377,7 +2388,6 @@ function fetchDipDocs(){ DIP_DOCS_LOADING=true; render();
 }
 function renderDipDocumenti(){
   var h="";
-  h+="<button class='update-btn' onclick='fetchDipDocs()'>Aggiorna</button>";
   if(DIP_DOCS_LOADING){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light)'>Caricamento...</div>"; return h; }
   if(DIP_DOCS.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessun documento disponibile</div>"; return h; }
   for(var j=0;j<DIP_DOCS.length;j++){ h+=_docCard(DIP_DOCS[j], false); }
