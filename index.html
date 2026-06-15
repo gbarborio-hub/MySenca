@@ -1115,20 +1115,11 @@ function renderDipHome() {
   h += "<div class=\"timbra-card-big-sub\">Incidente · Data breach</div>";
   h += "</div>";
 
-  // Documenti caricati
-  h += "<div class=\"section-label\"><div class=\"section-title\">Documenti caricati</div></div>";
-  h += "<div class=\"doc-chips\">";
-  var docs = [
-    {label:"Contratto", sub:"di lavoro", col:"#E8603A"},
-    {label:"Informativa", sub:"privacy", col:"#E8904A"},
-    {label:"Nomina", sub:"Incaricato", col:"#F0B080"}
-  ];
-  for(var d=0; d<docs.length; d++) {
-    h += "<div class=\"doc-chip\" style='background:" + docs[d].col + "'>";
-    h += "<div style='font-size:14px;font-weight:900'>" + docs[d].label + "</div>";
-    h += "<div class=\"doc-chip-label\">" + docs[d].sub + "</div>";
-    h += "</div>";
-  }
+  // Card Documenti
+  h += "<div class=\"timbra-card-big\" style='background:var(--teal-dark);min-height:90px;cursor:pointer' onclick=\"S.dipTab='Documenti';render()\">";
+  h += "<div class=\"timbra-card-big-orb\"></div>";
+  h += "<div class=\"timbra-card-big-title\" style='font-size:22px'>📄 Documenti</div>";
+  h += "<div class=\"timbra-card-big-sub\">Contratti · Buste paga · Certificati</div>";
   h += "</div>";
 
   h += "<button class=\"update-btn\" onclick=\"render()\">Aggiornamenti</button>";
@@ -2283,14 +2274,16 @@ var DOC_LISTA_URL="https://senca-hub.duckdns.org/webhook/documenti-lista";
 var DOC_ELIMINA_URL="https://senca-hub.duckdns.org/webhook/documento-elimina";
 var DOC_TIPI=["Certificato medico","Documento identità","Contratto","Busta paga","Altro"];
 var DIP_DOCS=[]; var DIP_DOCS_LOADING=false;
-var DOC_FORM={tipo:"Certificato medico",note:"",link:"",fileName:"",fileB64:"",fileType:""};
-var DOC_UPLOADING=false; var DOC_MSG=null;
 var GP_DOCS=[]; var GP_DOCS_LOADING=false;
 var GPDOC_FORM=null; var GPDOC_UPLOADING=false; var GPDOC_MSG=null;
 
 function _docCard(d, withDelete){
   var h="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.5rem'>";
-  h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:800;color:var(--text-dark)'>"+_esc(d.tipo||"Documento")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(d.dataCaricamento)+"</div></div>";
+  var titolo=d.titolo||d.tipo||"Documento";
+  h+="<div style='display:flex;justify-content:space-between;align-items:baseline'>";
+  h+="<div style='font-size:14px;font-weight:800;color:var(--text-dark)'>"+_esc(titolo)+"</div>";
+  h+="<div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(d.dataCaricamento)+"</div></div>";
+  if(d.tipo && d.tipo!==titolo) h+="<div style='font-size:11px;color:var(--text-light);margin-top:1px'>"+_esc(d.tipo)+"</div>";
   if(d.allegatoNome) h+="<div style='font-size:12px;color:var(--text-mid);margin-top:2px'>"+_esc(d.allegatoNome)+"</div>";
   if(d.note) h+="<div style='font-size:12px;color:var(--text-light);margin-top:2px'>"+_esc(d.note)+"</div>";
   var link=d.allegatoUrl||d.linkAllegato;
@@ -2317,36 +2310,12 @@ function fetchDipDocs(){ DIP_DOCS_LOADING=true; render();
   .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);DIP_DOCS=Array.isArray(d)?d:[];}catch(e){DIP_DOCS=[];} DIP_DOCS_LOADING=false; render(); })
   .catch(function(){ DIP_DOCS_LOADING=false; render(); });
 }
-function docSync(){ var el; el=document.getElementById("doc-tipo"); if(el)DOC_FORM.tipo=el.value; el=document.getElementById("doc-link"); if(el)DOC_FORM.link=el.value; el=document.getElementById("doc-note"); if(el)DOC_FORM.note=el.value; }
-function docFilePick(input){ docSync(); _readFileTo(input,DOC_FORM,function(ok,why){ if(!ok && why==="big") DOC_MSG="⚠️ File troppo grande (max ~18MB)."; render(); }); }
-function docClearFile(){ docSync(); DOC_FORM.fileName=""; DOC_FORM.fileB64=""; DOC_FORM.fileType=""; render(); }
-function docUpload(){ docSync(); if(!DOC_FORM.fileB64 && !(DOC_FORM.link||"").trim()){ DOC_MSG="⚠️ Allega un file o inserisci un link."; render(); return; }
-  var payload={ username:(S.user&&S.user.username)||"", dipendente:(S.user&&S.user.nome)||"", tipo:DOC_FORM.tipo||"Altro", note:DOC_FORM.note||"", caricatoDa:(S.user&&S.user.username)||"", linkAllegato:(DOC_FORM.link||"").trim(), fileBase64:DOC_FORM.fileB64||"", fileName:DOC_FORM.fileName||"", contentType:DOC_FORM.fileType||"" };
-  DOC_UPLOADING=true; DOC_MSG="⏳ Caricamento..."; render();
-  fetch(DOC_CARICA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
-  .then(function(r){return r.text();}).then(function(){ DOC_UPLOADING=false; DOC_MSG="✅ Documento caricato."; DOC_FORM={tipo:"Certificato medico",note:"",link:"",fileName:"",fileB64:"",fileType:""}; setTimeout(function(){ fetchDipDocs(); },1300); })
-  .catch(function(){ DOC_UPLOADING=false; DOC_MSG="⚠️ Errore nel caricamento. Riprova."; render(); });
-}
 function renderDipDocumenti(){
   var h="";
-  h+="<div class='section-label'><div class='section-title'>Carica un documento</div></div>";
-  h+="<div class='ana-card' style='padding:1rem'>";
-  h+="<label class='dim-lbl'>Tipo documento</label><select id='doc-tipo' class='dim-in'>";
-  for(var i=0;i<DOC_TIPI.length;i++){ h+="<option value=\""+DOC_TIPI[i]+"\" "+(DOC_FORM.tipo===DOC_TIPI[i]?"selected":"")+">"+DOC_TIPI[i]+"</option>"; }
-  h+="</select>";
-  h+="<label class='dim-lbl'>File</label>";
-  if(DOC_FORM.fileName){ h+="<div style='display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--teal);margin-bottom:8px'>📎 "+_esc(DOC_FORM.fileName)+" <button class='ts-mini del' onclick='docClearFile()'>rimuovi</button></div>"; }
-  else { h+="<input type='file' onchange='docFilePick(this)' style='margin-bottom:8px;font-size:13px;width:100%'>"; }
-  h+="<label class='dim-lbl'>oppure Link</label><input id='doc-link' class='dim-in' placeholder='https://...' value=\""+_esc(DOC_FORM.link)+"\">";
-  h+="<label class='dim-lbl'>Note</label><input id='doc-note' class='dim-in' value=\""+_esc(DOC_FORM.note)+"\">";
-  if(DOC_MSG) h+="<div style='margin:8px 0;font-size:13px;font-weight:700;color:var(--teal-dark)'>"+DOC_MSG+"</div>";
-  h+="<button class='ts-save' style='width:100%;margin-top:6px' "+(DOC_UPLOADING?"disabled":"")+" onclick='docUpload()'>"+(DOC_UPLOADING?"Caricamento...":"📤 Carica documento")+"</button>";
-  h+="</div>";
-  h+="<div class='section-label'><div class='section-title'>I miei documenti</div></div>";
   h+="<button class='update-btn' onclick='fetchDipDocs()'>Aggiorna</button>";
   if(DIP_DOCS_LOADING){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light)'>Caricamento...</div>"; return h; }
-  if(DIP_DOCS.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessun documento caricato</div>"; return h; }
-  for(var j=0;j<DIP_DOCS.length;j++){ h+=_docCard(DIP_DOCS[j]); }
+  if(DIP_DOCS.length===0){ h+="<div class='ana-card' style='padding:1.2rem;text-align:center;color:var(--text-light);font-weight:700'>Nessun documento disponibile</div>"; return h; }
+  for(var j=0;j<DIP_DOCS.length;j++){ h+=_docCard(DIP_DOCS[j], false); }
   return h;
 }
 function fetchGPDocs(username){ GP_DOCS_LOADING=true; render();
@@ -2354,13 +2323,15 @@ function fetchGPDocs(username){ GP_DOCS_LOADING=true; render();
   .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);GP_DOCS=Array.isArray(d)?d:[];}catch(e){GP_DOCS=[];} GP_DOCS_LOADING=false; render(); })
   .catch(function(){ GP_DOCS_LOADING=false; render(); });
 }
-function gpDocOpenAdd(){ GPDOC_FORM={tipo:"Busta paga",note:"",link:"",fileName:"",fileB64:"",fileType:""}; GPDOC_MSG=null; render(); }
+function gpDocOpenAdd(){ GPDOC_FORM={titolo:"",tipo:"Busta paga",note:"",link:"",fileName:"",fileB64:"",fileType:""}; GPDOC_MSG=null; render(); }
 function gpDocCancel(){ GPDOC_FORM=null; GPDOC_MSG=null; render(); }
-function gpDocSync(){ if(!GPDOC_FORM)return; var el; el=document.getElementById("gpdoc-tipo"); if(el)GPDOC_FORM.tipo=el.value; el=document.getElementById("gpdoc-link"); if(el)GPDOC_FORM.link=el.value; el=document.getElementById("gpdoc-note"); if(el)GPDOC_FORM.note=el.value; }
+function gpDocSync(){ if(!GPDOC_FORM)return; var el; el=document.getElementById("gpdoc-titolo"); if(el)GPDOC_FORM.titolo=el.value; el=document.getElementById("gpdoc-tipo"); if(el)GPDOC_FORM.tipo=el.value; el=document.getElementById("gpdoc-link"); if(el)GPDOC_FORM.link=el.value; el=document.getElementById("gpdoc-note"); if(el)GPDOC_FORM.note=el.value; }
 function gpDocFilePick(input){ gpDocSync(); _readFileTo(input,GPDOC_FORM,function(ok,why){ if(!ok && why==="big") GPDOC_MSG="⚠️ File troppo grande (max ~18MB)."; render(); }); }
 function gpDocClearFile(){ gpDocSync(); GPDOC_FORM.fileName=""; GPDOC_FORM.fileB64=""; GPDOC_FORM.fileType=""; render(); }
-function gpDocUpload(){ gpDocSync(); var f=GPDOC_FORM; var d=GP_DIP_DETAIL; if(!f||!d)return; if(!f.fileB64 && !(f.link||"").trim()){ GPDOC_MSG="⚠️ Allega un file o un link."; render(); return; }
-  var payload={ username:d.username||"", dipendente:((d.nome||"")+" "+(d.cognome||"")).trim(), tipo:f.tipo||"Altro", note:f.note||"", caricatoDa:(S.user&&S.user.username)||"", linkAllegato:(f.link||"").trim(), fileBase64:f.fileB64||"", fileName:f.fileName||"", contentType:f.fileType||"" };
+function gpDocUpload(){ gpDocSync(); var f=GPDOC_FORM; var d=GP_DIP_DETAIL; if(!f||!d)return;
+  if(!(f.titolo||"").trim()){ GPDOC_MSG="⚠️ Inserisci un titolo per il documento."; render(); return; }
+  if(!f.fileB64 && !(f.link||"").trim()){ GPDOC_MSG="⚠️ Allega un file o un link."; render(); return; }
+  var payload={ username:d.username||"", dipendente:((d.nome||"")+" "+(d.cognome||"")).trim(), titolo:(f.titolo||"").trim(), tipo:f.tipo||"Altro", note:f.note||"", caricatoDa:(S.user&&S.user.username)||"", linkAllegato:(f.link||"").trim(), fileBase64:f.fileB64||"", fileName:f.fileName||"", contentType:f.fileType||"" };
   GPDOC_UPLOADING=true; GPDOC_MSG="⏳ Caricamento..."; render();
   fetch(DOC_CARICA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
   .then(function(r){return r.text();}).then(function(){ GPDOC_UPLOADING=false; GPDOC_FORM=null; setTimeout(function(){ fetchGPDocs(d.username); },1300); })
@@ -2371,7 +2342,8 @@ function renderGPDocSection(){
   if(GPDOC_FORM){
     var f=GPDOC_FORM;
     h+="<div class='ana-card' style='padding:1rem;border:1.5px solid var(--cyan)'>";
-    h+="<label class='dim-lbl'>Tipo</label><select id='gpdoc-tipo' class='dim-in'>";
+    h+="<label class='dim-lbl'>Titolo documento *</label><input id='gpdoc-titolo' class='dim-in' placeholder='es. Contratto 2024, Busta paga maggio...' value=\""+_esc(f.titolo||"")+"\">";
+    h+="<label class='dim-lbl'>Categoria</label><select id='gpdoc-tipo' class='dim-in'>";
     for(var i=0;i<DOC_TIPI.length;i++){ h+="<option value=\""+DOC_TIPI[i]+"\" "+(f.tipo===DOC_TIPI[i]?"selected":"")+">"+DOC_TIPI[i]+"</option>"; }
     h+="</select>";
     h+="<label class='dim-lbl'>File</label>";
