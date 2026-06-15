@@ -208,6 +208,11 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
   .gpt-modal{border-radius:20px}
 }
 
+.role-switcher{display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;background:#EAF5F1;border:1px solid #BFE0D6;border-radius:12px;padding:0.45rem 0.7rem;margin:0 0 0.7rem 0}
+.role-switcher .rs-label{font-size:12px;font-weight:800;color:#1A6B5A}
+.role-switcher .rs-btns{display:flex;gap:0.4rem;flex-wrap:wrap}
+.role-switcher .rs-btn{font-size:12px;font-weight:700;border:1px solid #1A6B5A;background:#fff;color:#1A6B5A;border-radius:999px;padding:0.28rem 0.7rem;cursor:pointer}
+.role-switcher .rs-btn.on{background:#1A6B5A;color:#fff;cursor:default;opacity:1}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -217,6 +222,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 <script>
 
 var AUTH_URL = "https://senca-hub.duckdns.org/webhook/auth";
+var ROLES_URL = "https://senca-hub.duckdns.org/webhook/user-roles";
 var DATI_URL = "https://hook.eu1.make.com/y882re16wkatcqdk7zevhr24uknk78v4";
 var PRIVACY_URL = "https://hook.eu1.make.com/dmdvislgavso2dhh7ccp5iy4pa69vuox";
 var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
@@ -911,6 +917,8 @@ function unlockBio(){
   }}).then(function(){ return true; });
 }
 function restoreUser(u){
+  if(!u.ruoli || !u.ruoli.length) u.ruoli=[u.ruolo||"Utente"];
+  if(!S.activeRole || u.ruoli.indexOf(S.activeRole)<0) S.activeRole = u.ruolo || u.ruoli[0];
   S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null;
   if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
   if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); fetchDipDocs(); if("Notification" in window && Notification.permission==="default"){ try{ Notification.requestPermission(); }catch(e){} } startComPoll(); }
@@ -960,15 +968,19 @@ function doLogin() {
     if(res && res.ok === true && res.nome) {
       var remember = (document.getElementById("inp-remember")||{}).checked !== false;
       var user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
-      if(remember) saveSession(user); else { clearSession(); clearBio(); }
-      restoreUser(user);
-      if(remember && bioSupported() && !getBio()){
-        setTimeout(function(){
-          if(confirm("Vuoi abilitare l'accesso rapido con Face ID o impronta digitale su questo dispositivo?")){
-            enrollBio(user).then(function(){ alert("✅ Accesso biometrico abilitato."); }).catch(function(){});
-          }
-        }, 700);
-      }
+      fetchUserRoles(uname, function(roles){
+        user.ruoli = (roles && roles.length) ? roles : [user.ruolo];
+        S.activeRole = user.ruolo;
+        if(remember) saveSession(user); else { clearSession(); clearBio(); }
+        restoreUser(user);
+        if(remember && bioSupported() && !getBio()){
+          setTimeout(function(){
+            if(confirm("Vuoi abilitare l'accesso rapido con Face ID o impronta digitale su questo dispositivo?")){
+              enrollBio(user).then(function(){ alert("✅ Accesso biometrico abilitato."); }).catch(function(){});
+            }
+          }, 700);
+        }
+      });
     } else {
       err.textContent = "Credenziali non valide. Riprova.";
       err.style.display = "block";
@@ -985,9 +997,41 @@ function doLogin() {
 }
 function doLogout() { clearSession(); clearBio(); S.loggedIn=false; S.user=null; S.dipView="home"; S.locked=false; S.pendingUser=null; render(); }
 
-function isAdmin() { return S.user && (S.user.ruolo==="Admin" || S.user.ruolo==="Operatore"); }
-function isDipendente() { return S.user && S.user.ruolo==="Dipendente"; }
-function isGestionePersonale() { return S.user && S.user.ruolo==="Gestione personale"; }
+function _activeRole(){ return (S.user && (S.activeRole || S.user.ruolo)) || ""; }
+function isAdmin() { var r=_activeRole(); return r==="Admin" || r==="Operatore"; }
+function isDipendente() { return _activeRole()==="Dipendente"; }
+function isGestionePersonale() { return _activeRole()==="Gestione personale"; }
+
+function fetchUserRoles(uname, cb){
+  fetch(ROLES_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:uname})})
+    .then(function(r){return r.json();})
+    .then(function(res){ var roles=(res&&res.ok&&Array.isArray(res.ruoli)&&res.ruoli.length)?res.ruoli:null; cb(roles); })
+    .catch(function(){ cb(null); });
+}
+function _fetchForRole(role){
+  if(role==="Dipendente"){ caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); fetchDipDocs(); startComPoll(); }
+  else if(role==="Gestione personale"){ fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
+  else if(role==="Admin" || role==="Operatore"){ fetchPosts(); fetchIncaricati(); }
+}
+function switchRole(role){
+  if(!S.user) return;
+  var roles=S.user.ruoli||[S.user.ruolo];
+  if(roles.indexOf(role)<0 || role===_activeRole()) return;
+  S.activeRole=role;
+  S.dipView="home"; if(typeof GP_DIP_DETAIL!=="undefined") GP_DIP_DETAIL=null;
+  _fetchForRole(role);
+  render();
+}
+function roleLabel(r){ return r==="Gestione personale"?"Ufficio personale":(r==="Dipendente"?"Dipendente":(r==="Admin"?"Amministratore":(r==="Operatore"?"Operatore":r))); }
+function roleSwitcherHtml(){
+  if(!S.user) return "";
+  var roles=S.user.ruoli||[]; if(roles.length<2) return "";
+  var cur=_activeRole();
+  var h="<div class='role-switcher'><span class='rs-label'>🔄 Interfaccia</span><div class='rs-btns'>";
+  for(var i=0;i<roles.length;i++){ var r=roles[i]; var on=(r===cur); h+="<button class='rs-btn"+(on?" on":"")+"' "+(on?"disabled":"")+" onclick=\"switchRole('"+String(r).replace(/'/g,"\\'")+"')\">"+roleLabel(r)+"</button>"; }
+  h+="</div></div>";
+  return h;
+}
 
 // ===== RENDER PRINCIPALE =====
 function render() {
@@ -1026,6 +1070,7 @@ function renderLogin() {
 function renderDipendente() {
   var u = S.user;
   var h = "<div class=\"dip-screen\">";
+  h += roleSwitcherHtml();
 
   // Header identico all'admin
   h += "<div class=\"app-header\">";
@@ -2055,6 +2100,7 @@ function renderGestionePersonale() {  var u = S.user;
   var firstName = u.nome ? u.nome.split(" ")[0] : "utente";
   var h = "<div class=\"app-screen gp-screen\">";
   h += "<div class=\"gp-main\">";
+  h += roleSwitcherHtml();
 
   // Header
   h += "<div class=\"app-header\">";
