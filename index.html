@@ -2478,7 +2478,7 @@ function expPerStruttura(){
     var p=function(n){return String(n).padStart(2,"0");}; var rows=[]; var totMin=0;
     for(var day=1;day<=rg.last;day++){
       var ds=rg.y+"-"+p(rg.m)+"-"+p(day);
-      var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata && (!struttura||t.struttura===struttura); });
+      var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata && (t.approvazione==="Regolare"||t.approvazione==="Approvata") && (!struttura||t.struttura===struttura); });
       if(!dayT.length) continue;
       dayT.sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
       var stamps=[]; var dayMin=0;
@@ -2503,7 +2503,7 @@ function expMensile(){
     var rows=[]; var tot={ord:0,fest:0,nott:0,straord:0,riposo:0}; var totAbs={};
     for(var day=1;day<=rg.last;day++){
       var ds=rg.y+"-"+p(rg.m)+"-"+p(day); var dt=new Date(ds+"T00:00:00"); var festivo=_isFestivo(dt);
-      var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata; }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
+      var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata && (t.approvazione==="Regolare"||t.approvazione==="Approvata"); }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
       var stamps=[]; var wmin=0,nmin=0,fmin=0,smin=0;
       for(var i=0;i<dayT.length;i++){ var t=dayT[i]; if(t.oraEntrata)stamps.push("E"+t.oraEntrata.replace(":","")); if(t.oraUscita)stamps.push("U"+t.oraUscita.replace(":","")); if(t.approvazione==="Regolare"||t.approvazione==="Approvata"){ var mg=calcMaggiorazioni({data:ds,oraEntrata:t.oraEntrata,oraUscita:t.oraUscita},GP_DIP_TURNI); wmin+=Math.round(mg.ore*60); nmin+=Math.round(mg.nott*60); fmin+=Math.round(mg.fest*60); smin+=Math.round(mg.straord*60); } }
       var turno=""; for(var w=0;w<GP_DIP_TURNI.length;w++){ if(GP_DIP_TURNI[w].data===ds){ turno=(GP_DIP_TURNI[w].oraInizio||"")+"-"+(GP_DIP_TURNI[w].oraFine||""); break; } }
