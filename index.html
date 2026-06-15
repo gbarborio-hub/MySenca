@@ -1846,6 +1846,7 @@ function openDipDetail(i){
   fetchGPDocs(GP_DIP_DETAIL.username);
 }
 function fetchDipTimbrature(d){
+  if(!d || !d.username){ GP_DIP_TIMB=[]; GP_DIP_LOADING=false; render(); return; }
   fetch("https://senca-hub.duckdns.org/webhook/gp-timbrature",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(d.username||""),includeDeleted:true})})
   .then(function(r){return r.text();})
   .then(function(t){ try{ var data=JSON.parse(t); var raw=Array.isArray(data)?data:[data];
@@ -2387,7 +2388,7 @@ function gpDocDelete(id){
 }
 function _readFileTo(input, target, cb){ var f=input.files&&input.files[0]; if(!f){ cb(false); return; } if(f.size>18*1024*1024){ cb(false,"big"); return; } var rd=new FileReader(); rd.onload=function(){ target.fileB64=String(rd.result); target.fileName=f.name; target.fileType=f.type||"application/octet-stream"; cb(true); }; rd.readAsDataURL(f); }
 
-function fetchDipDocs(){ DIP_DOCS_LOADING=true; render();
+function fetchDipDocs(){ if(!(S.user&&S.user.username)){ DIP_DOCS=[]; DIP_DOCS_LOADING=false; render(); return; } DIP_DOCS_LOADING=true; render();
   fetch(DOC_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(S.user&&S.user.username)||""})})
   .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);DIP_DOCS=Array.isArray(d)?d:[];}catch(e){DIP_DOCS=[];} DIP_DOCS_LOADING=false; render(); })
   .catch(function(){ DIP_DOCS_LOADING=false; render(); });
@@ -2399,7 +2400,7 @@ function renderDipDocumenti(){
   for(var j=0;j<DIP_DOCS.length;j++){ h+=_docCard(DIP_DOCS[j], false); }
   return h;
 }
-function fetchGPDocs(username){ GP_DOCS_LOADING=true; render();
+function fetchGPDocs(username){ if(!username){ GP_DOCS=[]; GP_DOCS_LOADING=false; render(); return; } GP_DOCS_LOADING=true; render();
   fetch(DOC_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:username||""})})
   .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);GP_DOCS=Array.isArray(d)?d:[];}catch(e){GP_DOCS=[];} GP_DOCS_LOADING=false; render(); })
   .catch(function(){ GP_DOCS_LOADING=false; render(); });
@@ -2454,7 +2455,9 @@ function expGetMese(){ var el=document.getElementById("exp-mese"); return (el&&e
 function expGetStruttura(){ var el=document.getElementById("exp-struttura"); return (el&&el.value)||""; }
 function _expReady(){ if(!window.jspdf||!window.jspdf.jsPDF){ alert("Componente PDF non ancora pronto. Riprova tra qualche secondo."); return false; } return true; }
 function expEnsureData(ym, cb){
-  var d=GP_DIP_DETAIL; if(!d) return; var rg=_expRange(ym);
+  var d=GP_DIP_DETAIL; if(!d) return;
+  if(!d.username){ alert("Questo dipendente non ha uno Username associato: impossibile generare i riepiloghi. Imposta lo Username su Notion."); return; }
+  var rg=_expRange(ym);
   EXP_BUSY=true; render();
   var out={timb:[],ferie:[]}; var done=0;
   function fin(){ done++; if(done>=2){ EXP_BUSY=false; render(); cb(out,rg); } }
@@ -2580,6 +2583,7 @@ function renderGP_Dipendenti() {
     h += "<div class='ana-row'><div class='ana-label'>Username</div><div class='ana-value'>" + (d.username||"—") + "</div></div>";
     h += "</div>";
     h += "<button class='update-btn' style='background:var(--teal)' onclick='dipFormOpenEdit()'>✏️ Modifica anagrafica</button>";
+    if(!GP_DIP_DETAIL.username){ h += "<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.6rem;background:#FCE4E4;border:1px solid #E0A0A0'><div style='font-size:13px;font-weight:800;color:#7A1A1A'>⚠️ Username non impostato</div><div style='font-size:12px;color:#7A1A1A;margin-top:2px'>Questo dipendente non ha uno Username associato su Notion: timbrature e documenti non vengono mostrati (per evitare di mescolare i dati di altri). Imposta lo Username nella scheda Notion del dipendente.</div></div>"; }
     h += renderDipTimesheet();
     h += renderExportPanel();
     h += renderGPDocSection();
