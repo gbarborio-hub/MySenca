@@ -1960,7 +1960,7 @@ function renderDipTimesheet(){
   h+="<div style='font-size:13px;font-weight:800;color:var(--text-dark);text-align:center;flex:1'>"+fmtDateIt(wsS)+" – "+fmtDateIt(weS)+"</div>";
   h+="<button class='ts-nav' "+(GP_WEEK_OFFSET>=0?"disabled":"")+" onclick='gpChangeWeek(1)'>→</button>";
   h+="</div>";
-  h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:0.6rem;cursor:pointer'><input type='checkbox' "+(GP_SHOW_DELETED?"checked":"")+" onchange='GP_SHOW_DELETED=this.checked;render()' style='width:16px;height:16px'> Mostra timbrature eliminate</label>";
+  h+="<label style='display:flex;align-items:center;gap:0.5rem;font-size:12px;font-weight:700;color:var(--text-mid);margin-bottom:0.6rem;cursor:pointer'><input type='checkbox' "+(GP_SHOW_DELETED?"checked":"")+" onchange='GP_SHOW_DELETED=this.checked;render()' style='width:16px;height:16px'> Mostra timbrature eliminate e rifiutate</label>";
   if(S.tsForm){
     var f=S.tsForm;
     h+="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.6rem;border:1.5px solid var(--cyan)'>";
@@ -1990,21 +1990,25 @@ function renderDipTimesheet(){
     var dayDate=new Date(ws.getTime()+gi*86400000);
     var dayStr=_ymd(dayDate);
     var festDay=_isFestivo(dayDate);
-    var dayTimb=GP_DIP_TIMB.filter(function(t){ return t.data===dayStr && (GP_SHOW_DELETED || !t.eliminata); }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
+    var dayTimb=GP_DIP_TIMB.filter(function(t){ var hid=(t.eliminata||t.approvazione==="Rifiutata"||t.approvazione==="Rifiutato"); return t.data===dayStr && (GP_SHOW_DELETED || !hid); }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
     var dayOre=0;
     var inner="";
     for(var i=0;i<dayTimb.length;i++){
       var t=dayTimb[i]; var mg=calcMaggiorazioni(t,GP_DIP_TURNI);
+      var rifiutata=(t.approvazione==="Rifiutata"||t.approvazione==="Rifiutato");
       var conta=(t.approvazione==="Regolare"||t.approvazione==="Approvata") && !t.eliminata;
+      var isLive=!t.eliminata && !rifiutata;
       if(conta){ tot.ore+=mg.ore; tot.nott+=mg.nott; tot.fest+=mg.fest; tot.festNott+=mg.festNott; tot.straord+=mg.straord; dayOre+=mg.ore; }
-      inner+="<div style='margin-top:6px;opacity:"+(conta?"1":(t.eliminata?"0.45":"0.55"))+"'>";
+      inner+="<div style='margin-top:6px;opacity:"+(conta?"1":((t.eliminata||rifiutata)?"0.5":"0.65"))+"'>";
       inner+="<div style='display:flex;justify-content:space-between;align-items:baseline'>";
-      inner+="<div style='font-size:13px;font-weight:700;color:var(--text-dark);text-decoration:"+(t.eliminata?"line-through":"none")+"'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+"</div>";
+      inner+="<div style='font-size:13px;font-weight:700;color:var(--text-dark);text-decoration:"+((t.eliminata||rifiutata)?"line-through":"none")+"'>"+(t.oraEntrata||"—")+" → "+(t.oraUscita||"—")+"</div>";
       inner+="<div style='font-size:12px;font-weight:800;color:"+(conta?"var(--teal)":"var(--text-light)")+"'>"+mg.ore.toFixed(2)+"h</div>";
       inner+="</div>";
       var chips="";
       if(t.eliminata){
-        chips+=_chip("🗑 Eliminata"+(t.eliminataDa?" da "+t.eliminataDa:"")+" · non conteggiata","#7A1A1A");
+        chips+=_chip("🗑 Cancellata"+(t.eliminataDa?" da "+t.eliminataDa:"")+" · non conteggiata","#7A1A1A");
+      } else if(rifiutata){
+        chips+=_chip("❌ Rifiutata · non conteggiata","#7A1A1A");
       } else if(conta){
         if(mg.nott>0) chips+=_chip("🌙 Nott "+mg.nott.toFixed(2)+"h","#2E86DE");
         if(mg.fest>0) chips+=_chip("🎉 Fest "+mg.fest.toFixed(2)+"h","#E67E22");
@@ -2012,11 +2016,9 @@ function renderDipTimesheet(){
         if(mg.straord>0) chips+=_chip("⏱ Straord "+mg.straord.toFixed(2)+"h","#C0392B");
       } else if(t.approvazione==="Necessaria approvazione"){
         chips+=_chip("⏳ Da approvare · non conteggiata","#7A5800");
-      } else if(t.approvazione==="Rifiutata"||t.approvazione==="Rifiutato"){
-        chips+=_chip("❌ Rifiutata · non conteggiata","#7A1A1A");
       }
       if(chips) inner+="<div style='display:flex;flex-wrap:wrap;gap:4px;margin-top:4px'>"+chips+"</div>";
-      if(!t.eliminata){
+      if(isLive){
         inner+="<div style='display:flex;gap:0.4rem;margin-top:6px'>";
         inner+="<button class='ts-mini' onclick=\"tsOpenEdit('"+t.id+"')\">✏️ Modifica</button>";
         inner+="<button class='ts-mini del' "+(S.tsBusy===t.id?"disabled":"")+" onclick=\"tsDelete('"+t.id+"')\">"+(S.tsBusy===t.id?"...":"🗑 Elimina")+"</button>";
