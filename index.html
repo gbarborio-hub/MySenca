@@ -74,6 +74,7 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .filt.active{background:var(--teal);color:white}
 .filt.inactive{background:white;color:var(--text-mid)}
 .bottom-nav{background:white;display:flex;justify-content:space-around;padding:0.75rem 0 1rem;border-top:1px solid #E0ECEC;position:sticky;bottom:0}
+.gp-screen .gp-main{flex:1;min-width:0;display:flex;flex-direction:column}
 .bnav-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:0 1rem}
 .bnav-icon{width:22px;height:22px;opacity:0.35}
 .bnav-icon svg{width:22px;height:22px;stroke:var(--text-dark);fill:none;stroke-width:2}
@@ -238,6 +239,9 @@ var AZIONE_URL = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
 var TIMBRA_URL = "https://senca-hub.duckdns.org/webhook/timbra";
 var TIMBRATURA_UPDATE_URL = "https://senca-hub.duckdns.org/webhook/timbratura-update";
 var STRUTTURE_URL = "https://senca-hub.duckdns.org/webhook/strutture";
+var GPSTR_URL = "https://senca-hub.duckdns.org/webhook/gp-strutture";
+var STRUTTURA_SALVA_URL = "https://senca-hub.duckdns.org/webhook/struttura-salva";
+var GPSTR = []; var GPSTR_LOADING=false; var GPSTR_FORM=null; var GPSTR_BUSY=false;
 var PROFILO_URL = "https://senca-hub.duckdns.org/webhook/profilo";
 
 var PROFILO_DIP = null;
@@ -1089,7 +1093,6 @@ function renderLogin() {
 function renderDipendente() {
   var u = S.user;
   var h = "<div class=\"dip-screen\">";
-  h += roleSwitcherHtml();
 
   // Header identico all'admin
   h += "<div class=\"app-header\">";
@@ -1154,6 +1157,7 @@ function renderDipendente() {
 
 function renderDipHome() {
   var h = "";
+  h += roleSwitcherHtml();
 
   // Card grande Timbra
   h += "<div class=\"timbra-card-big\" onclick=\"S.dipTab='timbra';render()\">";
@@ -2115,7 +2119,7 @@ function renderDipTimesheet(){
   h+="</div></div>";
   return h;
 }
-function gpGo(v){ GP_VIEW=v; GP_DIP_DETAIL=null; if(v==="comunicazioni"){ comGPLoad(); } else { render(); } }
+function gpGo(v){ GP_VIEW=v; GP_DIP_DETAIL=null; if(v==="comunicazioni"){ comGPLoad(); } else if(v==="strutture"){ GPSTR_FORM=null; fetchGPStrutture(); } else { render(); } }
 var _GPICONS={
   dipendenti:"<svg viewBox='0 0 24 24'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 00-3-3.87'/><path d='M16 3.13a4 4 0 010 7.75'/></svg>",
   turni:"<svg viewBox='0 0 24 24'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>",
@@ -2125,30 +2129,35 @@ var _GPICONS={
   strutture:"<svg viewBox='0 0 24 24'><path d='M3 21h18'/><path d='M5 21V7l8-4v18'/><path d='M19 21V11l-6-4'/></svg>"
 };
 function renderGP_Home(){
+  var h="";
+  h += roleSwitcherHtml();
+  h += "<div class='timbra-card-big' style='background:#C0451F;min-height:120px;cursor:pointer' onclick=\"gpGo('dipendenti')\">";
+  h += "<div class='timbra-card-big-orb'></div>";
+  h += "<div class='timbra-card-big-title' style='font-size:30px'>👥 Dipendenti</div>";
+  h += "<div class='timbra-card-big-sub'>Fascicoli · Anagrafiche · Documenti · Riepiloghi</div>";
+  h += "</div>";
   var cards=[
-    {v:"dipendenti", label:"Dipendenti", sub:"Fascicoli, anagrafiche, documenti, riepiloghi"},
-    {v:"timbrature", label:"Timbrature", sub:"Verifica e approvazione"},
-    {v:"ferie", label:"Ferie e ROL", sub:"Richieste da approvare"},
-    {v:"turni", label:"Turni", sub:"Pianificazione turni"},
-    {v:"comunicazioni", label:"Avvisi", sub:"Invia comunicazioni"},
-    {v:"strutture", label:"Strutture", sub:"Elenco strutture"}
+    {v:"timbrature", label:"Verifica", value:"Timbrature", bg:"var(--coral)"},
+    {v:"ferie", label:"Approva", value:"Ferie / ROL", bg:"#C0451F"},
+    {v:"turni", label:"Pianifica", value:"Turni", bg:"#C0451F"},
+    {v:"comunicazioni", label:"Invia", value:"Avvisi", bg:"var(--coral)"},
+    {v:"strutture", label:"Gestisci", value:"Strutture", bg:"var(--coral)"}
   ];
-  var h="<div class='gp-home-grid'>";
+  h += "<div class='dip-half-cards'>";
   for(var i=0;i<cards.length;i++){ var c=cards[i];
-    h+="<div class='gp-home-card' onclick=\"gpGo('"+c.v+"')\">";
-    h+="<div class='gp-home-ic'>"+(_GPICONS[c.v]||"")+"</div>";
-    h+="<div class='gp-home-tx'><div class='gp-home-lb'>"+c.label+"</div><div class='gp-home-sb'>"+c.sub+"</div></div>";
-    h+="<div class='gp-home-ar'>›</div>";
-    h+="</div>";
+    h += "<div class='dip-half-card' style='background:"+c.bg+";min-height:110px' onclick=\"gpGo('"+c.v+"')\">";
+    h += "<div class='dip-half-orb'></div>";
+    h += "<div class='dip-half-label'>"+c.label+"</div>";
+    h += "<div class='dip-half-value' style='font-size:22px'>"+c.value+"</div>";
+    h += "</div>";
   }
-  h+="</div>";
+  h += "</div>";
   return h;
 }
 function renderGestionePersonale() {  var u = S.user;
   var firstName = u.nome ? u.nome.split(" ")[0] : "utente";
   var h = "<div class=\"app-screen gp-screen\">";
   h += "<div class=\"gp-main\">";
-  h += roleSwitcherHtml();
 
   // Header
   h += "<div class=\"app-header\">";
@@ -2948,24 +2957,68 @@ function renderGP_Ferie() {
   return h;
 }
 
+function fetchGPStrutture(){ GPSTR_LOADING=true; render();
+  fetch(GPSTR_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})})
+    .then(function(r){return r.text();}).then(function(t){ try{var a=JSON.parse(t); GPSTR=Array.isArray(a)?a:[];}catch(e){ GPSTR=[]; } GPSTR_LOADING=false; render(); })
+    .catch(function(){ GPSTR_LOADING=false; render(); });
+}
+function gpStrNew(){ GPSTR_FORM={pageId:"",nome:"",citta:"",indirizzo:"",committente:"",referente:"",email:"",telefono:"",lat:"",lng:"",raggio:"",attiva:true}; render(); }
+function gpStrEdit(id){ var s=null; for(var i=0;i<GPSTR.length;i++){ if(GPSTR[i].id===id){ s=GPSTR[i]; break; } } if(!s) return;
+  GPSTR_FORM={pageId:s.id,nome:s.nome||"",citta:s.citta||"",indirizzo:s.indirizzo||"",committente:s.committente||"",referente:s.referente||"",email:s.email||"",telefono:s.telefono||"",lat:(s.lat==null?"":s.lat),lng:(s.lng==null?"":s.lng),raggio:(s.raggio==null?"":s.raggio),attiva:s.attiva!==false}; render();
+}
+function gpStrCancel(){ GPSTR_FORM=null; render(); }
+function gpStrSync(){ if(!GPSTR_FORM) return; var g=function(id){var e=document.getElementById(id);return e?e.value:"";};
+  GPSTR_FORM.nome=g("str-nome"); GPSTR_FORM.citta=g("str-citta"); GPSTR_FORM.indirizzo=g("str-indirizzo"); GPSTR_FORM.committente=g("str-committente");
+  GPSTR_FORM.referente=g("str-referente"); GPSTR_FORM.email=g("str-email"); GPSTR_FORM.telefono=g("str-telefono");
+  GPSTR_FORM.lat=g("str-lat"); GPSTR_FORM.lng=g("str-lng"); GPSTR_FORM.raggio=g("str-raggio");
+  var c=document.getElementById("str-attiva"); GPSTR_FORM.attiva=c?c.checked:true;
+}
+function gpStrSave(){ gpStrSync(); if(!String(GPSTR_FORM.nome).trim()){ alert("Inserisci il nome della struttura."); return; } GPSTR_BUSY=true; render();
+  fetch(STRUTTURA_SALVA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(GPSTR_FORM)})
+    .then(function(r){return r.json();}).then(function(res){ GPSTR_BUSY=false; if(res&&res.ok){ GPSTR_FORM=null; setTimeout(fetchGPStrutture,800); } else { alert("Salvataggio non riuscito. Riprova."); render(); } })
+    .catch(function(){ GPSTR_BUSY=false; alert("Errore di connessione. Riprova."); render(); });
+}
+function _strFld(lbl,id,val,type){ return "<label class='dim-lbl'>"+lbl+"</label><input type='"+(type||"text")+"' id='"+id+"' class='dim-in' value=\""+_esc(val)+"\">"; }
 function renderGP_Strutture() {
-  var h = "";
-  h += "<div class='section-label'><div class='section-title'>Strutture</div></div>";
-  h += "<div class='ana-card'>";
-  for(var i=0; i<STRUTTURE.length; i++) {
-    var s = STRUTTURE[i];
-    h += "<div class='table-row'>";
-    h += "<div style='flex:1'><div class='row-title'>" + s.nome + "</div>";
-    h += "<div style='font-size:11px;color:var(--text-light)'>GPS: " + s.lat + ", " + s.lng + " · Raggio: " + s.raggio + "m</div></div>";
-    h += "<div style='font-size:12px;font-weight:700;color:var(--teal);cursor:pointer' onclick=\"alert('Modifica struttura su Notion nel DB Strutture')\">Modifica</div>";
-    h += "</div>";
+  var h = "<div class='section-label'><div class='section-title'>Strutture</div></div>";
+  if(GPSTR_FORM){
+    var f=GPSTR_FORM;
+    h+="<div class='ana-card' style='padding:1rem'>";
+    h+="<div style='font-size:14px;font-weight:800;margin-bottom:0.6rem;color:var(--coral)'>"+(f.pageId?"✏️ Modifica struttura":"➕ Nuova struttura")+"</div>";
+    h+=_strFld("Nome struttura","str-nome",f.nome);
+    h+=_strFld("Città","str-citta",f.citta);
+    h+=_strFld("Indirizzo","str-indirizzo",f.indirizzo);
+    h+=_strFld("Committente","str-committente",f.committente);
+    h+=_strFld("Referente","str-referente",f.referente);
+    h+=_strFld("Email","str-email",f.email,"email");
+    h+=_strFld("Telefono","str-telefono",f.telefono);
+    h+=_strFld("Latitudine GPS","str-lat",f.lat,"number");
+    h+=_strFld("Longitudine GPS","str-lng",f.lng,"number");
+    h+=_strFld("Raggio timbratura (metri)","str-raggio",f.raggio,"number");
+    h+="<label class='dim-lbl' style='display:flex;align-items:center;gap:0.5rem;margin-top:0.7rem;text-transform:none;letter-spacing:0'><input type='checkbox' id='str-attiva' "+(f.attiva!==false?"checked":"")+"> Struttura attiva</label>";
+    h+="<div style='display:flex;gap:0.5rem;margin-top:0.9rem'>";
+    h+="<button class='ts-save' style='flex:1' "+(GPSTR_BUSY?"disabled":"")+" onclick='gpStrSave()'>"+(GPSTR_BUSY?"Salvataggio…":"💾 Salva")+"</button>";
+    h+="<button class='ts-mini' "+(GPSTR_BUSY?"disabled":"")+" onclick='gpStrCancel()'>Annulla</button>";
+    h+="</div></div>";
+    return h;
   }
-  h += "</div>";
-  h += "<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light)'>";
-  h += "<div style='font-size:13px;font-weight:700'>Le strutture si gestiscono direttamente su Notion nel DB \"Strutture\"</div>";
-  h += "<div style='font-size:12px;margin-top:4px'>La modifica sarà disponibile direttamente in app prossimamente</div>";
-  h += "</div>";
-  h += "<button class='update-btn' onclick='fetchStrutture();render()'>Aggiorna</button>";
+  h+="<button class='ts-save' style='margin-bottom:0.7rem' onclick='gpStrNew()'>➕ Nuova struttura</button>";
+  if(GPSTR_LOADING){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light)'>Caricamento…</div>"; }
+  else if(GPSTR.length===0){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light)'>Nessuna struttura. Creane una con \"Nuova struttura\".</div>"; }
+  else {
+    h+="<div class='ana-card'>";
+    for(var i=0;i<GPSTR.length;i++){ var s=GPSTR[i];
+      h+="<div class='table-row'>";
+      h+="<div style='flex:1'><div class='row-title'>"+_esc(s.nome)+(s.attiva===false?" <span style='color:var(--text-light);font-weight:600;font-size:11px'>(non attiva)</span>":"")+"</div>";
+      var meta=[]; if(s.citta)meta.push(_esc(s.citta)); if(s.indirizzo)meta.push(_esc(s.indirizzo));
+      if(s.raggio!=null) meta.push("raggio "+s.raggio+"m");
+      h+="<div style='font-size:11px;color:var(--text-light)'>"+(meta.join(" · ")||"—")+"</div></div>";
+      h+="<div style='font-size:12px;font-weight:700;color:var(--coral);cursor:pointer' onclick=\"gpStrEdit('"+s.id+"')\">Modifica</div>";
+      h+="</div>";
+    }
+    h+="</div>";
+  }
+  h+="<button class='update-btn' onclick='fetchGPStrutture()'>Aggiorna</button>";
   return h;
 }
 
