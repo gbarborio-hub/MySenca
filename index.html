@@ -2280,6 +2280,7 @@ function renderDipAnagForm(){
 // ===== DOCUMENTI =====
 var DOC_CARICA_URL="https://senca-hub.duckdns.org/webhook/documento-carica";
 var DOC_LISTA_URL="https://senca-hub.duckdns.org/webhook/documenti-lista";
+var DOC_ELIMINA_URL="https://senca-hub.duckdns.org/webhook/documento-elimina";
 var DOC_TIPI=["Certificato medico","Documento identità","Contratto","Busta paga","Altro"];
 var DIP_DOCS=[]; var DIP_DOCS_LOADING=false;
 var DOC_FORM={tipo:"Certificato medico",note:"",link:"",fileName:"",fileB64:"",fileType:""};
@@ -2287,16 +2288,27 @@ var DOC_UPLOADING=false; var DOC_MSG=null;
 var GP_DOCS=[]; var GP_DOCS_LOADING=false;
 var GPDOC_FORM=null; var GPDOC_UPLOADING=false; var GPDOC_MSG=null;
 
-function _docCard(d){
+function _docCard(d, withDelete){
   var h="<div class='ana-card' style='padding:0.85rem 1rem;margin-bottom:0.5rem'>";
   h+="<div style='display:flex;justify-content:space-between;align-items:baseline'><div style='font-size:14px;font-weight:800;color:var(--text-dark)'>"+_esc(d.tipo||"Documento")+"</div><div style='font-size:11px;color:var(--text-light)'>"+fmtDateIt(d.dataCaricamento)+"</div></div>";
   if(d.allegatoNome) h+="<div style='font-size:12px;color:var(--text-mid);margin-top:2px'>"+_esc(d.allegatoNome)+"</div>";
   if(d.note) h+="<div style='font-size:12px;color:var(--text-light);margin-top:2px'>"+_esc(d.note)+"</div>";
   var link=d.allegatoUrl||d.linkAllegato;
-  if(link) h+="<div style='margin-top:6px'><a href='"+_esc(link)+"' target='_blank' style='color:var(--teal);font-weight:700;font-size:13px'>📎 Apri / scarica</a></div>";
+  h+="<div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px'>";
+  h+=link ? ("<a href='"+_esc(link)+"' target='_blank' style='color:var(--teal);font-weight:700;font-size:13px'>📎 Apri / scarica</a>") : "<span></span>";
+  if(withDelete) h+="<button class='ts-mini del' onclick=\"gpDocDelete('"+_esc(d.id||"")+"')\">🗑 Elimina</button>";
+  h+="</div>";
   if(d.caricatoDa) h+="<div style='font-size:10px;color:var(--text-light);margin-top:4px'>Caricato da "+_esc(d.caricatoDa)+"</div>";
   h+="</div>";
   return h;
+}
+function gpDocDelete(id){
+  if(!id) return;
+  if(!confirm("Eliminare definitivamente questo documento? Sparirà dall'app e dal database (spostato nel cestino di Notion). L'operazione non è reversibile dall'app.")) return;
+  var d=GP_DIP_DETAIL;
+  fetch(DOC_ELIMINA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pageId:id})})
+  .then(function(r){return r.text();}).then(function(){ setTimeout(function(){ if(d) fetchGPDocs(d.username); },800); })
+  .catch(function(){ alert("Errore nell'eliminazione. Riprova."); });
 }
 function _readFileTo(input, target, cb){ var f=input.files&&input.files[0]; if(!f){ cb(false); return; } if(f.size>18*1024*1024){ cb(false,"big"); return; } var rd=new FileReader(); rd.onload=function(){ target.fileB64=String(rd.result); target.fileName=f.name; target.fileType=f.type||"application/octet-stream"; cb(true); }; rd.readAsDataURL(f); }
 
@@ -2375,7 +2387,7 @@ function renderGPDocSection(){
   }
   if(GP_DOCS_LOADING){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light)'>Caricamento...</div>"; return h; }
   if(GP_DOCS.length===0){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light);font-weight:700'>Nessun documento</div>"; return h; }
-  for(var k=0;k<GP_DOCS.length;k++){ h+=_docCard(GP_DOCS[k]); }
+  for(var k=0;k<GP_DOCS.length;k++){ h+=_docCard(GP_DOCS[k], true); }
   return h;
 }
 function renderGP_Dipendenti() {
