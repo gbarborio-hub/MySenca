@@ -2168,7 +2168,7 @@ function renderDipTimesheet(){
   h+="</div></div>";
   return h;
 }
-function gpGo(v){ GP_VIEW=v; GP_DIP_DETAIL=null; if(v==="comunicazioni"){ comGPLoad(); } else if(v==="strutture"){ GPSTR_FORM=null; fetchGPStrutture(); } else { render(); } }
+function gpGo(v){ GP_VIEW=v; GP_DIP_DETAIL=null; if(v==="comunicazioni"){ comGPLoad(); } else if(v==="strutture"){ GPSTR_FORM=null; fetchGPStrutture(); } else if(v==="buste"){ BP_DONE=null; if(!GP_DIPENDENTI.length) fetchDipendentiGP(); render(); } else { render(); } }
 var _GPICONS={
   dipendenti:"<svg viewBox='0 0 24 24'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2'/><circle cx='9' cy='7' r='4'/><path d='M23 21v-2a4 4 0 00-3-3.87'/><path d='M16 3.13a4 4 0 010 7.75'/></svg>",
   turni:"<svg viewBox='0 0 24 24'><rect x='3' y='4' width='18' height='18' rx='2'/><line x1='16' y1='2' x2='16' y2='6'/><line x1='8' y1='2' x2='8' y2='6'/><line x1='3' y1='10' x2='21' y2='10'/></svg>",
@@ -2190,6 +2190,7 @@ function renderGP_Home(){
     {v:"ferie", label:"Approva", value:"Ferie / ROL", bg:"var(--teal)"},
     {v:"turni", label:"Pianifica", value:"Turni", bg:"var(--coral)"},
     {v:"comunicazioni", label:"Invia", value:"Avvisi", bg:"var(--teal-dark)"},
+    {v:"buste", label:"Carica", value:"Buste paga", bg:"var(--cyan)"},
     {v:"strutture", label:"Gestisci", value:"Strutture", bg:"var(--teal)"}
   ];
   h += "<div class='dip-half-cards'>";
@@ -2224,6 +2225,7 @@ function renderGestionePersonale() {  var u = S.user;
   else if(GP_VIEW === "comunicazioni") h += renderGP_Comunicazioni();
   else if(GP_VIEW === "ferie") h += renderGP_Ferie();
   else if(GP_VIEW === "strutture") h += renderGP_Strutture();
+  else if(GP_VIEW === "buste") h += renderGP_Buste();
 
   h += "</div>";
   h += "</div>"; // chiude gp-main
@@ -2402,7 +2404,7 @@ function checkShiftReminders(){
     }
   }
 }
-function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()){ fetchDipComs(true); fetchFerieRichieste(true); checkShiftReminders(); } else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
+function startComPoll(){ if(COM_POLL) clearInterval(COM_POLL); COM_POLL=setInterval(function(){ if(S.loggedIn && isDipendente()){ fetchDipComs(true); fetchFerieRichieste(true); fetchDipDocs(true); checkShiftReminders(); } else { clearInterval(COM_POLL); COM_POLL=null; } }, 45000); }
 function fetchDipComs(silent){ if(!silent){ DIP_COMS_LOADING=true; render(); }
   var struttura=(PROFILO_DIP&&PROFILO_DIP.struttura)||"";
   var ruolo=(PROFILO_DIP&&PROFILO_DIP.mansione)||(S.user&&S.user.ruolo)||"";
@@ -2541,10 +2543,22 @@ function gpDocDelete(id){
 }
 function _readFileTo(input, target, cb){ var f=input.files&&input.files[0]; if(!f){ cb(false); return; } if(f.size>18*1024*1024){ cb(false,"big"); return; } var rd=new FileReader(); rd.onload=function(){ target.fileB64=String(rd.result); target.fileName=f.name; target.fileType=f.type||"application/octet-stream"; cb(true); }; rd.readAsDataURL(f); }
 
-function fetchDipDocs(){ if(!(S.user&&S.user.username)){ DIP_DOCS=[]; DIP_DOCS_LOADING=false; render(); return; } DIP_DOCS_LOADING=true; render();
+var DOC_SEEN={}; var DOC_FIRST=true;
+function _docNotify(){
+  var nb=0,na=0;
+  for(var i=0;i<DIP_DOCS.length;i++){ var d=DIP_DOCS[i]; var id=d.id||d.allegatoUrl||((d.titolo||"")+"|"+(d.dataCaricamento||"")); if(!id) continue; if(!DOC_SEEN[id]){ if(!DOC_FIRST){ if((d.tipo||"")==="Busta paga") nb++; else na++; } DOC_SEEN[id]=1; } }
+  if(!DOC_FIRST && ("Notification" in window) && Notification.permission==="granted"){
+    try{
+      if(nb>0) new Notification(nb===1?"Nuova busta paga disponibile":"Nuove buste paga disponibili",{body:"La trovi nella sezione Documenti."});
+      if(na>0) new Notification(na===1?"Nuovo documento disponibile":"Nuovi documenti disponibili",{body:"Lo trovi nella sezione Documenti."});
+    }catch(e){}
+  }
+  DOC_FIRST=false;
+}
+function fetchDipDocs(silent){ if(!(S.user&&S.user.username)){ DIP_DOCS=[]; DIP_DOCS_LOADING=false; if(!silent) render(); return; } if(!silent){ DIP_DOCS_LOADING=true; render(); }
   fetch(DOC_LISTA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:(S.user&&S.user.username)||""})})
-  .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);DIP_DOCS=Array.isArray(d)?d:[];}catch(e){DIP_DOCS=[];} DIP_DOCS_LOADING=false; render(); })
-  .catch(function(){ DIP_DOCS_LOADING=false; render(); });
+  .then(function(r){return r.text();}).then(function(t){ try{var d=JSON.parse(t);DIP_DOCS=Array.isArray(d)?d:[];}catch(e){DIP_DOCS=[];} DIP_DOCS_LOADING=false; _docNotify(); render(); })
+  .catch(function(){ DIP_DOCS_LOADING=false; if(!silent) render(); });
 }
 function renderDipDocumenti(){
   var h="";
@@ -3031,6 +3045,86 @@ function gpStrSave(){ gpStrSync(); if(!String(GPSTR_FORM.nome).trim()){ alert("I
     .catch(function(){ GPSTR_BUSY=false; alert("Errore di connessione. Riprova."); render(); });
 }
 function _strFld(lbl,id,val,type){ return "<label class='dim-lbl'>"+lbl+"</label><input type='"+(type||"text")+"' id='"+id+"' class='dim-in' value=\""+_esc(val)+"\">"; }
+// ===== CARICAMENTO MASSIVO BUSTE PAGA (GP) =====
+var BP_FILES=[]; var BP_BUSY=false; var BP_MESE=""; var BP_DONE=null;
+function _bpMatch(filename){
+  var n=String(filename||"").toLowerCase();
+  var base=n.replace(/\.[a-z0-9]+$/,"");
+  for(var i=0;i<GP_DIPENDENTI.length;i++){ var u=(GP_DIPENDENTI[i].username||"").toLowerCase(); if(u && n.indexOf(u)>=0) return GP_DIPENDENTI[i]; }
+  var tokens=base.split(/[^a-z0-9]+/);
+  for(var j=0;j<GP_DIPENDENTI.length;j++){ var m=String(GP_DIPENDENTI[j].matricola||"").toLowerCase().trim(); if(!m) continue; var mz=m.replace(/^0+/,"");
+    for(var k=0;k<tokens.length;k++){ var tk=tokens[k]; if(!tk) continue; if(tk===m || (mz!=="" && (tk===mz || tk.replace(/^0+/,"")===mz))) return GP_DIPENDENTI[j]; }
+  }
+  return null;
+}
+function bpMeseSync(){ var e=document.getElementById("bp-mese"); if(e) BP_MESE=e.value; }
+function bpClear(){ bpMeseSync(); BP_FILES=[]; BP_DONE=null; render(); }
+function bpRemove(idx){ bpMeseSync(); BP_FILES.splice(idx,1); render(); }
+function bpPick(input){
+  bpMeseSync(); var files=input.files; if(!files||!files.length) return; BP_DONE=null;
+  var pending=files.length;
+  var fin=function(){ pending--; if(pending<=0) render(); };
+  for(var i=0;i<files.length;i++){ (function(f){
+    if(f.size>18*1024*1024){ BP_FILES.push({name:f.name,b64:"",type:"",match:null,status:"err",msg:"troppo grande"}); fin(); return; }
+    var rd=new FileReader();
+    rd.onload=function(){ var m=_bpMatch(f.name); var st = !m?"skip":(m.username?"pending":"nouser"); BP_FILES.push({name:f.name,b64:String(rd.result),type:f.type||"application/octet-stream",match:m,status:st}); fin(); };
+    rd.onerror=function(){ BP_FILES.push({name:f.name,b64:"",type:"",match:null,status:"err",msg:"lettura fallita"}); fin(); };
+    rd.readAsDataURL(f);
+  })(files[i]); }
+  render();
+}
+function bpUpload(){
+  if(BP_BUSY) return; bpMeseSync();
+  var queue=BP_FILES.filter(function(x){return x.status==="pending" && x.match && x.match.username;});
+  if(!queue.length){ alert("Nessun file abbinato e pronto da caricare."); return; }
+  BP_BUSY=true; BP_DONE=null; render();
+  var mese=BP_MESE||""; var idx=0, okC=0, errC=0;
+  function next(){
+    if(idx>=queue.length){ BP_BUSY=false; BP_DONE={ok:okC,err:errC}; render(); return; }
+    var item=queue[idx];
+    var payload={ username:item.match.username||"", dipendente:((item.match.nome||"")+" "+(item.match.cognome||"")).trim(), titolo:("Busta paga"+(mese?" "+mese:"")), tipo:"Busta paga", note:"", caricatoDa:(S.user&&S.user.username)||"", linkAllegato:"", fileBase64:item.b64||"", fileName:item.name||"", contentType:item.type||"" };
+    fetch(DOC_CARICA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+      .then(function(r){return r.text();}).then(function(){ item.status="ok"; okC++; })
+      .catch(function(){ item.status="err"; item.msg="upload fallito"; errC++; })
+      .then(function(){ idx++; render(); setTimeout(next,400); });
+  }
+  next();
+}
+function renderGP_Buste(){
+  var h="<div class='section-label'><div class='section-title'>Buste paga — caricamento massivo</div></div>";
+  if(GP_DIPENDENTI.length===0){ h+="<div class='ana-card' style='padding:1rem;text-align:center;color:var(--text-light)'>Carico l'elenco dipendenti…</div>"; return h; }
+  h+="<div class='ana-card' style='padding:1rem'>";
+  h+="<div style='font-size:12px;color:var(--text-mid);margin-bottom:0.6rem;line-height:1.4'>Carica più buste paga in una volta. Il nome di ogni file deve contenere lo <b>username</b> della web app oppure la <b>matricola</b> del dipendente: l'app le smista da sola. Es. <code>m.rossi_maggio.pdf</code> oppure <code>0000000118.pdf</code>.</div>";
+  h+="<label class='dim-lbl'>Mese di riferimento (facoltativo)</label><input id='bp-mese' class='dim-in' placeholder='es. Maggio 2026' value=\""+_esc(BP_MESE)+"\" oninput='BP_MESE=this.value'>";
+  h+="<label class='dim-lbl' style='margin-top:0.5rem'>Seleziona i file</label>";
+  h+="<input type='file' multiple accept='application/pdf,image/*' onchange='bpPick(this)' "+(BP_BUSY?"disabled":"")+" style='font-size:13px'>";
+  if(BP_FILES.length){
+    var pend=0,skip=0,nouser=0,ok=0,err=0;
+    h+="<div style='margin-top:0.8rem;border-top:1px solid var(--bg);padding-top:0.6rem'>";
+    for(var i=0;i<BP_FILES.length;i++){ var x=BP_FILES[i];
+      var col="#1A6B5A", lab="";
+      if(x.status==="pending"){ pend++; col="#1A6B5A"; lab="→ "+((x.match.nome||"")+" "+(x.match.cognome||"")).trim()+" ("+x.match.username+")"; }
+      else if(x.status==="ok"){ ok++; col="#1A6B5A"; lab="✓ caricata · "+((x.match.nome||"")+" "+(x.match.cognome||"")).trim(); }
+      else if(x.status==="nouser"){ nouser++; col="#8A5A00"; lab="⚠️ "+((x.match.nome||"")+" "+(x.match.cognome||"")).trim()+" senza username"; }
+      else if(x.status==="skip"){ skip++; col="#7A1A1A"; lab="⚠️ dipendente non riconosciuto"; }
+      else { err++; col="#7A1A1A"; lab="✗ "+(x.msg||"errore"); }
+      h+="<div style='display:flex;align-items:center;gap:0.5rem;padding:5px 0;font-size:12px'>";
+      h+="<div style='flex:1;min-width:0'><div style='font-weight:700;color:var(--text-dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap'>"+_esc(x.name)+"</div><div style='color:"+col+";font-weight:700'>"+_esc(lab)+"</div></div>";
+      if(!BP_BUSY && x.status!=="ok") h+="<div onclick='bpRemove("+i+")' style='color:var(--text-light);cursor:pointer;font-size:16px;padding:0 4px'>×</div>";
+      h+="</div>";
+    }
+    h+="</div>";
+    h+="<div style='font-size:12px;color:var(--text-mid);margin-top:0.4rem'>"+pend+" pronte · "+(skip+nouser)+" da sistemare"+(ok?" · "+ok+" caricate":"")+(err?" · "+err+" errori":"")+"</div>";
+    h+="<div style='display:flex;gap:0.5rem;margin-top:0.7rem'>";
+    h+="<button class='ts-save' style='flex:1' "+((BP_BUSY||pend===0)?"disabled":"")+" onclick='bpUpload()'>"+(BP_BUSY?"Caricamento…":"📤 Carica e smista ("+pend+")")+"</button>";
+    h+="<button class='ts-mini' "+(BP_BUSY?"disabled":"")+" onclick='bpClear()'>Svuota</button>";
+    h+="</div>";
+  }
+  if(BP_DONE){ h+="<div style='margin-top:0.7rem;padding:0.7rem;border-radius:10px;background:#EAF5F1;font-size:13px;font-weight:700;color:#1A6B5A'>✓ Caricate "+BP_DONE.ok+" buste paga"+(BP_DONE.err?" · "+BP_DONE.err+" errori":"")+". I dipendenti riceveranno la notifica all'apertura dell'app.</div>"; }
+  h+="</div>";
+  h+="<div style='font-size:11px;color:var(--text-light);margin-top:0.5rem'>I file vengono salvati nel fascicolo di ciascun dipendente come documenti di tipo \"Busta paga\".</div>";
+  return h;
+}
 function renderGP_Strutture() {
   var h = "<div class='section-label'><div class='section-title'>Strutture</div></div>";
   if(GPSTR_FORM){
