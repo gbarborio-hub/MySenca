@@ -879,6 +879,17 @@ function fmtDateIt(d) {
   if(p.length < 3) return d;
   return p[2]+"/"+p[1]+"/"+p[0];
 }
+function fmtDateTimeIt(d) {
+  if(!d) return "—";
+  if(typeof d !== "string") d = (d && (d.start || d.date)) || "";
+  if(!d) return "—";
+  var s = String(d);
+  if(s.indexOf("T") < 0) return fmtDateIt(s); // solo data, niente orario
+  var dt = new Date(s);
+  if(isNaN(dt.getTime())) return fmtDateIt(s);
+  var pad = function(n){ return String(n).padStart(2,"0"); };
+  return pad(dt.getDate())+"/"+pad(dt.getMonth()+1)+"/"+dt.getFullYear()+" alle "+pad(dt.getHours())+":"+pad(dt.getMinutes());
+}
 function nominaColor(stato) {
   if(stato==="Firmata") return "#1A6B3A";
   if(stato==="Inviata") return "#1A4A7A";
@@ -2336,7 +2347,7 @@ function renderGP_Comunicazioni(){
       if(c.confermaLettura){
         h+="<div style='display:flex;align-items:center;gap:10px;margin-top:6px'><span style='font-size:12px;font-weight:800;color:var(--teal-dark)'>✓ Letture: "+(c.lettiCount||0)+"</span><button class='ts-mini' onclick=\"comViewReaders('"+c.id+"')\">Chi ha letto</button></div>";
         var rd=COM_READERS[c.id];
-        if(rd){ h+="<div style='margin-top:6px;border-top:1px solid var(--bg);padding-top:6px'>"; if(rd.loading) h+="<div style='font-size:12px;color:var(--text-light)'>Caricamento...</div>"; else if(rd.list.length===0) h+="<div style='font-size:12px;color:var(--text-light)'>Ancora nessuna lettura</div>"; else { for(var k=0;k<rd.list.length;k++){ h+="<div style='font-size:12px;color:var(--text-mid)'>✓ "+_esc(rd.list[k].nome||rd.list[k].username)+" · "+fmtDateIt(rd.list[k].lettoIl)+"</div>"; } } h+="</div>"; }
+        if(rd){ h+="<div style='margin-top:6px;border-top:1px solid var(--bg);padding-top:6px'>"; if(rd.loading) h+="<div style='font-size:12px;color:var(--text-light)'>Caricamento...</div>"; else if(rd.list.length===0) h+="<div style='font-size:12px;color:var(--text-light)'>Ancora nessuna lettura</div>"; else { for(var k=0;k<rd.list.length;k++){ h+="<div style='font-size:12px;color:var(--text-mid)'>✓ "+_esc(rd.list[k].nome||rd.list[k].username)+" · "+fmtDateTimeIt(rd.list[k].lettoIl)+"</div>"; } } h+="</div>"; }
       } else {
         h+="<div style='margin-top:6px;font-size:12px;color:var(--text-light);font-weight:600'>Senza conferma di lettura</div>";
       }
