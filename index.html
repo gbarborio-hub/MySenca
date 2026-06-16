@@ -655,10 +655,12 @@ var TIMBRATURE_READ_URL = "https://senca-hub.duckdns.org/webhook/timbrature-read
 var TIMBRATURE_DIP = [];
 
 function fetchTimbrature() {
+  var uname = (S.user && S.user.username) ? S.user.username : "";
+  if(!uname){ TIMBRATURE_DIP=[]; render(); return; }
   fetch("https://senca-hub.duckdns.org/webhook/timbrature-read", {
     method: "POST",
     headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({username: S.user.username || S.user.nome})
+    body: JSON.stringify({username: uname})
   })
   .then(function(r){ return r.text(); })
   .then(function(text){
