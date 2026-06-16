@@ -445,7 +445,7 @@ function fetchDipendentiGP() {
         return {
           pageId:item.pageId||item.id||"", nome:item.nome||"", cognome:item.cognome||"",
           cf:item.cf||"", nascita:(item.nascita?String(item.nascita).split("T")[0]:""),
-          email:item.email||"", telefono:item.telefono||"", username:item.username||"",
+          email:item.email||"", telefono:item.telefono||"", username:item.username||"", matricola:item.matricola||"",
           mansione:item.mansione||"", contratto:item.contratto||"", struttura:item.struttura||"",
           oreSettimanali:(item.oreSettimanali===0||item.oreSettimanali)?item.oreSettimanali:"",
           attivo:item.attivo!==false, note:item.note||"",
@@ -2452,11 +2452,11 @@ function renderDipComunicazioni(){
 var GP_DIP_FORM=null; var GP_DIP_SAVING=false; var GP_DIP_FORMERR=null;
 var GP_DIP_MANSIONI=["OSS","Infermiere","Medico","Coordinatore","Educatrice","Psicologa","Amministrativo","Altro"];
 var GP_DIP_CONTRATTI=["Dipendente","Libero professionista","Tirocinio","Altro"];
-function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",mansione:"",contratto:"",struttura:"",strutture:[],oreSettimanali:"",attivo:true,note:"",dataAssunzione:"",monteFerie:"",monteRol:"",residuoFerieIniz:"",residuoRolIniz:""}; GP_DIP_FORMERR=null; render(); }
-function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",strutture:(d.struttura?d.struttura.split(",").map(function(x){return x.trim();}).filter(Boolean):[]),oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||"",dataAssunzione:d.dataAssunzione||"",monteFerie:(d.monteFerie===0||d.monteFerie)?d.monteFerie:"",monteRol:(d.monteRol===0||d.monteRol)?d.monteRol:"",residuoFerieIniz:(d.residuoFerieIniz===0||d.residuoFerieIniz)?d.residuoFerieIniz:"",residuoRolIniz:(d.residuoRolIniz===0||d.residuoRolIniz)?d.residuoRolIniz:""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenAdd(){ GP_DIP_FORM={pageId:"",nome:"",cognome:"",cf:"",nascita:"",email:"",telefono:"",username:"",matricola:"",mansione:"",contratto:"",struttura:"",strutture:[],oreSettimanali:"",attivo:true,note:"",dataAssunzione:"",monteFerie:"",monteRol:"",residuoFerieIniz:"",residuoRolIniz:""}; GP_DIP_FORMERR=null; render(); }
+function dipFormOpenEdit(){ var d=GP_DIP_DETAIL; if(!d) return; GP_DIP_FORM={pageId:d.pageId||"",nome:d.nome||"",cognome:d.cognome||"",cf:d.cf||"",nascita:d.nascita||"",email:d.email||"",telefono:d.telefono||"",username:d.username||"",matricola:d.matricola||"",mansione:d.mansione||"",contratto:d.contratto||"",struttura:d.struttura||"",strutture:(d.struttura?d.struttura.split(",").map(function(x){return x.trim();}).filter(Boolean):[]),oreSettimanali:(d.oreSettimanali===0||d.oreSettimanali)?d.oreSettimanali:"",attivo:d.attivo!==false,note:d.note||"",dataAssunzione:d.dataAssunzione||"",monteFerie:(d.monteFerie===0||d.monteFerie)?d.monteFerie:"",monteRol:(d.monteRol===0||d.monteRol)?d.monteRol:"",residuoFerieIniz:(d.residuoFerieIniz===0||d.residuoFerieIniz)?d.residuoFerieIniz:"",residuoRolIniz:(d.residuoRolIniz===0||d.residuoRolIniz)?d.residuoRolIniz:""}; GP_DIP_FORMERR=null; render(); }
 function dipFormCancel(){ GP_DIP_FORM=null; GP_DIP_FORMERR=null; render(); }
 function _dipFormSync(){ var f=GP_DIP_FORM; if(!f) return; function gv(id){var e=document.getElementById(id);return e?e.value:undefined;} var v;
-  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
+  v=gv("df-nome"); if(v!==undefined)f.nome=v; v=gv("df-cognome"); if(v!==undefined)f.cognome=v; v=gv("df-cf"); if(v!==undefined)f.cf=v; v=gv("df-nascita"); if(v!==undefined)f.nascita=v; v=gv("df-email"); if(v!==undefined)f.email=v; v=gv("df-telefono"); if(v!==undefined)f.telefono=v; v=gv("df-matricola"); if(v!==undefined)f.matricola=v; v=gv("df-mansione"); if(v!==undefined)f.mansione=v; v=gv("df-contratto"); if(v!==undefined)f.contratto=v; v=gv("df-ore"); if(v!==undefined)f.oreSettimanali=v; var e=document.getElementById("df-attivo"); if(e)f.attivo=e.checked; v=gv("df-note"); if(v!==undefined)f.note=v;
   v=gv("df-assunzione"); if(v!==undefined)f.dataAssunzione=v; v=gv("df-monteferie"); if(v!==undefined)f.monteFerie=v; v=gv("df-monterol"); if(v!==undefined)f.monteRol=v; v=gv("df-resferie"); if(v!==undefined)f.residuoFerieIniz=v; v=gv("df-resrol"); if(v!==undefined)f.residuoRolIniz=v;
 }
 function dipFormToggleStruttura(idx){ _dipFormSync(); var sn=STRUTTURE[idx]&&STRUTTURE[idx].nome; if(!sn) return; if(!GP_DIP_FORM.strutture) GP_DIP_FORM.strutture=[]; var i=GP_DIP_FORM.strutture.indexOf(sn); if(i>=0) GP_DIP_FORM.strutture.splice(i,1); else GP_DIP_FORM.strutture.push(sn); render(); }
@@ -2476,6 +2476,7 @@ function renderDipAnagForm(){
   h+="<div class='ana-card' style='padding:1rem'>";
   h+="<div style='display:flex;gap:0.5rem'><div style='flex:1'><label class='dim-lbl'>Nome *</label><input id='df-nome' class='dim-in' value=\""+_esc(f.nome)+"\"></div><div style='flex:1'><label class='dim-lbl'>Cognome *</label><input id='df-cognome' class='dim-in' value=\""+_esc(f.cognome)+"\"></div></div>";
   h+="<label class='dim-lbl'>Codice fiscale</label><input id='df-cf' class='dim-in' value=\""+_esc(f.cf)+"\">";
+  h+="<label class='dim-lbl'>Matricola</label><input id='df-matricola' class='dim-in' value=\""+_esc(f.matricola)+"\">";
   h+="<label class='dim-lbl'>Data di nascita</label><input type='date' id='df-nascita' class='dim-in' value=\""+_esc(f.nascita)+"\">";
   h+="<label class='dim-lbl'>Email</label><input id='df-email' class='dim-in' value=\""+_esc(f.email)+"\">";
   h+="<label class='dim-lbl'>Telefono</label><input id='df-telefono' class='dim-in' value=\""+_esc(f.telefono)+"\">";
@@ -2624,7 +2625,7 @@ function _expHeader(doc,titolo,rg){
   doc.setFontSize(11); doc.setFont("helvetica","normal"); doc.text(titolo,40,60);
   doc.setFontSize(10);
   doc.text("Dipendente: "+(((d.nome||"")+" "+(d.cognome||"")).trim()||"—"),40,78);
-  doc.text("Qualifica: "+(d.mansione||"—"),40,92);
+  doc.text("Qualifica: "+(d.mansione||"—")+(d.matricola?"      Matricola: "+d.matricola:""),40,92);
   doc.text("Periodo: "+mesi[rg.m-1]+" "+rg.y,40,106);
   return 122;
 }
@@ -2657,12 +2658,13 @@ function expMensile(){
     function tipoAbbr(tp){ tp=(tp||"").toLowerCase(); if(tp.indexOf("feri")>=0)return"FERIE"; if(tp.indexOf("malat")>=0)return"MALATTIA"; if(tp.indexOf("permess")>=0)return"PERMESSO"; if(tp.indexOf("rol")>=0)return"ROL"; return (tp||"ASSENZA").toUpperCase(); }
     var absByDay={};
     for(var fi=0;fi<data.ferie.length;fi++){ var fr=data.ferie[fi]; if((fr.stato||"")!=="Approvata")continue; var di=String(fr.dataInizio||"").split("T")[0]; if(!di)continue; var dfn=String(fr.dataFine||di).split("T")[0]; var cur=new Date(di+"T00:00:00"); var end=new Date((dfn||di)+"T00:00:00"); var g=0; while(cur<=end&&g<400){ absByDay[cur.getFullYear()+"-"+p(cur.getMonth()+1)+"-"+p(cur.getDate())]=tipoAbbr(fr.tipo); cur=new Date(cur.getTime()+86400000); g++; } }
-    var rows=[]; var tot={ord:0,fest:0,nott:0,straord:0,riposo:0}; var totAbs={};
+    var rows=[]; var tot={ord:0,fest:0,nott:0,straord:0,riposo:0}; var totAbs={}; var perStr={};
     for(var day=1;day<=rg.last;day++){
       var ds=rg.y+"-"+p(rg.m)+"-"+p(day); var dt=new Date(ds+"T00:00:00"); var festivo=_isFestivo(dt);
       var dayT=data.timb.filter(function(t){ return String(t.data).split("T")[0]===ds && !t.eliminata && (t.approvazione==="Regolare"||t.approvazione==="Approvata"); }).sort(function(a,b){return (a.oraEntrata||"")<(b.oraEntrata||"")?-1:1;});
       var stamps=[]; var wmin=0,nmin=0,fmin=0,smin=0;
-      for(var i=0;i<dayT.length;i++){ var t=dayT[i]; if(t.oraEntrata)stamps.push("E"+t.oraEntrata.replace(":","")); if(t.oraUscita)stamps.push("U"+t.oraUscita.replace(":","")); if(t.approvazione==="Regolare"||t.approvazione==="Approvata"){ var mg=calcMaggiorazioni({data:ds,oraEntrata:t.oraEntrata,oraUscita:t.oraUscita},GP_DIP_TURNI); wmin+=Math.round(mg.ore*60); nmin+=Math.round(mg.nott*60); fmin+=Math.round(mg.fest*60); smin+=Math.round(mg.straord*60); } }
+      for(var i=0;i<dayT.length;i++){ var t=dayT[i]; if(t.oraEntrata)stamps.push("E"+t.oraEntrata.replace(":","")); if(t.oraUscita)stamps.push("U"+t.oraUscita.replace(":","")); if(t.approvazione==="Regolare"||t.approvazione==="Approvata"){ var mg=calcMaggiorazioni({data:ds,oraEntrata:t.oraEntrata,oraUscita:t.oraUscita},GP_DIP_TURNI); var am=Math.round(mg.ore*60); wmin+=am; nmin+=Math.round(mg.nott*60); fmin+=Math.round(mg.fest*60); smin+=Math.round(mg.straord*60); if(t.struttura) perStr[t.struttura]=(perStr[t.struttura]||0)+am; } }
+      var strSet={}; for(var si=0;si<dayT.length;si++){ if(dayT[si].struttura) strSet[dayT[si].struttura]=1; } var strGiorno=Object.keys(strSet).join(", ");
       var turno=""; for(var w=0;w<GP_DIP_TURNI.length;w++){ if(GP_DIP_TURNI[w].data===ds){ turno=(GP_DIP_TURNI[w].oraInizio||"")+"-"+(GP_DIP_TURNI[w].oraFine||""); break; } }
       var causale="",ore="";
       if(wmin>0){ ore=_minToH(wmin); causale=festivo?"FESTIVA":"ORDINARIE"; if(smin>0)causale+=" +STR"; if(nmin>0)causale+=" +NOTT"; if(festivo)tot.fest+=wmin; else tot.ord+=wmin; tot.nott+=nmin; tot.straord+=smin; }
@@ -2670,16 +2672,17 @@ function expMensile(){
       else if(festivo){ causale="FESTIVO"; }
       else if(!turno){ causale="RIPOSO"; tot.riposo++; }
       else { causale="ASSENTE"; }
-      rows.push([p(day)+" "+_dowIt(dt),turno||"riposo",stamps.join(" "),ore,causale]);
+      rows.push([p(day)+" "+_dowIt(dt),turno||"riposo",stamps.join(" "),strGiorno,ore,causale]);
     }
     var doc=new window.jspdf.jsPDF({unit:"pt",format:"a4"});
     var y=_expHeader(doc,"Riepilogo mensile presenze e assenze",rg);
-    doc.autoTable({head:[["GG","Turno","Timbrature","Ore","Causale"]],body:rows,startY:y,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[26,107,90]},columnStyles:{0:{cellWidth:48},1:{cellWidth:75},3:{cellWidth:42}}});
+    doc.autoTable({head:[["GG","Turno","Timbrature","Struttura","Ore","Causale"]],body:rows,startY:y,styles:{fontSize:8,cellPadding:2},headStyles:{fillColor:[26,107,90]},columnStyles:{0:{cellWidth:38},1:{cellWidth:54},3:{cellWidth:92},4:{cellWidth:30}}});
     var fy=doc.lastAutoTable.finalY+18; if(fy>740){ doc.addPage(); fy=50; }
     doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.text("Totali mensili",40,fy); fy+=15; doc.setFont("helvetica","normal"); doc.setFontSize(9);
     var lines=["Ordinarie diurne: "+_minToH(tot.ord),"Festive: "+_minToH(tot.fest),"di cui notturne: "+_minToH(tot.nott),"Straordinario: "+_minToH(tot.straord),"Totale presenze: "+_minToH(tot.ord+tot.fest)];
     for(var kk in totAbs){ lines.push("Assenza "+kk+": "+totAbs[kk]+" gg"); }
     lines.push("Riposi: "+tot.riposo+" gg");
+    var _sk=Object.keys(perStr); if(_sk.length){ lines.push("Presenze per struttura:"); for(var _i=0;_i<_sk.length;_i++){ lines.push("   "+_sk[_i]+": "+_minToH(perStr[_sk[_i]])); } }
     for(var li=0;li<lines.length;li++){ doc.text(lines[li],40,fy); fy+=13; }
     _expFooter(doc); doc.save("Riepilogo_mensile_"+((GP_DIP_DETAIL.cognome||"dip")).replace(/\s+/g,"_")+"_"+ym+".pdf");
   });
