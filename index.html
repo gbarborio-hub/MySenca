@@ -223,6 +223,9 @@ body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"S
 .gp-home-lb{font-size:15px;font-weight:800;color:var(--text-dark)}
 .gp-home-sb{font-size:12px;color:var(--text-light);margin-top:1px}
 .gp-home-ar{font-size:22px;color:#BFD8D0;font-weight:700}
+.role-choice-btn{display:block;width:100%;max-width:420px;padding:1.1rem;border:none;border-radius:16px;color:#fff;font-size:17px;font-weight:800;font-family:"Satoshi",sans-serif;cursor:pointer;margin-bottom:0.8rem;box-shadow:0 4px 14px rgba(0,0,0,0.10)}
+.role-choice-btn:active{transform:scale(0.99)}
+.role-choice-logout{display:block;width:100%;max-width:420px;padding:0.9rem;border:none;border-radius:16px;background:transparent;color:var(--text-light);font-size:14px;font-weight:700;font-family:"Satoshi",sans-serif;cursor:pointer;margin-top:0.4rem}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -933,8 +936,8 @@ function unlockBio(){
 }
 function restoreUser(u){
   if(!u.ruoli || !u.ruoli.length) u.ruoli=[u.ruolo||"Utente"];
-  if(!S.activeRole || u.ruoli.indexOf(S.activeRole)<0) S.activeRole = u.ruolo || u.ruoli[0];
-  S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null;
+  if(!S.activeRole || u.ruoli.indexOf(S.activeRole)<0) S.activeRole = u.activeRole || u.ruolo || u.ruoli[0];
+  S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null; S.choosingRole=false;
   if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
   if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); fetchDipDocs(); if("Notification" in window && Notification.permission==="default"){ try{ Notification.requestPermission(); }catch(e){} } startComPoll(); }
   if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
@@ -995,15 +998,20 @@ function doLogin() {
       var user = {nome:res.nome, ruolo:res.ruolo||"Utente", username:uname};
       fetchUserRoles(uname, function(roles){
         user.ruoli = (roles && roles.length) ? roles : [user.ruolo];
-        S.activeRole = user.ruolo;
         if(remember) saveSession(user); else { clearSession(); clearBio(); }
-        restoreUser(user);
-        if(remember && bioSupported() && !getBio()){
-          setTimeout(function(){
-            if(confirm("Vuoi abilitare l'accesso rapido con Face ID o impronta digitale su questo dispositivo?")){
-              enrollBio(user).then(function(){ alert("✅ Accesso biometrico abilitato."); }).catch(function(){});
-            }
-          }, 700);
+        var doEnroll=function(){
+          if(remember && bioSupported() && !getBio()){
+            setTimeout(function(){
+              if(confirm("Vuoi abilitare l'accesso rapido con Face ID o impronta digitale su questo dispositivo?")){
+                enrollBio(user).then(function(){ alert("✅ Accesso biometrico abilitato."); }).catch(function(){});
+              }
+            }, 700);
+          }
+        };
+        if(user.ruoli.length>1){
+          S.user=user; S.loggedIn=true; S.locked=false; S.pendingUser=null; S.activeRole=null; S.choosingRole=true; render(); doEnroll();
+        } else {
+          S.activeRole=user.ruolo; restoreUser(user); doEnroll();
         }
       });
     } else {
@@ -1020,7 +1028,7 @@ function doLogin() {
     btn.innerHTML = "Accedi";
   });
 }
-function doLogout() { clearSession(); clearBio(); S.loggedIn=false; S.user=null; S.dipView="home"; S.locked=false; S.pendingUser=null; render(); }
+function doLogout() { clearSession(); clearBio(); S.loggedIn=false; S.user=null; S.dipView="home"; S.locked=false; S.pendingUser=null; S.choosingRole=false; S.activeRole=null; render(); }
 
 function _activeRole(){ return (S.user && (S.activeRole || S.user.ruolo)) || ""; }
 function isAdmin() { var r=_activeRole(); return r==="Admin" || r==="Operatore"; }
@@ -1048,19 +1056,38 @@ function switchRole(role){
   render();
 }
 function roleLabel(r){ return r==="Gestione personale"?"Ufficio personale":(r==="Dipendente"?"Dipendente":(r==="Admin"?"Amministratore":(r==="Operatore"?"Operatore":r))); }
-function roleSwitcherHtml(){
-  if(!S.user) return "";
-  var roles=S.user.ruoli||[]; if(roles.length<2) return "";
-  var cur=_activeRole();
-  var h="<div class='role-switcher'><span class='rs-label'>🔄 Interfaccia</span><div class='rs-btns'>";
-  for(var i=0;i<roles.length;i++){ var r=roles[i]; var on=(r===cur); h+="<button class='rs-btn"+(on?" on":"")+"' "+(on?"disabled":"")+" onclick=\"switchRole('"+String(r).replace(/'/g,"\\'")+"')\">"+roleLabel(r)+"</button>"; }
+function roleSwitchMini(){
+  if(!S.user) return ""; var roles=S.user.ruoli||[]; if(roles.length<2) return "";
+  return "<div style='display:flex;justify-content:flex-end;margin-bottom:0.5rem'><button onclick='showRoleChooser()' style='background:none;border:1.5px solid var(--teal);color:var(--teal);border-radius:999px;padding:0.32rem 0.85rem;font-size:12px;font-weight:800;font-family:Satoshi,sans-serif;cursor:pointer'>🔄 Cambia interfaccia</button></div>";
+}
+function showRoleChooser(){ if(!S.user) return; var roles=S.user.ruoli||[]; if(roles.length<2) return; S.choosingRole=true; render(); }
+function chooseRole(role){
+  if(!S.user) return; var roles=S.user.ruoli||[S.user.ruolo];
+  if(roles.indexOf(role)<0) return;
+  S.activeRole=role; S.choosingRole=false; S.user.activeRole=role;
+  try{ if(loadSession()) saveSession(S.user); }catch(e){}
+  restoreUser(S.user);
+}
+function renderRoleChooser(){
+  var u=S.user||{}; var roles=u.ruoli||[];
+  var h="<div class=\"login-screen\">";
+  h+="<div class=\"login-logo-area\"><div class=\"login-logo-wrap\">"+LOGO_IMG+"</div></div>";
+  h+="<div class=\"login-body\">";
+  h+="<div class=\"login-greeting\">Ciao "+_esc(u.nome||u.username||"")+"!</div>";
+  h+="<div class=\"login-sub\">Con quale interfaccia vuoi entrare?</div>";
+  var colors={"Gestione personale":"var(--teal-dark)","Dipendente":"var(--teal)","Admin":"var(--coral)","Operatore":"var(--cyan)"};
+  for(var i=0;i<roles.length;i++){ var r=roles[i]; var bg=colors[r]||"var(--teal)";
+    h+="<button class=\"role-choice-btn\" style=\"background:"+bg+"\" onclick=\"chooseRole('"+String(r).replace(/'/g,"\\'")+"')\">"+_esc(roleLabel(r))+"</button>";
+  }
+  h+="<button class=\"role-choice-logout\" onclick=\"doLogout()\">Esci</button>";
   h+="</div></div>";
-  return h;
+  document.getElementById("root").innerHTML = h;
 }
 
 // ===== RENDER PRINCIPALE =====
 function render() {
   if(!S.loggedIn) { renderLogin(); return; }
+  if(S.choosingRole) { renderRoleChooser(); return; }
   if(isDipendente()) { renderDipendente(); return; }
   if(isGestionePersonale()) { renderGestionePersonale(); return; }
   renderApp(); // Admin / Operatore / Utente
@@ -1159,7 +1186,7 @@ function renderDipendente() {
 
 function renderDipHome() {
   var h = "";
-  h += roleSwitcherHtml();
+  h += roleSwitchMini();
 
   // Card grande Timbra
   h += "<div class=\"timbra-card-big\" onclick=\"S.dipTab='timbra';render()\">";
@@ -2132,18 +2159,18 @@ var _GPICONS={
 };
 function renderGP_Home(){
   var h="";
-  h += roleSwitcherHtml();
-  h += "<div class='timbra-card-big' style='background:#C0451F;min-height:120px;cursor:pointer' onclick=\"gpGo('dipendenti')\">";
+  h += roleSwitchMini();
+  h += "<div class='timbra-card-big' style='background:var(--teal-dark);min-height:120px;cursor:pointer' onclick=\"gpGo('dipendenti')\">";
   h += "<div class='timbra-card-big-orb'></div>";
   h += "<div class='timbra-card-big-title' style='font-size:30px'>👥 Dipendenti</div>";
   h += "<div class='timbra-card-big-sub'>Fascicoli · Anagrafiche · Documenti · Riepiloghi</div>";
   h += "</div>";
   var cards=[
-    {v:"timbrature", label:"Verifica", value:"Timbrature", bg:"var(--coral)"},
-    {v:"ferie", label:"Approva", value:"Ferie / ROL", bg:"#C0451F"},
-    {v:"turni", label:"Pianifica", value:"Turni", bg:"#C0451F"},
-    {v:"comunicazioni", label:"Invia", value:"Avvisi", bg:"var(--coral)"},
-    {v:"strutture", label:"Gestisci", value:"Strutture", bg:"var(--coral)"}
+    {v:"timbrature", label:"Verifica", value:"Timbrature", bg:"var(--cyan)"},
+    {v:"ferie", label:"Approva", value:"Ferie / ROL", bg:"var(--teal)"},
+    {v:"turni", label:"Pianifica", value:"Turni", bg:"var(--coral)"},
+    {v:"comunicazioni", label:"Invia", value:"Avvisi", bg:"var(--teal-dark)"},
+    {v:"strutture", label:"Gestisci", value:"Strutture", bg:"var(--teal)"}
   ];
   h += "<div class='dip-half-cards'>";
   for(var i=0;i<cards.length;i++){ var c=cards[i];
