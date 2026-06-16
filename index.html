@@ -557,6 +557,11 @@ function fetchFerieSaldo() {
         rolMaturate: p.rolMaturate!=null ? p.rolMaturate : (p["ROL maturate"] || 0),
         rolGodute: p.rolGodute!=null ? p.rolGodute : (p["ROL godute"] || 0),
         rolResidue: p.rolResidue!=null ? p.rolResidue : (p["ROL residue"] || 0),
+        ferieMensile: p.ferieMensile!=null ? p.ferieMensile : null,
+        rolMensile: p.rolMensile!=null ? p.rolMensile : null,
+        percentuale: p.percentuale!=null ? p.percentuale : null,
+        oreSettimanali: p.oreSettimanali!=null ? p.oreSettimanali : null,
+        mesiMaturati: p.mesiMaturati!=null ? p.mesiMaturati : null,
         tipoContratto: (p["Tipo contratto"] && p["Tipo contratto"].name) ? p["Tipo contratto"].name : ""
       };
       render();
@@ -1253,6 +1258,10 @@ function renderDipFerie() {
     h += "<div class='ana-row'><div class='ana-label'>Ferie godute</div><div class='ana-value'>" + s.ferieGodute + "h</div></div>";
     h += "<div class='ana-row'><div class='ana-label'>ROL maturate</div><div class='ana-value'>" + s.rolMaturate + "h</div></div>";
     h += "<div class='ana-row'><div class='ana-label'>ROL godute</div><div class='ana-value'>" + s.rolGodute + "h</div></div>";
+    if(s.ferieMensile!=null || s.rolMensile!=null){
+      h += "<div class='ana-row'><div class='ana-label'>Maturazione mensile</div><div class='ana-value' style='font-size:12px'>" + (s.ferieMensile!=null?s.ferieMensile+"h ferie":"") + (s.rolMensile!=null?" · "+s.rolMensile+"h ROL":"") + "</div></div>";
+      if(s.percentuale!=null && s.percentuale<100){ h += "<div class='ana-row'><div class='ana-label'>Contratto</div><div class='ana-value' style='font-size:12px'>" + (s.oreSettimanali!=null?s.oreSettimanali+"h/sett · ":"") + s.percentuale + "% del full-time</div></div>"; }
+    }
     h += "</div>";
   }
 
