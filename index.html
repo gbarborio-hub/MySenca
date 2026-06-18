@@ -258,6 +258,7 @@ var RIATTIVA_UTENZA_URL = "https://senca-hub.duckdns.org/webhook/riattiva-utenza
 var ADMIN_RUOLI = ["Admin","Gestione personale","Dipendente","Privacy"]; // solo ruoli con un'interfaccia reale
 var ADMIN_VIEW = "home";
 var ADMIN_UTENTI = []; var ADMIN_UTENTI_LOADING = false;
+var ADMIN_UTENTI_SEARCH = "";
 var ADMIN_ABILITA_FORM = null; // {dip, username, ruolo, ruoliAggiuntivi:[], busy, pwdResult}
 var ADMIN_RUOLO_BUSY = null;
 var ADMIN_MSG = null;
@@ -350,6 +351,7 @@ function fetchUtentiWebApp(){
   })
   .catch(function(){ ADMIN_UTENTI_LOADING = false; render(); });
 }
+function admUtentiSearchInput(v){ ADMIN_UTENTI_SEARCH = v; render(); }
 
 function admEliminaUtenza(pageId, username){
   if(!pageId) return;
@@ -571,6 +573,17 @@ function gpTimbraturaAction(action, pageId){
 var GP_FERIE_RICHIESTE = [];
 var GP_VIEW = "home";
 var GP_DIP_DETAIL = null;
+var GP_DIP_SEARCH = "";
+var GP_DIP_FILTRATI = [];
+function gpDipFiltra(){
+  var q = (GP_DIP_SEARCH||"").trim().toLowerCase();
+  if(!q){ GP_DIP_FILTRATI = GP_DIPENDENTI.slice(); return; }
+  GP_DIP_FILTRATI = GP_DIPENDENTI.filter(function(d){
+    var hay = ((d.nome||"")+" "+(d.cognome||"")+" "+(d.username||"")+" "+(d.mansione||"")+" "+(d.struttura||"")).toLowerCase();
+    return hay.indexOf(q) >= 0;
+  });
+}
+function gpDipSearchInput(v){ GP_DIP_SEARCH = v; gpDipFiltra(); render(); }
 
 function fetchDipendentiGP() {
   fetch("https://senca-hub.duckdns.org/webhook/gp-dipendenti", {
@@ -2110,7 +2123,7 @@ var GP_WEEK_OFFSET = 0;
 var GP_SHOW_DELETED = false;
 
 function openDipDetail(i){
-  GP_DIP_DETAIL = GP_DIPENDENTI[i];
+  GP_DIP_DETAIL = (typeof i === "object") ? i : GP_DIPENDENTI[i];
   GP_WEEK_OFFSET = 0;
   GP_DIP_TIMB = []; GP_DIP_TURNI = []; GP_DIP_LOADING = true;
   GP_DOCS = []; GPDOC_FORM = null; GPDOC_MSG = null;
@@ -2920,21 +2933,32 @@ function renderGP_Dipendenti() {
   h += "<div class='section-label'><div class='section-title'>Dipendenti</div>";
   h += "<div style='background:var(--teal);color:white;border-radius:20px;padding:0.4rem 1rem;font-size:12px;font-weight:800;cursor:pointer' onclick=\"dipFormOpenAdd()\">+ Nuovo</div></div>";
 
+  h += "<input class='dim-in' type='search' placeholder='🔎 Cerca per nome, cognome, username, mansione o struttura...' value=\"" + _esc(GP_DIP_SEARCH) + "\" oninput='gpDipSearchInput(this.value)' style='margin-bottom:0.75rem'>";
+
   if(GP_DIPENDENTI.length === 0) {
     h += "<div class='timbra-card'><div style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Caricamento dipendenti...</div></div>";
   } else {
-    h += "<div class='table-card'>";
-    for(var i=0; i<GP_DIPENDENTI.length; i++) {
-      var d = GP_DIPENDENTI[i];
-      h += "<div class='table-row' style='cursor:pointer' onclick='openDipDetail(" + i + ")'>";
-      h += "<div style='flex:1;min-width:0'>";
-      h += "<div class='row-title'>" + d.nome + " " + d.cognome + "</div>";
-      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
-      h += "</div>";
-      h += "<div style='font-size:11px;color:var(--text-light)'>›</div>";
+    gpDipFiltra();
+    var lista = GP_DIP_SEARCH ? GP_DIP_FILTRATI : GP_DIPENDENTI;
+    if(GP_DIP_SEARCH){
+      h += "<div style='font-size:11px;color:var(--text-light);font-weight:700;margin-bottom:0.5rem'>" + lista.length + " risultat" + (lista.length===1?"o":"i") + "</div>";
+    }
+    if(lista.length === 0){
+      h += "<div class='timbra-card'><div style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Nessun dipendente trovato.</div></div>";
+    } else {
+      h += "<div class='table-card'>";
+      for(var i=0; i<lista.length; i++) {
+        var d = lista[i];
+        h += "<div class='table-row' style='cursor:pointer' onclick='openDipDetail(" + (GP_DIP_SEARCH ? "GP_DIP_FILTRATI[" + i + "]" : i) + ")'>";
+        h += "<div style='flex:1;min-width:0'>";
+        h += "<div class='row-title'>" + d.nome + " " + d.cognome + "</div>";
+        h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + (d.mansione||"") + " · " + (d.struttura||"") + "</div>";
+        h += "</div>";
+        h += "<div style='font-size:11px;color:var(--text-light)'>›</div>";
+        h += "</div>";
+      }
       h += "</div>";
     }
-    h += "</div>";
   }
   h += "<button class='update-btn' onclick='fetchDipendentiGP()'>Aggiorna</button>";
   return h;
@@ -3417,10 +3441,22 @@ function renderAdmin_Utenti(){
     h += "<div style='display:flex;align-items:center;justify-content:center;height:30vh'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div></div>";
     return h;
   }
+  h += "<input class='dim-in' type='search' placeholder='🔎 Cerca per username o email...' value=\"" + _esc(ADMIN_UTENTI_SEARCH) + "\" oninput='admUtentiSearchInput(this.value)' style='margin-bottom:0.75rem'>";
+
   if(ADMIN_UTENTI.length===0){
     h += "<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Nessuna utenza trovata.</div>";
   } else {
-    for(var i=0;i<ADMIN_UTENTI.length;i++){ var u=ADMIN_UTENTI[i]; var busy=ADMIN_RUOLO_BUSY===u.pageId;
+    var q = (ADMIN_UTENTI_SEARCH||"").trim().toLowerCase();
+    var indici = [];
+    for(var ii=0; ii<ADMIN_UTENTI.length; ii++){
+      var uu = ADMIN_UTENTI[ii];
+      if(!q || ((uu.username||"")+" "+(uu.email||"")).toLowerCase().indexOf(q)>=0) indici.push(ii);
+    }
+    if(q) h += "<div style='font-size:11px;color:var(--text-light);font-weight:700;margin-bottom:0.5rem'>" + indici.length + " risultat" + (indici.length===1?"o":"i") + "</div>";
+    if(indici.length===0){
+      h += "<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Nessuna utenza trovata.</div>";
+    }
+    for(var z=0; z<indici.length; z++){ var i=indici[z]; var u=ADMIN_UTENTI[i]; var busy=ADMIN_RUOLO_BUSY===u.pageId;
       h += "<div class='ana-card' style='padding:0.9rem 1rem;margin-bottom:0.6rem'>";
       h += "<div style='display:flex;justify-content:space-between;align-items:flex-start;gap:8px'>";
       h += "<div><div style='font-size:15px;font-weight:900;color:var(--text-dark)'>" + _esc(u.username) + "</div>";
