@@ -249,6 +249,138 @@ var PROFILO_URL = "https://senca-hub.duckdns.org/webhook/profilo";
 
 var PROFILO_DIP = null;
 
+// ===== ADMIN: GESTIONE UTENZE =====
+var UTENTI_LISTA_URL = "https://senca-hub.duckdns.org/webhook/utenti-lista";
+var CREA_UTENZA_URL = "https://senca-hub.duckdns.org/webhook/crea-utenza";
+var ELIMINA_UTENZA_URL = "https://senca-hub.duckdns.org/webhook/elimina-utenza";
+var RUOLO_UPDATE_URL = "https://senca-hub.duckdns.org/webhook/ruolo-update";
+var ADMIN_RUOLI = ["Admin","Operatore","Gestione personale","Dipendente","Utente"];
+var ADMIN_VIEW = "home";
+var ADMIN_UTENTI = []; var ADMIN_UTENTI_LOADING = false;
+var ADMIN_ABILITA_FORM = null; // {dip, username, ruolo, ruoliAggiuntivi:[], busy, pwdResult}
+var ADMIN_RUOLO_BUSY = null;
+var ADMIN_MSG = null;
+
+function admGo(v){ ADMIN_VIEW=v; ADMIN_ABILITA_FORM=null;
+  if(v==="abilitare"){ if(!GP_DIPENDENTI.length) fetchDipendentiGP(); else render(); }
+  else if(v==="utenti"){ fetchUtentiWebApp(); }
+  else render();
+}
+
+function dipendentiSenzaUsername(){
+  return GP_DIPENDENTI.filter(function(d){ return !d.username; });
+}
+
+function proponiUsername(nome, cognome){
+  var n = String(nome||"").trim().toLowerCase().charAt(0);
+  var c = String(cognome||"").trim().toLowerCase().replace(/[^a-z]/g,"");
+  if(!n || !c) return "";
+  return n + "." + c;
+}
+
+function admApriAbilita(i){
+  var d = dipendentiSenzaUsername()[i];
+  if(!d) return;
+  ADMIN_ABILITA_FORM = { dip:d, username:proponiUsername(d.nome,d.cognome), email:d.email||"", ruolo:"Dipendente", ruoliAggiuntivi:[], busy:false, pwdResult:null };
+  render();
+}
+function admChiudiAbilita(){ ADMIN_ABILITA_FORM=null; render(); }
+function admSyncAbilita(){
+  if(!ADMIN_ABILITA_FORM) return;
+  var el;
+  el=document.getElementById("ab-username"); if(el) ADMIN_ABILITA_FORM.username=el.value.trim().toLowerCase();
+  el=document.getElementById("ab-email"); if(el) ADMIN_ABILITA_FORM.email=el.value.trim();
+  el=document.getElementById("ab-ruolo"); if(el) ADMIN_ABILITA_FORM.ruolo=el.value;
+}
+function admToggleRuoloAgg(r){
+  admSyncAbilita();
+  var f=ADMIN_ABILITA_FORM; if(!f) return;
+  var i=f.ruoliAggiuntivi.indexOf(r);
+  if(i>=0) f.ruoliAggiuntivi.splice(i,1); else f.ruoliAggiuntivi.push(r);
+  render();
+}
+function admSalvaInviaCredenziali(){
+  admSyncAbilita();
+  var f = ADMIN_ABILITA_FORM; if(!f) return;
+  if(!f.username){ ADMIN_MSG="⚠️ Inserisci uno username."; render(); return; }
+  if(f.busy) return;
+  f.busy=true; render();
+  var payload = {
+    username: f.username, email: f.email||"", ruolo: f.ruolo, ruoliAggiuntivi: f.ruoliAggiuntivi,
+    dipendentePageId: f.dip.pageId
+  };
+  fetch(CREA_UTENZA_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload)})
+  .then(function(r){ return r.text(); })
+  .then(function(text){
+    f.busy=false;
+    try {
+      var res = JSON.parse(text);
+      if(res && res.ok){
+        f.pwdResult = { username: res.username||f.username, password: res.password||"" };
+        fetchDipendentiGP();
+        fetchUtentiWebApp();
+      } else {
+        ADMIN_MSG = "⚠️ " + (res && res.error ? res.error : "Errore nella creazione dell'utenza.");
+      }
+    } catch(e){ ADMIN_MSG = "⚠️ Risposta inattesa dal server."; }
+    render();
+  })
+  .catch(function(){ f.busy=false; ADMIN_MSG="⚠️ Errore di connessione. Riprova."; render(); });
+}
+
+function fetchUtentiWebApp(){
+  ADMIN_UTENTI_LOADING = true; render();
+  fetch(UTENTI_LISTA_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({})})
+  .then(function(r){ return r.text(); })
+  .then(function(text){
+    try {
+      var data = JSON.parse(text);
+      var raw = Array.isArray(data) ? data : [data];
+      ADMIN_UTENTI = raw.map(function(item){
+        return {
+          pageId: item.pageId||item.id||"", username: item.username||"", email: item.email||"",
+          ruolo: item.ruolo||"Utente", ruoliAggiuntivi: Array.isArray(item.ruoliAggiuntivi)?item.ruoliAggiuntivi:[],
+          attivo: item.attivo!==false, bloccato: !!item.bloccato,
+          passwordAggiornataIl: item.passwordAggiornataIl||""
+        };
+      }).filter(function(u){ return u.username; });
+    } catch(e){ ADMIN_UTENTI = []; }
+    ADMIN_UTENTI_LOADING = false; render();
+  })
+  .catch(function(){ ADMIN_UTENTI_LOADING = false; render(); });
+}
+
+function admEliminaUtenza(pageId, username){
+  if(!pageId) return;
+  if(!confirm("Eliminare l'accesso alla web app per \"" + username + "\"? Il dipendente resterà nell'anagrafica, ma non potrà più accedere finché non gli crei una nuova utenza.")) return;
+  ADMIN_RUOLO_BUSY = pageId; render();
+  fetch(ELIMINA_UTENZA_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({pageId:pageId, username:username})})
+  .then(function(r){ return r.text(); })
+  .then(function(){ ADMIN_RUOLO_BUSY=null; fetchUtentiWebApp(); })
+  .catch(function(){ ADMIN_RUOLO_BUSY=null; alert("Errore nell'eliminazione. Riprova."); render(); });
+}
+
+function admCambiaRuolo(pageId, nuovoRuolo){
+  if(!pageId) return;
+  ADMIN_RUOLO_BUSY = pageId; render();
+  fetch(RUOLO_UPDATE_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({pageId:pageId, ruolo:nuovoRuolo})})
+  .then(function(r){ return r.text(); })
+  .then(function(){ ADMIN_RUOLO_BUSY=null; fetchUtentiWebApp(); })
+  .catch(function(){ ADMIN_RUOLO_BUSY=null; alert("Errore nell'aggiornamento del ruolo. Riprova."); render(); });
+}
+function admToggleRuoloAggUtente(u, r){
+  if(!u.pageId) return;
+  var lista = u.ruoliAggiuntivi.slice();
+  var i = lista.indexOf(r);
+  if(i>=0) lista.splice(i,1); else lista.push(r);
+  u.ruoliAggiuntivi = lista; // optimistic
+  ADMIN_RUOLO_BUSY = u.pageId; render();
+  fetch(RUOLO_UPDATE_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({pageId:u.pageId, ruoliAggiuntivi:lista})})
+  .then(function(r){ return r.text(); })
+  .then(function(){ ADMIN_RUOLO_BUSY=null; fetchUtentiWebApp(); })
+  .catch(function(){ ADMIN_RUOLO_BUSY=null; alert("Errore nell'aggiornamento. Riprova."); render(); });
+}
+
 function fetchProfilo() {
   fetch(PROFILO_URL, {
     method: "POST",
@@ -954,7 +1086,7 @@ function restoreUser(u){
   if(!u.ruoli || !u.ruoli.length) u.ruoli=[u.ruolo||"Utente"];
   if(!S.activeRole || u.ruoli.indexOf(S.activeRole)<0) S.activeRole = u.activeRole || u.ruolo || u.ruoli[0];
   S.loggedIn=true; S.user=u; S.locked=false; S.pendingUser=null; S.choosingRole=false;
-  if(isAdmin()) { fetchPosts(); fetchIncaricati(); }
+  if(isAdmin()) { fetchPosts(); fetchIncaricati(); fetchDipendentiGP(); fetchStrutture(); }
   if(isDipendente()) { caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); fetchDipDocs(); if("Notification" in window && Notification.permission==="default"){ try{ Notification.requestPermission(); }catch(e){} } startComPoll(); }
   if(isGestionePersonale()) { fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
   if(u.username && (!u.ruoli || u.ruoli.length<2)){
@@ -1060,7 +1192,7 @@ function fetchUserRoles(uname, cb){
 function _fetchForRole(role){
   if(role==="Dipendente"){ caricaTimbraturaLocale(); fetchStrutture(); fetchTurni(); fetchTimbrature(); fetchProfilo(); fetchContatti(); fetchFerieSaldo(); fetchFerieRichieste(); fetchDipComs(); fetchDipDocs(); startComPoll(); }
   else if(role==="Gestione personale"){ fetchDipendentiGP(); fetchTimbratureGP(); fetchFerieRichiesteGP(); fetchStrutture(); fetchLegenda(); }
-  else if(role==="Admin" || role==="Operatore"){ fetchPosts(); fetchIncaricati(); }
+  else if(role==="Admin" || role==="Operatore"){ fetchPosts(); fetchIncaricati(); fetchDipendentiGP(); fetchStrutture(); }
 }
 function switchRole(role){
   if(!S.user) return;
@@ -1106,7 +1238,8 @@ function render() {
   if(S.choosingRole) { renderRoleChooser(); return; }
   if(isDipendente()) { renderDipendente(); return; }
   if(isGestionePersonale()) { renderGestionePersonale(); return; }
-  renderApp(); // Admin / Operatore / Utente
+  if(isAdmin()) { renderAdmin(); return; }
+  renderApp(); // Utente (vista legacy marketing/privacy, fallback)
 }
 
 // ===== LOGIN SCREEN =====
@@ -3169,9 +3302,262 @@ function renderGP_Strutture() {
 }
 
 
+// ===== INTERFACCIA ADMIN =====
+function renderAdmin_Home(){
+  var h = "";
+  h += roleSwitchMini();
+  var nDaAbilitare = dipendentiSenzaUsername().length;
+  h += "<div class='timbra-card-big' style='background:var(--coral);min-height:120px;cursor:pointer' onclick=\"admGo('abilitare')\">";
+  h += "<div class='timbra-card-big-orb'></div>";
+  h += "<div class='timbra-card-big-title' style='font-size:26px'>🆕 Dipendenti da abilitare</div>";
+  h += "<div class='timbra-card-big-sub'>" + nDaAbilitare + " senza username · assegna accesso alla web app</div>";
+  h += "</div>";
+  var cards = [
+    {v:"utenti", label:"Gestisci", value:"Utenti web app", bg:"var(--teal-dark)"},
+    {v:"privacy", label:"Apri", value:"Privacy & Marketing", bg:"var(--cyan)"}
+  ];
+  h += "<div class='dip-half-cards'>";
+  for(var i=0;i<cards.length;i++){ var c=cards[i];
+    h += "<div class='dip-half-card' style='background:"+c.bg+";min-height:110px' onclick=\"admGo('"+c.v+"')\">";
+    h += "<div class='dip-half-orb'></div>";
+    h += "<div class='dip-half-label'>"+c.label+"</div>";
+    h += "<div class='dip-half-value' style='font-size:20px'>"+c.value+"</div>";
+    h += "</div>";
+  }
+  h += "</div>";
+  return h;
+}
+
+function renderAdmin_Abilitare(){
+  var h = "";
+  if(ADMIN_ABILITA_FORM){
+    var f = ADMIN_ABILITA_FORM;
+    h += "<div class='section-label'><div class='section-title'>Assegna accesso</div></div>";
+    h += "<div class='ana-card' style='padding:1rem'>";
+    h += "<div style='font-size:18px;font-weight:900;color:var(--text-dark);margin-bottom:4px'>" + _esc(f.dip.nome + " " + (f.dip.cognome||"")) + "</div>";
+    h += "<div style='font-size:12px;color:var(--text-light);font-weight:600;margin-bottom:0.75rem'>" + _esc(f.dip.mansione||"") + " · " + _esc(f.dip.struttura||"") + "</div>";
+    if(f.pwdResult){
+      h += "<div class='ana-card' style='padding:0.9rem 1rem;margin-bottom:0.75rem;background:#E3F6E9;border:1px solid #9ED8B0'>";
+      h += "<div style='font-size:13px;font-weight:800;color:#1A5C33'>✅ Utenza creata</div>";
+      h += "<div style='font-size:13px;font-weight:700;color:#1A5C33;margin-top:6px'>Username: <b>" + _esc(f.pwdResult.username) + "</b></div>";
+      h += "<div style='font-size:13px;font-weight:700;color:#1A5C33'>Password: <b>" + _esc(f.pwdResult.password) + "</b></div>";
+      h += "<div style='font-size:11px;color:#1A5C33;margin-top:6px'>Copia queste credenziali e comunicale al dipendente: l'invio automatico via email non è ancora attivo.</div>";
+      h += "</div>";
+      h += "<button class='update-btn' onclick=\"admChiudiAbilita();admGo('abilitare')\">← Torna alla lista</button>";
+      h += "</div>";
+      return h;
+    }
+    h += "<label class='dim-lbl'>Username</label><input id='ab-username' class='dim-in' value=\"" + _esc(f.username) + "\" autocapitalize='none' oninput='admSyncAbilita()'>";
+    h += "<label class='dim-lbl'>Email (opzionale)</label><input id='ab-email' class='dim-in' value=\"" + _esc(f.email) + "\" oninput='admSyncAbilita()'>";
+    h += "<label class='dim-lbl'>Ruolo principale</label><select id='ab-ruolo' class='dim-in' onchange='admSyncAbilita()'>";
+    for(var i=0;i<ADMIN_RUOLI.length;i++){ h += "<option value=\""+ADMIN_RUOLI[i]+"\" "+(f.ruolo===ADMIN_RUOLI[i]?"selected":"")+">"+ADMIN_RUOLI[i]+"</option>"; }
+    h += "</select>";
+    h += "<label class='dim-lbl'>Ruoli aggiuntivi (interfacce extra)</label><div style='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px'>";
+    for(var j=0;j<ADMIN_RUOLI.length;j++){ var r=ADMIN_RUOLI[j]; if(r===f.ruolo) continue; var act=f.ruoliAggiuntivi.indexOf(r)>=0;
+      h += "<button class='com-pill"+(act?" on":"")+"' onclick=\"admToggleRuoloAgg('"+r+"')\">"+r+"</button>";
+    }
+    h += "</div>";
+    if(ADMIN_MSG){ h += "<div style='margin-bottom:0.5rem;padding:0.6rem;border-radius:10px;background:#FEF3CD;color:#7A5800;font-size:12px;font-weight:700;text-align:center'>"+_esc(ADMIN_MSG)+"</div>"; ADMIN_MSG=null; }
+    h += "<button class='update-btn' style='background:var(--teal)' "+(f.busy?"disabled":"")+" onclick='admSalvaInviaCredenziali()'>" + (f.busy?"Salvataggio...":"💾 Salva e invia credenziali") + "</button>";
+    h += "<button class='update-btn' style='background:var(--coral)' onclick='admChiudiAbilita()'>← Annulla</button>";
+    h += "</div>";
+    return h;
+  }
+
+  h += "<div class='section-label'><div class='section-title'>Dipendenti da abilitare</div></div>";
+  var lista = dipendentiSenzaUsername();
+  if(GP_DIPENDENTI.length===0){
+    h += "<div class='timbra-card' style='text-align:center;padding:1rem;color:var(--text-light);font-weight:700'>Caricamento dipendenti...</div>";
+  } else if(lista.length===0){
+    h += "<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>✅ Tutti i dipendenti hanno già un username.</div>";
+  } else {
+    h += "<div class='table-card'>";
+    for(var k=0;k<lista.length;k++){ var d=lista[k];
+      h += "<div class='table-row'>";
+      h += "<div style='flex:1;min-width:0'>";
+      h += "<div class='row-title'>" + _esc(d.nome + " " + (d.cognome||"")) + "</div>";
+      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + _esc(d.mansione||"") + " · " + _esc(d.struttura||"") + "</div>";
+      h += "</div>";
+      h += "<button style='background:var(--teal);color:white;border:none;border-radius:20px;padding:0.45rem 0.9rem;font-size:12px;font-weight:800;cursor:pointer;font-family:Satoshi,sans-serif' onclick='admApriAbilita("+k+")'>Assegna username</button>";
+      h += "</div>";
+    }
+    h += "</div>";
+  }
+  h += "<button class='update-btn' onclick='fetchDipendentiGP()'>Aggiorna</button>";
+  return h;
+}
+
+function renderAdmin_Utenti(){
+  var h = "";
+  h += "<div class='section-label'><div class='section-title'>Utenti web app</div></div>";
+  if(ADMIN_UTENTI_LOADING){
+    h += "<div style='display:flex;align-items:center;justify-content:center;height:30vh'><div class='spinner' style='width:32px;height:32px;border-width:3px'></div></div>";
+    return h;
+  }
+  if(ADMIN_UTENTI.length===0){
+    h += "<div class='timbra-card' style='text-align:center;padding:1.5rem;color:var(--text-light);font-weight:700'>Nessuna utenza trovata.</div>";
+  } else {
+    for(var i=0;i<ADMIN_UTENTI.length;i++){ var u=ADMIN_UTENTI[i]; var busy=ADMIN_RUOLO_BUSY===u.pageId;
+      h += "<div class='ana-card' style='padding:0.9rem 1rem;margin-bottom:0.6rem'>";
+      h += "<div style='display:flex;justify-content:space-between;align-items:flex-start;gap:8px'>";
+      h += "<div><div style='font-size:15px;font-weight:900;color:var(--text-dark)'>" + _esc(u.username) + "</div>";
+      h += "<div style='font-size:11px;color:var(--text-light);font-weight:600'>" + _esc(u.email||"—") + "</div></div>";
+      h += "<div style='font-size:10px;font-weight:800;padding:3px 9px;border-radius:12px;background:" + (u.attivo?"#E3F6E9;color:#1A5C33":"#FCE4E4;color:#7A1A1A") + "'>" + (u.attivo?"Attivo":"Disattivo") + "</div>";
+      h += "</div>";
+      h += "<label class='dim-lbl'>Ruolo principale</label>";
+      h += "<select class='dim-in' "+(busy?"disabled":"")+" onchange=\"admCambiaRuolo('"+u.pageId+"',this.value)\">";
+      for(var j=0;j<ADMIN_RUOLI.length;j++){ h += "<option value=\""+ADMIN_RUOLI[j]+"\" "+(u.ruolo===ADMIN_RUOLI[j]?"selected":"")+">"+ADMIN_RUOLI[j]+"</option>"; }
+      h += "</select>";
+      h += "<div style='display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px'>";
+      for(var k=0;k<ADMIN_RUOLI.length;k++){ var r=ADMIN_RUOLI[k]; if(r===u.ruolo) continue; var act=u.ruoliAggiuntivi.indexOf(r)>=0;
+        h += "<button class='com-pill"+(act?" on":"")+"' "+(busy?"disabled":"")+" onclick=\"admToggleRuoloAggUtente(ADMIN_UTENTI["+i+"],'"+r+"')\">"+r+"</button>";
+      }
+      h += "</div>";
+      h += "<button style='width:100%;background:var(--coral);color:white;border:none;border-radius:20px;padding:0.6rem;font-size:13px;font-weight:800;cursor:pointer;font-family:Satoshi,sans-serif' "+(busy?"disabled":"")+" onclick=\"admEliminaUtenza('"+u.pageId+"','"+_esc(u.username)+"')\">"+(busy?"Attendere...":"🗑 Elimina utenza")+"</button>";
+      h += "</div>";
+    }
+  }
+  h += "<button class='update-btn' onclick='fetchUtentiWebApp()'>Aggiorna</button>";
+  return h;
+}
+
+function renderAdmin() {
+  var u = S.user;
+  var firstName = u.nome ? u.nome.split(" ")[0] : "utente";
+  var h = "<div class=\"app-screen gp-screen\">";
+  h += "<div class=\"gp-main\">";
+
+  h += "<div class=\"app-header\">";
+  h += "<div class=\"app-greeting\">Buongiorno,<br>" + firstName + "</div>";
+  h += "<div class=\"app-logo\">" + LOGO_IMG + "</div>";
+  h += "</div>";
+
+  h += "<div class=\"app-content\">";
+  if(ADMIN_VIEW==="home") h += renderAdmin_Home();
+  else if(ADMIN_VIEW==="abilitare") h += renderAdmin_Abilitare();
+  else if(ADMIN_VIEW==="utenti") h += renderAdmin_Utenti();
+  else if(ADMIN_VIEW==="privacy") h += renderApp_Inner();
+  h += "</div>";
+  h += "</div>"; // chiude gp-main
+
+  var adminNavs = [
+    {id:"home", icon:"<svg viewBox='0 0 24 24'><path d='M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg>", label:"Home"},
+    {id:"abilitare", icon:"<svg viewBox='0 0 24 24'><path d='M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2'/><circle cx='9' cy='7' r='4'/><line x1='19' y1='8' x2='19' y2='14'/><line x1='22' y1='11' x2='16' y2='11'/></svg>", label:"Da abilitare"},
+    {id:"utenti", icon:"<svg viewBox='0 0 24 24'><circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0116 0v1'/></svg>", label:"Utenti"},
+    {id:"privacy", icon:"<svg viewBox='0 0 24 24'><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>", label:"Privacy"},
+    {id:"logout_admin", icon:"<svg viewBox='0 0 24 24'><path d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'/></svg>", label:"Esci"}
+  ];
+  h += "<div class=\"bottom-nav\">";
+  for(var i=0; i<adminNavs.length; i++){
+    var nav = adminNavs[i];
+    var act = ADMIN_VIEW===nav.id ? "active" : "";
+    var onclick = nav.id==="logout_admin" ? "doLogout()" : "admGo('"+nav.id+"')";
+    h += "<div class=\"bnav-item " + act + "\" onclick=\"" + onclick + "\">";
+    h += "<div class=\"bnav-icon\">" + nav.icon + "</div>";
+    h += "<div class=\"bnav-label\">" + nav.label + "</div></div>";
+  }
+  h += "</div></div>";
+  document.getElementById("root").innerHTML = h;
+}
+
 function setView(v) { S.view=v; if(v==="privacy") fetchIncaricati(); render(); }
 function setFilter(f) { S.filter=f; render(); }
 function setFC(c) { S.filterCanale=c; render(); }
+
+// ===== VISTA PRIVACY/MARKETING (incorporata nell'admin) =====
+function renderApp_Inner() {
+  var p = S.posts;
+  var pub=0,appr=0,bozza=0,rev=0;
+  for(var i=0;i<p.length;i++){
+    if(p[i].stato==="Pubblicato") pub++;
+    else if(p[i].stato==="Approvato") appr++;
+    else if(p[i].stato==="Bozza") bozza++;
+    else rev++;
+  }
+  var total=p.length;
+  var perc=total>0?Math.round(pub/total*100):0;
+  var m="";
+
+  m += "<div class=\"nav-tabs\">";
+  var subviews=[["dashboard","Home"],["lista","Lista"],["calendario","Calendario"],["privacy","Privacy"]];
+  for(var sv=0; sv<subviews.length; sv++){
+    var svid=subviews[sv][0]; var svact=(S.view===svid||(!S.view&&svid==="dashboard"))?"active":"inactive";
+    m += "<div class=\"nav-tab "+svact+"\" onclick=\"setView('"+svid+"')\">"+subviews[sv][1]+"</div>";
+  }
+  m += "</div>";
+
+  if(!S.view || S.view==="dashboard") {
+    m += "<div class=\"nav-tabs\">";
+    m += "<div class=\"nav-tab "+(S.dashTab==="all"||!S.dashTab?"active":"inactive")+"\" onclick=\"S.dashTab='all';render()\">All</div>";
+    m += "<div class=\"nav-tab "+(S.dashTab==="marketing"?"active":"inactive")+"\" onclick=\"S.dashTab='marketing';render()\">Marketing</div>";
+    m += "<div class=\"nav-tab "+(S.dashTab==="privacy"?"active":"inactive")+"\" onclick=\"S.dashTab='privacy';fetchIncaricati();render()\">Privacy</div>";
+    m += "</div>";
+    var showMarketing=!S.dashTab||S.dashTab==="all"||S.dashTab==="marketing";
+    var showPrivacy=S.dashTab==="all"||S.dashTab==="privacy";
+    if(showMarketing){
+      m += "<div class=\"section-label\"><div class=\"section-title\">Status Marketing</div></div>";
+      m += "<div class=\"stat-card\"><div class=\"stat-card-orb\"></div><div class=\"stat-label\">Post totali</div><div class=\"stat-number\">"+total+"</div><div class=\"stat-sub\">piano editoriale maggio</div></div>";
+      m += "<div class=\"half-cards\">";
+      m += "<div class=\"half-card cyan\"><div class=\"half-card-orb\"></div><div class=\"half-card-label\">Pubblicati</div><div class=\"half-card-number\">"+perc+"%</div><div class=\"half-card-unit\">"+pub+" su "+total+"</div></div>";
+      m += "<div class=\"half-card dark\"><div class=\"half-card-orb\"></div><div class=\"half-card-label\">In lavorazione</div><div class=\"half-card-number\">"+appr+"</div><div class=\"half-card-unit\">approvati</div></div>";
+      m += "</div>";
+      m += "<div class=\"section-label\" style=\"margin-top:1rem\"><div class=\"section-title\">Piano editoriale</div></div>";
+      m += "<div class=\"piano-chips\">";
+      m += "<div class=\"piano-chip\" style=\"background:#E8603A;color:white\" onclick=\"setView('lista');setFilter('Approvato')\"><span class=\"chip-count\">"+appr+"</span>Approvati</div>";
+      m += "<div class=\"piano-chip\" style=\"background:#EF8060;color:white\" onclick=\"setView('lista');setFilter('Revisione')\"><span class=\"chip-count\">"+rev+"</span>Revisione</div>";
+      m += "<div class=\"piano-chip\" style=\"background:#F4A080;color:white\" onclick=\"setView('lista');setFilter('Pubblicato')\"><span class=\"chip-count\">"+pub+"</span>Pubblicati</div>";
+      m += "<div class=\"piano-chip\" style=\"background:#C0A060;color:white\" onclick=\"setView('lista');setFilter('Bozza')\"><span class=\"chip-count\">"+bozza+"</span>Bozza</div>";
+      m += "</div>";
+    }
+    if(showPrivacy){
+      var firmati=INCARICATI.filter(function(x){return x.nomina==="Firmata";}).length;
+      var nonInviati=INCARICATI.filter(function(x){return x.nomina==="Non inviata";}).length;
+      var inviati=INCARICATI.filter(function(x){return x.nomina==="Inviata";}).length;
+      var solleciti=INCARICATI.filter(function(x){return x.nomina==="Sollecito";}).length;
+      m += "<div class=\"section-label\" style=\"margin-top:1rem\"><div class=\"section-title\">Status Privacy</div></div>";
+      m += "<div class=\"stat-card\" style=\"background:#0D5955\"><div class=\"stat-card-orb\"></div><div class=\"stat-label\">Incaricati totali</div><div class=\"stat-number\">"+INCARICATI.length+"</div><div class=\"stat-sub\">nomine al trattamento dati</div></div>";
+      m += "<div class=\"piano-chips\">";
+      m += "<div class=\"piano-chip\" style=\"background:#1A6B3A;color:white\" onclick=\"setView('privacy');S.privacySection='incaricati';\"><span class=\"chip-count\">"+firmati+"</span>Firmati</div>";
+      m += "<div class=\"piano-chip\" style=\"background:#1A4A7A;color:white\" onclick=\"setView('privacy');S.privacySection='incaricati';\"><span class=\"chip-count\">"+inviati+"</span>Inviati</div>";
+      m += "<div class=\"piano-chip\" style=\"background:#E8603A;color:white\" onclick=\"setView('privacy');S.privacySection='incaricati';\"><span class=\"chip-count\">"+solleciti+"</span>Solleciti</div>";
+      m += "<div class=\"piano-chip\" style=\"background:#888;color:white\" onclick=\"setView('privacy');S.privacySection='incaricati';\"><span class=\"chip-count\">"+nonInviati+"</span>Non inviati</div>";
+      m += "</div>";
+    }
+    m += "<button class=\"update-btn\" onclick=\"fetchPosts();fetchIncaricati()\">Aggiorna tutto</button>";
+  }
+  else if(S.view==="lista"){
+    var posts=[];
+    for(var j=0;j<p.length;j++){
+      if(S.filter!=="Tutti"&&p[j].stato!==S.filter) continue;
+      if(S.filterCanale!=="Tutti"&&p[j].canali.indexOf(S.filterCanale)<0) continue;
+      posts.push(p[j]);
+    }
+    m += "<div class=\"filters\">";
+    var stati=["Tutti","Pubblicato","Approvato","Bozza","Revisione"];
+    for(var k=0;k<stati.length;k++){var cls=S.filter===stati[k]?"active":"inactive";m+="<div class=\"filt "+cls+"\" onclick=\"setFilter('"+stati[k]+"')\">"+stati[k]+"</div>";}
+    m += "</div><div class=\"filters\">";
+    var can=["Tutti","Instagram","Facebook","LinkedIn"];
+    for(var l=0;l<can.length;l++){var cls2=S.filterCanale===can[l]?"active":"inactive";m+="<div class=\"filt "+cls2+"\" onclick=\"setFC('"+can[l]+"')\">"+can[l]+"</div>";}
+    m += "</div><div class=\"table-card\">";
+    if(posts.length===0){m+="<div style=\"padding:2rem;text-align:center;color:#7A9999;font-weight:700\">Nessun post trovato</div>";}
+    else{for(var n=0;n<posts.length;n++){var x=posts[n];m+="<div class=\"table-row\"><div class=\"row-title\">"+x.titolo+"</div><div class=\"row-date\">"+fmtDate(x.data)+"</div><div class=\"row-channels\">";for(var q=0;q<x.canali.length;q++)m+=chHtml(x.canali[q]);m+="</div><div class=\""+badgeClass(x.stato)+"\">"+x.stato+"</div></div>";}}
+    m += "</div>";
+  }
+  else if(S.view==="privacy"){
+    m += renderPrivacy();
+  }
+  else if(S.view==="calendario"){
+    var byDate={};
+    for(var bi=0;bi<p.length;bi++){var dd=p[bi].data.split("-")[2];if(!byDate[dd])byDate[dd]=[];byDate[dd].push(p[bi]);}
+    var firstDay=new Date(2026,4,1).getDay();var daysInMonth=31;var start=firstDay===0?6:firstDay-1;var cells="";
+    for(var si=0;si<start;si++)cells+="<div class=\"cal-day other\"></div>";
+    for(var di=1;di<=daysInMonth;di++){var ds=di<10?"0"+di:""+di;var dp=byDate[ds]||[];cells+="<div class=\"cal-day "+(di===5?"today":"")+"\">";cells+="<div class=\"cal-num\">"+di+"</div>";for(var ei=0;ei<Math.min(2,dp.length);ei++){var chs=dp[ei].canali.map(function(c){return c==="Instagram"?"IG":c==="Facebook"?"FB":"LI";}).join("+");cells+="<div class=\"cal-ev "+(dp[ei].stato==="Pubblicato"?"pub":"")+"\">"+chs+"</div>";}if(dp.length>2)cells+="<div style=\"font-size:8px;color:#7A9999;padding:1px 3px\">+"+(dp.length-2)+"</div>";cells+="</div>";}
+    m+="<div class=\"cal-wrap\"><div class=\"cal-month\">Maggio 2026</div><div class=\"cal-grid\">";
+    var dn=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];for(var dni=0;dni<7;dni++)m+="<div class=\"cal-dn\">"+dn[dni]+"</div>";
+    m+=cells+"</div></div>";
+  }
+  return m;
+}
 
 function renderApp() {
   if(S.loading) {
