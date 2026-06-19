@@ -47,20 +47,33 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
   const [posts, setPosts] = useState<any[]>([]);
   const [incaricati, setIncaricati] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPrivacy, setLoadingPrivacy] = useState(false);
   const [filterStato, setFilterStato] = useState("Tutti");
   const [filterCanale, setFilterCanale] = useState("Tutti");
+  // privacySection: quale sotto-vista dentro il tab "privacy" — null = home con le card, "incaricati" = lista
+  const [privacySection, setPrivacySection] = useState<"incaricati" | null>(null);
   const [privacyDetail, setPrivacyDetail] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
   const firstName = (nome || "").split(" ")[0] || "utente";
 
-  useEffect(() => {
+  function loadAll() {
+    setLoading(true);
     Promise.all([ProxyApi.posts(), ProxyApi.incaricati()]).then(([p, inc]) => {
       setPosts(Array.isArray(p) ? p : []);
       setIncaricati(Array.isArray(inc) ? inc : []);
       setLoading(false);
     });
-  }, []);
+  }
+  function loadIncaricati() {
+    setLoadingPrivacy(true);
+    ProxyApi.incaricati().then(r => {
+      setIncaricati(Array.isArray(r) ? r : []);
+      setLoadingPrivacy(false);
+    });
+  }
+
+  useEffect(() => { loadAll(); }, []);
 
   const pub = posts.filter((p: any) => p.stato === "Pubblicato").length;
   const appr = posts.filter((p: any) => p.stato === "Approvato").length;
@@ -74,10 +87,27 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
   const solleciti = incaricati.filter((x: any) => x.nomina === "Sollecito").length;
   const nonInviati = incaricati.filter((x: any) => x.nomina === "Non inviata" || !x.nomina).length;
 
-  async function azioneNomina(_inc: any, _stato: string) {
+  async function azioneNomina(inc: any, stato: "Inviata" | "Sollecito") {
     setActionLoading(true);
-    await ProxyApi.incaricati(); // placeholder - il webhook reale è AZIONE_URL che non abbiamo ancora
+    const oggi = new Date().toISOString().split("T")[0];
+    await ProxyApi.azioneNomina({
+      pageId: inc.pageId, email: inc.email, nome: inc.nome, cognome: inc.cognome,
+      stato, dataInvio: oggi,
+      subject: "Nomina a Incaricato del Trattamento Dati - Senca Senior Care",
+      body: `Gentile ${inc.nome} ${inc.cognome},<br><br>Le inviamo la nomina a incaricato del trattamento dei dati personali.<br><br>La preghiamo di firmare e restituire il documento allegato.<br><br>Cordiali saluti,<br>Senca Senior Care`
+    });
     setActionLoading(false);
+    loadIncaricati();
+  }
+
+  function openPrivacyTab() {
+    setTab("privacy");
+    setPrivacySection(null);
+    setPrivacyDetail(null);
+  }
+  function openIncaricatiSection() {
+    setPrivacySection("incaricati");
+    loadIncaricati();
   }
 
   const filteredPosts = posts.filter((p: any) => {
@@ -90,8 +120,9 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
     return (
       <div className="app-screen">
         <div className="app-header"><div className="app-greeting">Buongiorno,<br />{firstName}</div></div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: "1rem" }}>
           <div className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }}></div>
+          <div style={{ color: "#7A9999", fontWeight: 700, fontSize: 14 }}>Caricamento dati da Notion...</div>
         </div>
       </div>
     );
@@ -105,18 +136,11 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
       <div className="app-content">
         <RoleSwitchMini visible={showRoleSwitch} onClick={onShowRoleChooser} />
 
-        {/* Sub-nav */}
-        <div className="nav-tabs">
-          {([["dashboard","Home"],["lista","Lista"],["privacy","Privacy"]] as [PrivacyTab, string][]).map(([v, l]) => (
-            <div key={v} className={`nav-tab ${tab === v ? "active" : "inactive"}`} onClick={() => setTab(v)}>{l}</div>
-          ))}
-        </div>
-
         {tab === "dashboard" && (
           <div>
             <div className="nav-tabs">
               {(["all","marketing","privacy"] as const).map(t => (
-                <div key={t} className={`nav-tab ${dashTab === t ? "active" : "inactive"}`} onClick={() => setDashTab(t)}>
+                <div key={t} className={`nav-tab ${dashTab === t ? "active" : "inactive"}`} onClick={() => { setDashTab(t); if (t === "privacy") loadIncaricati(); }}>
                   {t === "all" ? "All" : t === "marketing" ? "Marketing" : "Privacy"}
                 </div>
               ))}
@@ -125,18 +149,17 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
             {(dashTab === "all" || dashTab === "marketing") && (
               <>
                 <div className="section-label"><div className="section-title">Status Marketing</div></div>
-                <div className="stat-card"><div className="stat-card-orb"></div><div className="stat-label">Post totali</div><div className="stat-number">{total}</div></div>
+                <div className="stat-card"><div className="stat-card-orb"></div><div className="stat-label">Post totali</div><div className="stat-number">{total}</div><div className="stat-sub">piano editoriale maggio</div></div>
                 <div className="half-cards">
                   <div className="half-card cyan"><div className="half-card-orb"></div><div className="half-card-label">Pubblicati</div><div className="half-card-number">{perc}%</div><div className="half-card-unit">{pub} su {total}</div></div>
                   <div className="half-card dark"><div className="half-card-orb"></div><div className="half-card-label">In lavorazione</div><div className="half-card-number">{appr}</div><div className="half-card-unit">approvati</div></div>
                 </div>
                 <div className="section-label" style={{ marginTop: "1rem" }}><div className="section-title">Piano editoriale</div></div>
                 <div className="piano-chips">
-                  {[["#E8603A","Approvati",appr],["#EF8060","Revisione",rev],["#F4A080","Pubblicati",pub],["#C0A060","Bozza",bozza]].map(([bg, label, count]) => (
-                    <div key={label as string} className="piano-chip" style={{ background: bg as string, color: "white" }} onClick={() => { setTab("lista"); setFilterStato(label as string === "Approvati" ? "Approvato" : label as string === "Pubblicati" ? "Pubblicato" : label as string); }}>
-                      <span className="chip-count">{count}</span>{label}
-                    </div>
-                  ))}
+                  <div className="piano-chip" style={{ background: "#E8603A", color: "white" }} onClick={() => { setTab("lista"); setFilterStato("Approvato"); }}><span className="chip-count">{appr}</span>Approvati</div>
+                  <div className="piano-chip" style={{ background: "#EF8060", color: "white" }} onClick={() => { setTab("lista"); setFilterStato("Revisione"); }}><span className="chip-count">{rev}</span>Revisione</div>
+                  <div className="piano-chip" style={{ background: "#F4A080", color: "white" }} onClick={() => { setTab("lista"); setFilterStato("Pubblicato"); }}><span className="chip-count">{pub}</span>Pubblicati</div>
+                  <div className="piano-chip" style={{ background: "#C0A060", color: "white" }} onClick={() => { setTab("lista"); setFilterStato("Bozza"); }}><span className="chip-count">{bozza}</span>Bozza</div>
                 </div>
               </>
             )}
@@ -146,15 +169,14 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
                 <div className="section-label" style={{ marginTop: "1rem" }}><div className="section-title">Status Privacy</div></div>
                 <div className="stat-card" style={{ background: "#0D5955" }}><div className="stat-card-orb"></div><div className="stat-label">Incaricati totali</div><div className="stat-number">{incaricati.length}</div><div className="stat-sub">nomine al trattamento dati</div></div>
                 <div className="piano-chips">
-                  {[["#1A6B3A","Firmati",firmati],["#1A4A7A","Inviati",inviati],["#E8603A","Solleciti",solleciti],["#888","Non inviati",nonInviati]].map(([bg, label, count]) => (
-                    <div key={label as string} className="piano-chip" style={{ background: bg as string, color: "white" }} onClick={() => setTab("privacy")}>
-                      <span className="chip-count">{count}</span>{label}
-                    </div>
-                  ))}
+                  <div className="piano-chip" style={{ background: "#1A6B3A", color: "white" }} onClick={() => { openPrivacyTab(); openIncaricatiSection(); }}><span className="chip-count">{firmati}</span>Firmati</div>
+                  <div className="piano-chip" style={{ background: "#1A4A7A", color: "white" }} onClick={() => { openPrivacyTab(); openIncaricatiSection(); }}><span className="chip-count">{inviati}</span>Inviati</div>
+                  <div className="piano-chip" style={{ background: "#E8603A", color: "white" }} onClick={() => { openPrivacyTab(); openIncaricatiSection(); }}><span className="chip-count">{solleciti}</span>Solleciti</div>
+                  <div className="piano-chip" style={{ background: "#888", color: "white" }} onClick={() => { openPrivacyTab(); openIncaricatiSection(); }}><span className="chip-count">{nonInviati}</span>Non inviati</div>
                 </div>
               </>
             )}
-            <button className="update-btn" onClick={() => Promise.all([ProxyApi.posts(), ProxyApi.incaricati()]).then(([p,inc]) => { setPosts(Array.isArray(p)?p:[]); setIncaricati(Array.isArray(inc)?inc:[]); })}>Aggiorna tutto</button>
+            <button className="update-btn" onClick={loadAll}>Aggiorna tutto</button>
           </div>
         )}
 
@@ -186,53 +208,95 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
           </div>
         )}
 
-        {tab === "privacy" && !privacyDetail && (
-          <div>
-            <div className="section-label"><div className="section-title">Incaricati al trattamento</div></div>
-            <div className="table-card">
-              {incaricati.length === 0
-                ? <div style={{ padding: "2rem", textAlign: "center", color: "#7A9999", fontWeight: 700 }}>Nessun incaricato trovato</div>
-                : incaricati.map((inc: any, i: number) => (
-                  <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => setPrivacyDetail(inc)}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="row-title">{inc.nome} {inc.cognome}</div>
-                      <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{inc.mansione}</div>
-                    </div>
-                    <div style={{ padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 800, background: nominaBg(inc.nomina), color: nominaColor(inc.nomina), whiteSpace: "nowrap" }}>{inc.nomina || "Non inviata"}</div>
-                  </div>
-                ))
-              }
-            </div>
-            <button className="update-btn" onClick={() => ProxyApi.incaricati().then(r => setIncaricati(Array.isArray(r) ? r : []))}>Aggiorna</button>
-          </div>
-        )}
-
         {tab === "privacy" && privacyDetail && (
           <div>
             <div style={{ background: "var(--teal-dark)", borderRadius: "var(--radius)", padding: "1.5rem", marginBottom: "1rem", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", right: -20, top: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.15), transparent)" }}></div>
               <div style={{ fontSize: 22, fontWeight: 900, color: "white", marginBottom: 4 }}>{privacyDetail.nome} {privacyDetail.cognome}</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{privacyDetail.mansione}</div>
             </div>
-            <div className="ana-card">
-              {[["Contratto", privacyDetail.contratto], ["Email", privacyDetail.email], ["Nomina", privacyDetail.nomina || "Non inviata"], ["Data invio", fmtDateIt(privacyDetail.dataInvio)], ["Data firma", fmtDateIt(privacyDetail.dataFirma)]].map(([k, v]) => (
-                <div className="ana-row" key={k as string}><div className="ana-label">{k}</div><div className="ana-value">{v || "—"}</div></div>
-              ))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "1rem" }}>
+            <div style={{ background: "var(--cyan)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "0.5rem", fontSize: 14, fontWeight: 700, color: "white" }}>{privacyDetail.contratto || "—"}</div>
+            <div style={{ background: "var(--cyan)", borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "1rem", fontSize: 14, fontWeight: 700, color: "white" }}>{privacyDetail.email || "—"}</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-dark)", marginBottom: "0.5rem" }}>Nomina</div>
+            <div style={{ background: nominaBg(privacyDetail.nomina), borderRadius: "var(--radius-sm)", padding: "0.85rem 1rem", marginBottom: "0.5rem", fontSize: 14, fontWeight: 800, color: nominaColor(privacyDetail.nomina) }}>{privacyDetail.nomina || "Non inviata"}</div>
+            {privacyDetail.dataInvio && <div style={{ background: "white", borderRadius: "var(--radius-sm)", padding: "0.75rem 1rem", marginBottom: "0.5rem", fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>📤 Inviata il: {fmtDateIt(privacyDetail.dataInvio)}</div>}
+            {privacyDetail.dataFirma && <div style={{ background: "white", borderRadius: "var(--radius-sm)", padding: "0.75rem 1rem", marginBottom: "0.5rem", fontSize: 13, fontWeight: 700, color: "var(--text-mid)" }}>✍️ Firmata il: {fmtDateIt(privacyDetail.dataFirma)}</div>}
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", flexDirection: "column" }}>
               {privacyDetail.nomina !== "Firmata" && (
                 privacyDetail.nomina === "Non inviata" || !privacyDetail.nomina
-                  ? <button className="update-btn" style={{ background: "var(--teal)" }} disabled={actionLoading} onClick={() => azioneNomina(privacyDetail, "Inviata")}>📨 Invia nomina</button>
-                  : <button className="update-btn" style={{ background: "var(--coral)" }} disabled={actionLoading} onClick={() => azioneNomina(privacyDetail, "Sollecito")}>🔔 Sollecita</button>
+                  ? <button disabled={actionLoading} onClick={() => azioneNomina(privacyDetail, "Inviata")} style={{ padding: "0.9rem", background: "var(--teal)", borderRadius: 30, border: "none", fontSize: 15, fontWeight: 800, color: "white", cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>📨 Invia nomina</button>
+                  : <button disabled={actionLoading} onClick={() => azioneNomina(privacyDetail, "Sollecito")} style={{ padding: "0.9rem", background: "var(--coral)", borderRadius: 30, border: "none", fontSize: 15, fontWeight: 800, color: "white", cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>🔔 Sollecita</button>
               )}
-              <button className="update-btn" onClick={() => setPrivacyDetail(null)}>← Indietro</button>
+              <button onClick={() => setPrivacyDetail(null)} style={{ padding: "0.9rem", background: "var(--coral)", borderRadius: 30, border: "none", fontSize: 15, fontWeight: 800, color: "white", cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>← Indietro</button>
             </div>
+          </div>
+        )}
+
+        {tab === "privacy" && !privacyDetail && loadingPrivacy && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "50vh", flexDirection: "column", gap: "1rem" }}>
+            <div className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }}></div>
+            <div style={{ color: "#7A9999", fontWeight: 700, fontSize: 14 }}>Caricamento incaricati...</div>
+          </div>
+        )}
+
+        {tab === "privacy" && !privacyDetail && !loadingPrivacy && (
+          <div>
+            <div style={{ background: "var(--coral)", borderRadius: 30, padding: "0.75rem", textAlign: "center", fontSize: 16, fontWeight: 800, color: "white", marginBottom: "1.25rem" }}>Privacy</div>
+            <div className="half-cards">
+              <div className="half-card dark" style={{ cursor: "pointer" }} onClick={openIncaricatiSection}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Incaricati</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>al trattamento</div>
+              </div>
+              <div className="half-card" style={{ background: "var(--teal)", cursor: "pointer" }}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Responsabili</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>al trattamento</div>
+              </div>
+            </div>
+            <div style={{ background: "var(--cyan)", borderRadius: "var(--radius)", padding: "1.25rem 1.5rem", marginBottom: "0.75rem", cursor: "pointer" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "white" }}>Status dei lavori</div>
+            </div>
+            <div className="half-cards">
+              <div className="half-card" style={{ background: "var(--coral)", cursor: "pointer" }}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: "white" }}>Amministratori</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>di sistema</div>
+              </div>
+              <div className="half-card dark" style={{ cursor: "pointer" }}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: "white" }}>Pazienti</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>e utenti</div>
+              </div>
+            </div>
+
+            {privacySection === "incaricati" && (
+              <>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-dark)", margin: "1rem 0 0.75rem" }}>Incaricati al trattamento</div>
+                <div className="table-card">
+                  {incaricati.filter((i: any) => i.nome).length === 0
+                    ? <div style={{ padding: "2rem", textAlign: "center", color: "#7A9999", fontWeight: 700 }}>Nessun incaricato trovato</div>
+                    : incaricati.filter((i: any) => i.nome).map((inc: any, i: number) => (
+                      <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => setPrivacyDetail(inc)}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="row-title">{inc.nome} {inc.cognome}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{inc.mansione || ""}</div>
+                        </div>
+                        <div style={{ padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 800, background: nominaBg(inc.nomina), color: nominaColor(inc.nomina), whiteSpace: "nowrap", flexShrink: 0 }}>{inc.nomina || "Non inviata"}</div>
+                      </div>
+                    ))
+                  }
+                </div>
+                <button className="update-btn" onClick={loadIncaricati}>Aggiorna</button>
+              </>
+            )}
           </div>
         )}
       </div>
 
       <div className="bottom-nav">
         {([["dashboard","Home"],["lista","Lista"],["privacy","Privacy"]] as [PrivacyTab, string][]).map(([v, l]) => (
-          <div key={v} className={`bnav-item ${tab === v ? "active" : ""}`} onClick={() => setTab(v)}>
+          <div key={v} className={`bnav-item ${tab === v ? "active" : ""}`} onClick={() => v === "privacy" ? openPrivacyTab() : setTab(v)}>
             <div className="bnav-label">{l}</div>
           </div>
         ))}
