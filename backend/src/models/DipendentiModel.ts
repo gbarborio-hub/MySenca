@@ -11,7 +11,7 @@ function fromNotionPage(page: any): Dipendente {
     cognome: rt(p["Cognome"]) || "",
     username: rt(p["Username"]) || null,
     mansione: rt(p["Mansione"]) || sel(p["Mansione"]) || "",
-    struttura: rt(p["Struttura"]) || sel(p["Struttura"]) || "",
+    struttura: rt(p["Struttura principale"]) || sel(p["Struttura principale"]) || "",
     email: email(p["Email"]) || null
   };
 }
