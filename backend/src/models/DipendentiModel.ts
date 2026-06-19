@@ -1,7 +1,7 @@
 import { notion, rt, sel, email } from "./notionClient.js";
 import type { Dipendente } from "../types/domain.js";
 
-const DB_DIPENDENTI = "f9a4aff0-bd94-43a9-8ab3-f4905c1ce0a1";
+const DB_DIPENDENTI = "28edb837413c47bf87d38a52067c3bae";
 
 function fromNotionPage(page: any): Dipendente {
   const p = page.properties || {};
