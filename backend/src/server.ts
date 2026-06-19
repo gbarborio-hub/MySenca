@@ -8,6 +8,7 @@ import "dotenv/config";
 import { authRouter } from "./routes/auth.routes.js";
 import { dipendentiRouter } from "./routes/dipendenti.routes.js";
 import { utentiRouter } from "./routes/utenti.routes.js";
+import { dipendentiProxyRouter } from "./routes/proxy.routes.js";
 import { RotationService } from "./services/RotationService.js";
 
 const app = express();
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use("/api/auth", authRouter);
 app.use("/api/dipendenti", dipendentiRouter);
 app.use("/api/utenti", utentiRouter);
+app.use("/api/proxy", dipendentiProxyRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

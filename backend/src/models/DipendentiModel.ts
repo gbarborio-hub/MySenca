@@ -1,4 +1,4 @@
-import { notion, rt, sel, title, email } from "./notionClient.js";
+import { notion, rt, sel, title } from "./notionClient.js";
 import type { Dipendente } from "../types/domain.js";
 
 const DB_DIPENDENTI = "28edb837413c47bf87d38a52067c3bae";
@@ -12,7 +12,7 @@ function fromNotionPage(page: any): Dipendente {
     username: rt(p["Username"]) || null,
     mansione: rt(p["Mansione"]) || sel(p["Mansione"]) || "",
     struttura: rt(p["Struttura principale"]) || sel(p["Struttura principale"]) || "",
-    email: email(p["Email"]) || null
+    email: rt(p["Email"]) || null
   };
 }
 

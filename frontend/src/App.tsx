@@ -22,9 +22,9 @@ export default function App() {
     case "Admin":
       return <AdminView nome={user.nome} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     case "Gestione personale":
-      return <GestionePersonaleView nome={user.nome} onLogout={logout} />;
+      return <GestionePersonaleView nome={user.nome} username={user.username} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     case "Dipendente":
-      return <DipendenteView nome={user.nome} onLogout={logout} />;
+      return <DipendenteView username={user.username} nome={user.nome} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     case "Privacy":
       return <PrivacyView nome={user.nome} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     default:
