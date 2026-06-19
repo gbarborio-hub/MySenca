@@ -59,7 +59,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
       const r = await ProxyApi.gpFerie();
       setFerie(Array.isArray(r) ? r : []);
     } else if (v === "comunicazioni") {
-      const r = await ProxyApi.gpComunicazioni();
+      const r = await ProxyApi.comunicazioniLista();
       setComunicazioni(Array.isArray(r) ? r : []);
     } else if (v === "strutture") {
       const r = await ProxyApi.gpStrutture();
@@ -77,11 +77,11 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     if (!comTitolo.trim()) { setComMsg("⚠️ Inserisci un titolo."); return; }
     setComSending(true);
     setComMsg("⏳ Invio in corso...");
-    await ProxyApi.gpComInvia({ titolo: comTitolo, messaggio: comMessaggio, mittente: username, tipoDestinatari: comTipo });
+    await ProxyApi.comunicazioneCrea({ titolo: comTitolo, messaggio: comMessaggio, mittente: username, tipoDestinatari: comTipo });
     setComSending(false);
     setComMsg("✅ Comunicazione inviata.");
     setComTitolo(""); setComMessaggio("");
-    const r = await ProxyApi.gpComunicazioni();
+    const r = await ProxyApi.comunicazioniLista();
     setComunicazioni(Array.isArray(r) ? r : []);
   }
 

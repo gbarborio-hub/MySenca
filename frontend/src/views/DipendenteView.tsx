@@ -49,11 +49,11 @@ export default function DipendenteView({ username, nome, showRoleSwitch, onShowR
     ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : []));
     ProxyApi.turniRead(nome).then(r => setTurni(Array.isArray(r) ? r : []));
     ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
-    ProxyApi.dipComunicazioni(username).then(r => setComunicazioni(Array.isArray(r) ? r : []));
+    ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : []));
     ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r));
     ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
     ProxyApi.profilo(username).then(r => setProfilo(r));
-    ProxyApi.dipDocs(username).then(r => setDocs(Array.isArray(r) ? r : []));
+    ProxyApi.documentiLista({ username }).then(r => setDocs(Array.isArray(r) ? r : []));
   }, [username, nome]);
 
   async function doTimbraEntrata() {
@@ -254,7 +254,7 @@ export default function DipendenteView({ username, nome, showRoleSwitch, onShowR
             {comunicazioni.length === 0
               ? <div className="timbra-card" style={{ textAlign: "center", color: "var(--text-light)", fontWeight: 700 }}>Nessuna comunicazione</div>
               : comunicazioni.map((c: any, i: number) => (
-                <div className="ana-card" key={i} style={{ marginBottom: "0.5rem", padding: "0.9rem 1rem", opacity: c.letta ? 0.7 : 1, cursor: "pointer" }} onClick={() => !c.letta && ProxyApi.dipComunicazioneLetta(c.id).then(() => ProxyApi.dipComunicazioni(username).then(r => setComunicazioni(Array.isArray(r) ? r : [])))}>
+                <div className="ana-card" key={i} style={{ marginBottom: "0.5rem", padding: "0.9rem 1rem", opacity: c.letta ? 0.7 : 1, cursor: "pointer" }} onClick={() => !c.letta && ProxyApi.comunicazioneLetta(c.id).then(() => ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : [])))}>
                   <div style={{ fontSize: 14, fontWeight: c.letta ? 600 : 900, color: "var(--text-dark)" }}>{c.titolo || c.testo}</div>
                   <div style={{ fontSize: 12, color: "var(--text-light)", fontWeight: 600 }}>{fmtDateIt(c.data)}</div>
                 </div>

@@ -6,22 +6,32 @@ const p = <T>(path: string, body: unknown = {}) => api.post<T>(`/proxy/${path}`,
 export const ProxyApi = {
   // Strutture
   strutture: () => p<any[]>("/strutture", {}),
-  // Profilo dipendente
+  gpStrutture: () => p<any[]>("/gp-strutture", {}),
+  strutturaSalva: (payload: unknown) => p<any>("/struttura-salva", payload),
+  // Profilo
   profilo: (username: string) => p<any>("/profilo", { username }),
   // Turni
   turniRead: (nome: string) => p<any[]>("/turni-read", { nome }),
-  // Timbrature dipendente
+  turniGriglia: (payload?: unknown) => p<any[]>("/turni-griglia", payload || {}),
+  turniScrivi: (payload: unknown) => p<any>("/turni-scrivi", payload),
+  legendaRead: () => p<any[]>("/legenda-read", {}),
+  // Timbrature
   timbratureRead: (username: string) => p<any[]>("/timbrature-read", { username }),
   timbra: (payload: unknown) => p<any>("/timbra", payload),
+  timbraturaUpdate: (payload: unknown) => p<any>("/timbratura-update", payload),
   // Ferie
   ferieSaldo: (username: string) => p<any>("/ferie-saldo", { username }),
   ferieLettura: (username: string) => p<any[]>("/ferie-lettura", { username }),
   ferieRichiesta: (payload: unknown) => p<any>("/ferie-richiesta", payload),
-  // Comunicazioni
-  dipComunicazioni: (username: string) => p<any[]>("/dip-comunicazioni", { username }),
-  dipComunicazioneLetta: (id: string) => p<any>("/dip-comunicazione-letta", { id }),
-  // Documenti
-  dipDocs: (username: string) => p<any[]>("/dip-docs", { username }),
+  ferieUpdate: (payload: unknown) => p<any>("/ferie-update", payload),
+  // Comunicazioni (condivise dipendente + GP)
+  comunicazioniLista: (payload?: unknown) => p<any[]>("/comunicazioni-lista", payload || {}),
+  comunicazioneCrea: (payload: unknown) => p<any>("/comunicazione-crea", payload),
+  comunicazioneLetta: (id: string) => p<any>("/comunicazione-letta", { id }),
+  // Documenti (condivisi dipendente + GP)
+  documentiLista: (payload?: unknown) => p<any[]>("/documenti-lista", payload || {}),
+  documentoCarica: (payload: unknown) => p<any>("/documento-carica", payload),
+  documentoElimina: (payload: unknown) => p<any>("/documento-elimina", payload),
   // Contatti
   contatti: () => p<any[]>("/contatti", {}),
   // Segnalazione
@@ -30,15 +40,8 @@ export const ProxyApi = {
   gpDipendenti: () => p<any[]>("/gp-dipendenti", {}),
   gpTimbrature: (payload?: unknown) => p<any[]>("/gp-timbrature", payload || {}),
   gpFerie: (payload?: unknown) => p<any[]>("/gp-ferie", payload || {}),
-  gpComunicazioni: () => p<any[]>("/gp-comunicazioni", {}),
-  gpComInvia: (payload: unknown) => p<any>("/gp-com-invia", payload),
-  gpComLetta: (id: string) => p<any>("/gp-com-letta", { id }),
-  gpBuste: (dipId: string) => p<any[]>("/gp-buste", { dipId }),
-  gpDocs: (dipId: string) => p<any[]>("/gp-docs", { dipId }),
-  gpDocUpload: (payload: unknown) => p<any>("/gp-doc-upload", payload),
-  strutturaSalva: (payload: unknown) => p<any>("/struttura-salva", payload),
-  gpStrutture: () => p<any[]>("/gp-strutture", {}),
-  // Privacy
+  // Privacy (Make)
   posts: () => p<any[]>("/posts", {}),
   incaricati: () => p<any[]>("/incaricati", {}),
+  azioneNomina: (payload: unknown) => p<any>("/azione-nomina", payload),
 };
