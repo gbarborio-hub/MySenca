@@ -40,6 +40,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
   const [dipSearch, setDipSearch] = useState("");
   const [timbrature, setTimbrature] = useState<any[]>([]);
   const [gpTimbBusy, setGpTimbBusy] = useState<string | null>(null);
+  const [gpFerieBusy, setGpFerieBusy] = useState<string | null>(null);
   const [ferie, setFerie] = useState<any[]>([]);
   const [strutture, setStrutture] = useState<any[]>([]);
   const [strutLoading, setStrutLoading] = useState(false);
@@ -82,9 +83,16 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
   }
 
   async function approvaFeria(pageId: string, stato: "Approvata" | "Rifiutata") {
-    await ProxyApi.gpFerie({ pageId, stato });
-    const r = await ProxyApi.gpFerie();
-    setFerie(Array.isArray(r) ? r : []);
+    if (gpFerieBusy) return;
+    setGpFerieBusy(pageId);
+    try {
+      await ProxyApi.ferieUpdate({ action: stato === "Approvata" ? "approva" : "rifiuta", pageId });
+      setGpFerieBusy(null);
+      setTimeout(async () => { const r = await ProxyApi.gpFerie(); setFerie(Array.isArray(r) ? r : []); }, 900);
+    } catch {
+      setGpFerieBusy(null);
+      alert("Errore nell'operazione. Riprova.");
+    }
   }
 
   async function gpTimbraturaAction(action: "approva" | "rifiuta" | "elimina", pageId: string) {
@@ -324,8 +332,8 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                     </div>
                     {r.stato === "In attesa" && (
                       <div style={{ display: "flex", gap: 8 }}>
-                        <button style={{ flex: 1, background: "var(--teal)", color: "white", border: "none", borderRadius: 20, padding: "0.5rem", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "Satoshi,sans-serif" }} onClick={() => approvaFeria(r.pageId, "Approvata")}>✅ Approva</button>
-                        <button style={{ flex: 1, background: "var(--coral)", color: "white", border: "none", borderRadius: 20, padding: "0.5rem", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "Satoshi,sans-serif" }} onClick={() => approvaFeria(r.pageId, "Rifiutata")}>❌ Rifiuta</button>
+                        <button disabled={!!gpFerieBusy} style={{ flex: 1, background: "var(--teal)", color: "white", border: "none", borderRadius: 20, padding: "0.5rem", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "Satoshi,sans-serif", opacity: gpFerieBusy && gpFerieBusy !== r.pageId ? 0.5 : 1 }} onClick={() => approvaFeria(r.pageId, "Approvata")}>{gpFerieBusy === r.pageId ? "..." : "✅ Approva"}</button>
+                        <button disabled={!!gpFerieBusy} style={{ flex: 1, background: "var(--coral)", color: "white", border: "none", borderRadius: 20, padding: "0.5rem", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "Satoshi,sans-serif", opacity: gpFerieBusy && gpFerieBusy !== r.pageId ? 0.5 : 1 }} onClick={() => approvaFeria(r.pageId, "Rifiutata")}>{gpFerieBusy === r.pageId ? "..." : "❌ Rifiuta"}</button>
                       </div>
                     )}
                   </div>
