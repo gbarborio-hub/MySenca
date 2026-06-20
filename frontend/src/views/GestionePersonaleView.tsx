@@ -4,6 +4,7 @@ import { DipendentiApi } from "../services/DipendentiApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
+import GriglieTurniGP from "./gp/GriglieTurniGP.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -68,6 +69,9 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
       setComunicazioni(Array.isArray(r) ? r : []);
     } else if (v === "strutture") {
       const r = await ProxyApi.gpStrutture();
+      setStrutture(Array.isArray(r) ? r : []);
+    } else if (v === "turni" && strutture.length === 0) {
+      const r = await ProxyApi.strutture();
       setStrutture(Array.isArray(r) ? r : []);
     }
   }
@@ -274,9 +278,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
           )}
 
           {view === "turni" && (
-            <div className="timbra-card" style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-light)", fontWeight: 700 }}>
-              Griglia turni — in arrivo nella prossima versione.
-            </div>
+            <GriglieTurniGP strutture={strutture} dipendenti={dipendenti} />
           )}
 
           {view === "buste" && (
