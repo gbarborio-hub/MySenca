@@ -12,6 +12,19 @@ export interface Dipendente {
   mansione: string;
   struttura: string;
   email: string | null;
+  telefono: string | null;
+  cf: string | null;
+  matricola: string | null;
+  contratto: string | null;
+  nascita: string | null;
+  dataAssunzione: string | null;
+  note: string | null;
+  attivo: boolean;
+  oreSettimanali: number | null;
+  monteFerie: number | null;
+  monteRol: number | null;
+  residuoFerieIniz: number | null;
+  residuoRolIniz: number | null;
 }
 
 export interface UtenteWebApp {

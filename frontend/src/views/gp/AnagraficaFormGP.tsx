@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ProxyApi } from "../../services/ProxyApi.js";
+import { DipendentiApi } from "../../services/DipendentiApi.js";
 
 const GP_DIP_MANSIONI = ["OSS", "Infermiere", "Medico", "Coordinatore", "Educatrice", "Psicologa", "Amministrativo", "Altro"];
 const GP_DIP_CONTRATTI = ["Dipendente", "Libero professionista", "Tirocinio", "Altro"];
@@ -71,9 +71,13 @@ export default function AnagraficaFormGP({ form: initialForm, strutture, onSaved
     delete payload.username; // username/credenziali gestiti solo da Notion/Admin
 
     try {
-      await ProxyApi.dipendenteSalva(payload);
+      const res = await DipendentiApi.salva(payload);
       setSaving(false);
-      onSaved();
+      if (res.ok) {
+        onSaved();
+      } else {
+        setErr(`⚠️ ${res.error || "Errore nel salvataggio. Riprova."}`);
+      }
     } catch {
       setSaving(false);
       setErr("⚠️ Errore nel salvataggio. Riprova.");

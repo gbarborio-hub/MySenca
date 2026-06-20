@@ -165,6 +165,26 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                 <div className="ana-row"><div className="ana-label">Contratto</div><div className="ana-value">{dipDetail.contratto || "—"}</div></div>
                 <div className="ana-row"><div className="ana-label">Username</div><div className="ana-value">{dipDetail.username || "—"}</div></div>
               </div>
+              <div className="ana-card">
+                <div className="ana-row"><div className="ana-label">Codice fiscale</div><div className="ana-value" style={{ fontSize: 12 }}>{dipDetail.cf || "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Matricola</div><div className="ana-value">{dipDetail.matricola || "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Data nascita</div><div className="ana-value">{dipDetail.nascita ? fmtDateIt(dipDetail.nascita) : "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Data assunzione</div><div className="ana-value">{dipDetail.dataAssunzione ? fmtDateIt(dipDetail.dataAssunzione) : "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Ore settimanali</div><div className="ana-value">{dipDetail.oreSettimanali ?? "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Attivo</div><div className="ana-value">{dipDetail.attivo ? "Sì" : "No"}</div></div>
+              </div>
+              <div className="ana-card">
+                <div className="ana-row"><div className="ana-label">Monte ferie annuo</div><div className="ana-value">{dipDetail.monteFerie ?? "—"} h</div></div>
+                <div className="ana-row"><div className="ana-label">Monte ROL annuo</div><div className="ana-value">{dipDetail.monteRol ?? "—"} h</div></div>
+                <div className="ana-row"><div className="ana-label">Residuo ferie iniziale</div><div className="ana-value">{dipDetail.residuoFerieIniz ?? "—"} h</div></div>
+                <div className="ana-row"><div className="ana-label">Residuo ROL iniziale</div><div className="ana-value">{dipDetail.residuoRolIniz ?? "—"} h</div></div>
+              </div>
+              {dipDetail.note && (
+                <div className="ana-card" style={{ padding: "0.85rem 1rem" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", marginBottom: 4 }}>Note</div>
+                  <div style={{ fontSize: 13, color: "var(--text-mid)" }}>{dipDetail.note}</div>
+                </div>
+              )}
               <button className="update-btn" style={{ background: "var(--teal)" }} onClick={() => setDipForm(formDaDipendente(dipDetail))}>✏️ Modifica anagrafica</button>
               {!dipDetail.username && (
                 <div className="ana-card" style={{ padding: "0.85rem 1rem", marginBottom: "0.6rem", background: "#FCE4E4", border: "1px solid #E0A0A0" }}>
