@@ -28,7 +28,7 @@ export const ProxyApi = {
   // Comunicazioni (condivise dipendente + GP)
   comunicazioniLista: (payload?: unknown) => p<any[]>("/comunicazioni-lista", payload || {}),
   comunicazioneCrea: (payload: unknown) => p<any>("/comunicazione-crea", payload),
-  comunicazioneLetta: (id: string) => p<any>("/comunicazione-letta", { id }),
+  comunicazioneLetta: (comunicazioneId: string, username: string, nome: string) => p<any>("/comunicazione-letta", { comunicazioneId, username, nome }),
   comunicazioneLetture: (comunicazioneId: string) => p<any[]>("/comunicazione-letture", { comunicazioneId }),
   // Documenti (condivisi dipendente + GP)
   documentiLista: (payload?: unknown) => p<any[]>("/documenti-lista", payload || {}),
