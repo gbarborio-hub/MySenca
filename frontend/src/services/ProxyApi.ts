@@ -36,6 +36,8 @@ export const ProxyApi = {
   contatti: () => p<any[]>("/contatti", {}),
   // Segnalazione
   segnalazione: (payload: unknown) => p<any>("/segnalazione", payload),
+  appTicket: (payload: unknown) => p<any>("/app-ticket", payload),
+  dipendenteSalva: (payload: unknown) => p<any>("/dipendente-salva", payload),
   // GP
   gpDipendenti: () => p<any[]>("/gp-dipendenti", {}),
   gpTimbrature: (payload?: unknown) => p<any[]>("/gp-timbrature", payload || {}),

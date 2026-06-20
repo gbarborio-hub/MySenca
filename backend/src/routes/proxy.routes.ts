@@ -63,6 +63,8 @@ dipendentiProxyRouter.post("/documento-elimina", (req: Request, res: Response) =
 
 // Segnalazione
 dipendentiProxyRouter.post("/segnalazione", (req: Request, res: Response) => proxy(`${N8N}/segnalazione`, req.body, res));
+dipendentiProxyRouter.post("/app-ticket", (req: Request, res: Response) => proxy(`${N8N}/app-ticket`, req.body, res));
+dipendentiProxyRouter.post("/dipendente-salva", (req: Request, res: Response) => proxy(`${N8N}/dipendente-salva`, req.body, res));
 
 // Contatti e ciclo (Make)
 dipendentiProxyRouter.post("/contatti", (_req: Request, res: Response) => proxy(MAKE_CONTATTI, {}, res));
