@@ -16,9 +16,13 @@ interface Props {
 }
 
 function fmtDateIt(d: unknown) {
-  if (!d || typeof d !== "string") return "—";
-  // Accetta sia "YYYY-MM-DD" che timestamp ISO completi "YYYY-MM-DDTHH:mm:ss.sssZ"
-  const datePart = d.split("T")[0];
+  // n8n a volte risponde con stringa diretta, a volte con oggetto Notion grezzo {start: "..."}
+  let value: unknown = d;
+  if (d && typeof d === "object" && "start" in (d as any)) {
+    value = (d as any).start;
+  }
+  if (!value || typeof value !== "string") return "—";
+  const datePart = value.split("T")[0];
   const parts = datePart.split("-");
   if (parts.length < 3) return "—";
   const [y, m, dd] = parts;
