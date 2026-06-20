@@ -13,9 +13,11 @@ interface Props {
   onLogout: () => void;
 }
 
-function fmtDateIt(d: string) {
-  if (!d) return "—";
-  const [y, m, dd] = d.split("-");
+function fmtDateIt(d: unknown) {
+  if (!d || typeof d !== "string") return "—";
+  const parts = d.split("-");
+  if (parts.length < 3) return "—";
+  const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
 }
 function distanzaMetri(lat1: number, lon1: number, lat2: number, lon2: number) {

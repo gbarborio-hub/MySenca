@@ -5,7 +5,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) }
   });
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text) return null as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    console.error(`Risposta non JSON da ${path}:`, text.slice(0, 200));
+    return null as T;
+  }
 }
 
 export const api = {
