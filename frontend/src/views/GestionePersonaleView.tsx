@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { ProxyApi } from "../services/ProxyApi.js";
 import { DipendentiApi } from "../services/DipendentiApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
+import Logo from "../components/Logo.js";
+import { NavIcons } from "../components/NavIcons.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -15,7 +17,10 @@ interface Props {
 
 function fmtDateIt(d: string) {
   if (!d) return "—";
-  const [y, m, dd] = d.split("-");
+  const datePart = d.split("T")[0];
+  const parts = datePart.split("-");
+  if (parts.length < 3) return "—";
+  const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
 }
 
@@ -89,12 +94,12 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     ? dipendenti.filter(d => `${d.nome} ${d.cognome} ${d.username || ""} ${d.mansione || ""} ${d.struttura || ""}`.toLowerCase().includes(dipSearch.toLowerCase()))
     : dipendenti;
 
-  const navItems: { id: GPView; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "dipendenti", label: "Dipendenti" },
-    { id: "timbrature", label: "Timbrature" },
-    { id: "ferie", label: "Ferie/ROL" },
-    { id: "comunicazioni", label: "Avvisi" },
+  const navItems: { id: GPView; label: string; icon: keyof typeof NavIcons }[] = [
+    { id: "home", label: "Home", icon: "home" },
+    { id: "dipendenti", label: "Dipendenti", icon: "dipendenti" },
+    { id: "timbrature", label: "Timbrature", icon: "timbra" },
+    { id: "ferie", label: "Ferie/ROL", icon: "ferie" },
+    { id: "comunicazioni", label: "Avvisi", icon: "comunicazioni" },
   ];
 
   return (
@@ -102,6 +107,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
       <div className="gp-main">
         <div className="app-header">
           <div className="app-greeting">Buongiorno,<br />{firstName}</div>
+          <div className="app-logo"><Logo /></div>
         </div>
         <div className="app-content">
           <RoleSwitchMini visible={showRoleSwitch} onClick={onShowRoleChooser} />
@@ -284,10 +290,11 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
       <div className="bottom-nav">
         {navItems.map(n => (
           <div key={n.id} className={`bnav-item ${view === n.id ? "active" : ""}`} onClick={() => goView(n.id)}>
+            <div className="bnav-icon">{NavIcons[n.icon]}</div>
             <div className="bnav-label">{n.label}</div>
           </div>
         ))}
-        <div className="bnav-item" onClick={onLogout}><div className="bnav-label">Esci</div></div>
+        <div className="bnav-item" onClick={onLogout}><div className="bnav-icon">{NavIcons.logout}</div><div className="bnav-label">Esci</div></div>
       </div>
     </div>
   );

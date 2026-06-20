@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { PostsApi, IncaricatiApi } from "../services/PrivacyApi.js";
 import type { Post, Incaricato } from "../services/PrivacyApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
+import Logo from "../components/Logo.js";
+import { NavIcons } from "../components/NavIcons.js";
 
 type PrivacyTab = "dashboard" | "lista" | "privacy";
 
@@ -39,7 +41,10 @@ function fmtDate(d: string | null) {
 }
 function fmtDateIt(d: string | null) {
   if (!d) return "—";
-  const [y, m, dd] = d.split("-");
+  const datePart = d.split("T")[0];
+  const parts = datePart.split("-");
+  if (parts.length < 3) return "—";
+  const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
 }
 function scadenzaVicina(d: string | null) {
@@ -123,7 +128,7 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
   if (loading) {
     return (
       <div className="app-screen">
-        <div className="app-header"><div className="app-greeting">Buongiorno,<br />{firstName}</div></div>
+        <div className="app-header"><div className="app-greeting">Buongiorno,<br />{firstName}</div><div className="app-logo"><Logo /></div></div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: "1rem" }}>
           <div className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }}></div>
           <div style={{ color: "#7A9999", fontWeight: 700, fontSize: 14 }}>Caricamento dati da Notion...</div>
@@ -136,6 +141,7 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
     <div className="app-screen">
       <div className="app-header">
         <div className="app-greeting">Buongiorno,<br />{firstName}</div>
+        <div className="app-logo"><Logo /></div>
       </div>
       <div className="app-content">
         <RoleSwitchMini visible={showRoleSwitch} onClick={onShowRoleChooser} />
@@ -292,12 +298,13 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
       </div>
 
       <div className="bottom-nav">
-        {([["dashboard","Home"],["lista","Lista"],["privacy","Privacy"]] as [PrivacyTab, string][]).map(([v, l]) => (
+        {([["dashboard","Home","dashboard"],["lista","Lista","lista"],["privacy","Privacy","privacy"]] as [PrivacyTab, string, keyof typeof NavIcons][]).map(([v, l, icon]) => (
           <div key={v} className={`bnav-item ${tab === v ? "active" : ""}`} onClick={() => v === "privacy" ? openPrivacyTab() : setTab(v)}>
+            <div className="bnav-icon">{NavIcons[icon]}</div>
             <div className="bnav-label">{l}</div>
           </div>
         ))}
-        <div className="bnav-item" onClick={onLogout}><div className="bnav-label">Esci</div></div>
+        <div className="bnav-item" onClick={onLogout}><div className="bnav-icon">{NavIcons.logout}</div><div className="bnav-label">Esci</div></div>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AuthApi } from "../services/AuthApi.js";
+import Logo from "../components/Logo.js";
 
 interface Props {
   onSuccess: (username: string, nome: string, ruoli: string[]) => void;
@@ -26,7 +27,7 @@ export default function LoginView({ onSuccess }: Props) {
 
   return (
     <div className="login-screen">
-      <div className="login-logo-area"><div className="login-logo-wrap">Senca Hub</div></div>
+      <div className="login-logo-area"><div className="login-logo-wrap"><Logo size={64} /></div></div>
       <form className="login-body" onSubmit={handleSubmit}>
         <label className="field-label">Username</label>
         <input className="field-input" value={username} onChange={e => setUsername(e.target.value)} autoCapitalize="none" />

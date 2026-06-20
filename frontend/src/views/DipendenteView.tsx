@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { ProxyApi } from "../services/ProxyApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
+import Logo from "../components/Logo.js";
+import { NavIcons } from "../components/NavIcons.js";
 
 type DipTab = "Home" | "timbra" | "turni" | "Ferie/ROL" | "Documenti" | "Avvisi" | "profilo" | "segnalazione";
 
@@ -15,7 +17,9 @@ interface Props {
 
 function fmtDateIt(d: unknown) {
   if (!d || typeof d !== "string") return "—";
-  const parts = d.split("-");
+  // Accetta sia "YYYY-MM-DD" che timestamp ISO completi "YYYY-MM-DDTHH:mm:ss.sssZ"
+  const datePart = d.split("T")[0];
+  const parts = datePart.split("-");
   if (parts.length < 3) return "—";
   const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
@@ -170,23 +174,24 @@ export default function DipendenteView({ username, nome, ruolo, showRoleSwitch, 
   const turniPassati = turni.filter((t: any) => t.data < oggi).sort((a: any, b: any) => (a.data > b.data ? -1 : 1));
   const prossimoTurno = turniFuturi[0];
 
-  const navItems: { tab: DipTab; label: string }[] = [
-    { tab: "Home", label: "Home" },
-    { tab: "timbra", label: "Timbra" },
-    { tab: "turni", label: "Turni" },
-    { tab: "Ferie/ROL", label: "Ferie" },
-    { tab: "profilo", label: "Profilo" },
+  const navItems: { tab: DipTab; label: string; icon: keyof typeof NavIcons }[] = [
+    { tab: "Home", label: "Home", icon: "home" },
+    { tab: "timbra", label: "Timbra", icon: "timbra" },
+    { tab: "turni", label: "Turni", icon: "turni" },
+    { tab: "Ferie/ROL", label: "Ferie", icon: "ferie" },
+    { tab: "profilo", label: "Profilo", icon: "profilo" },
   ];
 
   return (
     <div className="app-screen">
       <div className="app-header">
         <div className="app-greeting">Buongiorno,<br />{firstName}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.9rem" }}>
           <div onClick={() => { setTab("Avvisi"); setComSel(null); }} style={{ position: "relative", cursor: "pointer", color: "var(--teal)" }}>
             <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
             {nUnread > 0 && <span className="nav-badge" style={{ position: "absolute", top: -5, right: -7 }}>{nUnread}</span>}
           </div>
+          <div className="app-logo"><Logo /></div>
         </div>
       </div>
 
@@ -558,10 +563,11 @@ export default function DipendenteView({ username, nome, ruolo, showRoleSwitch, 
       <div className="bottom-nav">
         {navItems.map(n => (
           <div key={n.tab} className={`bnav-item ${tab === n.tab ? "active" : ""}`} onClick={() => { setTab(n.tab); setComSel(null); }}>
+            <div className="bnav-icon">{NavIcons[n.icon]}</div>
             <div className="bnav-label">{n.label}</div>
           </div>
         ))}
-        <div className="bnav-item" onClick={onLogout}><div className="bnav-label">Esci</div></div>
+        <div className="bnav-item" onClick={onLogout}><div className="bnav-icon">{NavIcons.logout}</div><div className="bnav-label">Esci</div></div>
       </div>
     </div>
   );

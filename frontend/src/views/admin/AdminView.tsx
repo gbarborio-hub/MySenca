@@ -3,6 +3,8 @@ import type { Dipendente, UtenteWebApp } from "../../models/domain.js";
 import { DipendentiApi } from "../../services/DipendentiApi.js";
 import { UtentiApi } from "../../services/UtentiApi.js";
 import RoleSwitchMini from "../../components/RoleSwitchMini.js";
+import Logo from "../../components/Logo.js";
+import { NavIcons } from "../../components/NavIcons.js";
 import AdminHome from "./AdminHome.js";
 import AdminAbilitare from "./AdminAbilitare.js";
 import AdminUtenti from "./AdminUtenti.js";
@@ -40,11 +42,11 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
   const senzaUsername = dipendenti.filter(d => !d.username);
   const firstName = nome.split(" ")[0] || "utente";
 
-  const navs: { id: AdminScreen | "logout"; label: string }[] = [
-    { id: "home", label: "Home" },
-    { id: "abilitare", label: "Da abilitare" },
-    { id: "utenti", label: "Utenti" },
-    { id: "logout", label: "Esci" }
+  const navs: { id: AdminScreen | "logout"; label: string; icon: keyof typeof NavIcons }[] = [
+    { id: "home", label: "Home", icon: "home" },
+    { id: "abilitare", label: "Da abilitare", icon: "daAbilitare" },
+    { id: "utenti", label: "Utenti", icon: "utenti" },
+    { id: "logout", label: "Esci", icon: "logout" }
   ];
 
   return (
@@ -52,6 +54,7 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
       <div className="gp-main">
         <div className="app-header">
           <div className="app-greeting">Buongiorno,<br />{firstName}</div>
+          <div className="app-logo"><Logo /></div>
         </div>
         <div className="app-content">
           <RoleSwitchMini visible={showRoleSwitch} onClick={onShowRoleChooser} />
@@ -69,6 +72,7 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
             className={`bnav-item ${screen === nav.id ? "active" : ""}`}
             onClick={() => (nav.id === "logout" ? onLogout() : setScreen(nav.id as AdminScreen))}
           >
+            <div className="bnav-icon">{NavIcons[nav.icon]}</div>
             <div className="bnav-label">{nav.label}</div>
           </div>
         ))}
