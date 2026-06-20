@@ -6,6 +6,7 @@ import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
 import GriglieTurniGP from "./gp/GriglieTurniGP.js";
 import ComunicazioniGP from "./gp/ComunicazioniGP.js";
+import AnagraficaFormGP, { nuovoForm, formDaDipendente, type AnagFormData } from "./gp/AnagraficaFormGP.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -30,6 +31,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
   const [view, setView] = useState<GPView>("home");
   const [dipendenti, setDipendenti] = useState<any[]>([]);
   const [dipDetail, setDipDetail] = useState<any>(null);
+  const [dipForm, setDipForm] = useState<AnagFormData | null>(null);
   const [dipSearch, setDipSearch] = useState("");
   const [timbrature, setTimbrature] = useState<any[]>([]);
   const [timbratureFilter, setTimbratureFilter] = useState("tutti");
@@ -51,6 +53,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
   async function goView(v: GPView) {
     setView(v);
     setDipDetail(null);
+    setDipForm(null);
     if (v === "timbrature") {
       const r = await ProxyApi.gpTimbrature();
       setTimbrature(Array.isArray(r) ? r : []);
@@ -60,10 +63,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     } else if (v === "strutture") {
       const r = await ProxyApi.gpStrutture();
       setStrutture(Array.isArray(r) ? r : []);
-    } else if (v === "turni" && strutture.length === 0) {
-      const r = await ProxyApi.strutture();
-      setStrutture(Array.isArray(r) ? r : []);
-    } else if (v === "comunicazioni" && strutture.length === 0) {
+    } else if ((v === "turni" || v === "comunicazioni" || v === "dipendenti") && strutture.length === 0) {
       const r = await ProxyApi.strutture();
       setStrutture(Array.isArray(r) ? r : []);
     }
@@ -124,41 +124,65 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
             </div>
           )}
 
-          {view === "dipendenti" && !dipDetail && (
+          {view === "dipendenti" && !dipDetail && !dipForm && (
             <div>
-              <div className="section-label"><div className="section-title">Dipendenti</div></div>
-              <input className="dim-in" type="search" placeholder="🔎 Cerca per nome, cognome, struttura..." value={dipSearch} onChange={e => setDipSearch(e.target.value)} style={{ marginBottom: "0.75rem" }} />
+              <div className="section-label">
+                <div className="section-title">Dipendenti</div>
+                <div style={{ background: "var(--teal)", color: "white", borderRadius: 20, padding: "0.4rem 1rem", fontSize: 12, fontWeight: 800, cursor: "pointer" }} onClick={() => setDipForm(nuovoForm())}>+ Nuovo</div>
+              </div>
+              <input className="dim-in" type="search" placeholder="🔎 Cerca per nome, cognome, username, mansione o struttura..." value={dipSearch} onChange={e => setDipSearch(e.target.value)} style={{ marginBottom: "0.75rem" }} />
               {loading
-                ? <div className="timbra-card" style={{ textAlign: "center", color: "var(--text-light)", fontWeight: 700 }}>Caricamento...</div>
-                : <div className="table-card">
-                  {filteredDip.map((d: any) => (
-                    <div className="table-row" key={d.pageId} style={{ cursor: "pointer" }} onClick={() => setDipDetail(d)}>
-                      <div style={{ flex: 1 }}>
-                        <div className="row-title">{d.nome} {d.cognome}</div>
-                        <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{d.mansione} · {d.struttura}</div>
+                ? <div className="timbra-card" style={{ textAlign: "center", color: "var(--text-light)", fontWeight: 700 }}>Caricamento dipendenti...</div>
+                : filteredDip.length === 0
+                  ? <div className="timbra-card" style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-light)", fontWeight: 700 }}>Nessun dipendente trovato.</div>
+                  : <div className="table-card">
+                    {filteredDip.map((d: any) => (
+                      <div className="table-row" key={d.pageId} style={{ cursor: "pointer" }} onClick={() => setDipDetail(d)}>
+                        <div style={{ flex: 1 }}>
+                          <div className="row-title">{d.nome} {d.cognome}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{d.mansione} · {d.struttura}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-light)" }}>›</div>
                       </div>
-                      <div style={{ fontSize: 11, color: "var(--text-light)" }}>›</div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
               }
               <button className="update-btn" onClick={fetchDip}>Aggiorna</button>
             </div>
           )}
 
-          {view === "dipendenti" && dipDetail && (
+          {view === "dipendenti" && dipDetail && !dipForm && (
             <div>
-              <button className="update-btn" style={{ marginBottom: "0.5rem" }} onClick={() => setDipDetail(null)}>← Torna alla lista</button>
-              <div className="section-label"><div className="section-title">{dipDetail.nome} {dipDetail.cognome}</div></div>
-              <div className="ana-card">
-                {[["Mansione", dipDetail.mansione], ["Struttura", dipDetail.struttura], ["Email", dipDetail.email], ["Username", dipDetail.username || "Non assegnato"]].map(([k, v]) => (
-                  <div className="ana-row" key={k as string}>
-                    <div className="ana-label">{k}</div>
-                    <div className="ana-value">{v || "—"}</div>
-                  </div>
-                ))}
+              <div className="stat-card">
+                <div className="stat-card-orb"></div>
+                <div className="stat-label">Dipendente</div>
+                <div style={{ fontSize: 24, fontWeight: 900, color: "white" }}>{dipDetail.nome} {dipDetail.cognome}</div>
+                <div className="stat-sub">{dipDetail.mansione || ""} · {dipDetail.struttura || ""}</div>
               </div>
+              <div className="ana-card">
+                <div className="ana-row"><div className="ana-label">Email</div><div className="ana-value" style={{ fontSize: 12 }}>{dipDetail.email || "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Telefono</div><div className="ana-value">{dipDetail.telefono || "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Contratto</div><div className="ana-value">{dipDetail.contratto || "—"}</div></div>
+                <div className="ana-row"><div className="ana-label">Username</div><div className="ana-value">{dipDetail.username || "—"}</div></div>
+              </div>
+              <button className="update-btn" style={{ background: "var(--teal)" }} onClick={() => setDipForm(formDaDipendente(dipDetail))}>✏️ Modifica anagrafica</button>
+              {!dipDetail.username && (
+                <div className="ana-card" style={{ padding: "0.85rem 1rem", marginBottom: "0.6rem", background: "#FCE4E4", border: "1px solid #E0A0A0" }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#7A1A1A" }}>⚠️ Username non impostato</div>
+                  <div style={{ fontSize: 12, color: "#7A1A1A", marginTop: 2 }}>Questo dipendente non ha uno Username associato su Notion: timbrature e documenti non vengono mostrati (per evitare di mescolare i dati di altri). Imposta lo Username dal pannello Admin → Da abilitare.</div>
+                </div>
+              )}
+              <button className="update-btn" style={{ background: "var(--coral)" }} onClick={() => setDipDetail(null)}>← Indietro</button>
             </div>
+          )}
+
+          {view === "dipendenti" && dipForm && (
+            <AnagraficaFormGP
+              form={dipForm}
+              strutture={strutture.length ? strutture : []}
+              onCancel={() => setDipForm(null)}
+              onSaved={() => { setDipForm(null); setDipDetail(null); fetchDip(); }}
+            />
           )}
 
           {view === "timbrature" && (
