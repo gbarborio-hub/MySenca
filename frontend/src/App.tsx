@@ -1,5 +1,6 @@
 import { useSession } from "./models/useSession.js";
 import LoginView from "./views/LoginView.js";
+import LockView from "./views/LockView.js";
 import RoleChooserView from "./views/RoleChooserView.js";
 import AdminView from "./views/admin/AdminView.js";
 import GestionePersonaleView from "./views/GestionePersonaleView.js";
@@ -7,10 +8,16 @@ import DipendenteView from "./views/DipendenteView.js";
 import PrivacyView from "./views/PrivacyView.js";
 
 export default function App() {
-  const { user, choosingRole, login, chooseRole, reopenChooser, logout, ruoliSelezionabili } = useSession();
+  const {
+    user, choosingRole, login, chooseRole, reopenChooser, logout, ruoliSelezionabili,
+    locked, pendingUser, lockErr, unlock, usePasswordInstead
+  } = useSession();
 
+  if (locked && pendingUser) {
+    return <LockView nome={pendingUser.nome || pendingUser.username} error={lockErr} onUnlock={unlock} onUsePassword={usePasswordInstead} />;
+  }
   if (!user) {
-    return <LoginView onSuccess={(username, nome, ruoli) => login(username, nome, ruoli as any)} />;
+    return <LoginView onSuccess={(username, nome, ruoli, remember) => login(username, nome, ruoli as any, remember)} />;
   }
   if (choosingRole) {
     return <RoleChooserView nome={user.nome} ruoli={ruoliSelezionabili} onChoose={chooseRole} onLogout={logout} />;
