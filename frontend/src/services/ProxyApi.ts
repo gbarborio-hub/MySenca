@@ -15,6 +15,7 @@ export const ProxyApi = {
   turniGriglia: (payload?: unknown) => p<any[]>("/turni-griglia", payload || {}),
   turniScrivi: (payload: unknown) => p<any>("/turni-scrivi", payload),
   legendaRead: () => p<any[]>("/legenda-read", {}),
+  legendaScrivi: (payload: unknown) => p<any>("/legenda-scrivi", payload),
   // Timbrature
   timbratureRead: (username: string) => p<any[]>("/timbrature-read", { username }),
   timbra: (payload: unknown) => p<any>("/timbra", payload),
