@@ -81,7 +81,7 @@ export default function ComunicazioniGP({ strutture, dipendenti, username }: Pro
   function loadSent() {
     setSentLoading(true);
     ProxyApi.comunicazioniLista({ all: true }).then((d: any) => {
-      setSent(Array.isArray(d) ? d : []);
+      setSent((Array.isArray(d) ? d : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" })));
       setSentLoading(false);
     }).catch(() => setSentLoading(false));
   }

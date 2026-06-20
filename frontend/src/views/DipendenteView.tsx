@@ -165,7 +165,10 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
   const nUnread = comunicazioni.filter((c: any) => !c.letto).length;
 
   function loadComunicazioni(prof: any) {
-    ProxyApi.comunicazioniLista({ username, struttura: prof?.struttura || "", ruolo: prof?.mansione || ruolo || "" }).then(r => setComunicazioni(Array.isArray(r) ? r : []));
+    ProxyApi.comunicazioniLista({ username, struttura: prof?.struttura || "", ruolo: prof?.mansione || ruolo || "" }).then(r => {
+      const list = (Array.isArray(r) ? r : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" }));
+      setComunicazioni(list);
+    });
   }
   function loadAll() {
     ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : []));

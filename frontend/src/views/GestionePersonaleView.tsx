@@ -38,6 +38,11 @@ function parseFerie(raw: unknown): any[] {
   const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
   return arr.map((item: any) => ({ ...item, pageId: item.pageId || item.id || "" }));
 }
+// Stesso problema per la lista timbrature GP: normalizziamo id->pageId.
+function parseTimbratureList(raw: unknown): any[] {
+  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return arr.map((item: any) => ({ ...item, pageId: item.pageId || item.id || "" }));
+}
 
 export default function GestionePersonaleView({ nome, username, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
   const [view, setView] = useState<GPView>("home");
@@ -77,7 +82,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     setDipForm(null);
     if (v === "timbrature") {
       const r = await ProxyApi.gpTimbrature();
-      setTimbrature(Array.isArray(r) ? r : []);
+      setTimbrature(parseTimbratureList(r));
     } else if (v === "ferie") {
       const r = await ProxyApi.gpFerie({ struttura: "" });
       setFerie(parseFerie(r));
@@ -111,7 +116,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     try {
       await ProxyApi.timbraturaUpdate({ action, pageId, motivo: "Cancellata" });
       setGpTimbBusy(null);
-      setTimeout(async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(Array.isArray(r) ? r : []); }, 1200);
+      setTimeout(async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(parseTimbratureList(r)); }, 1200);
     } catch {
       setGpTimbBusy(null);
       alert("Errore nell'operazione. Riprova.");
@@ -317,7 +322,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                   </>
                 )}
 
-                <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(Array.isArray(r) ? r : []); }}>Aggiorna</button>
+                <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(parseTimbratureList(r)); }}>Aggiorna</button>
               </div>
             );
           })()}

@@ -32,7 +32,8 @@ export default function DocumentiDipendenteGP({ dipendente }: Props) {
     if (!dipendente.username) { setDocs([]); setLoading(false); return; }
     setLoading(true);
     ProxyApi.documentiLista({ username: dipendente.username }).then(r => {
-      setDocs(Array.isArray(r) ? r : []);
+      const list = (Array.isArray(r) ? r : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" }));
+      setDocs(list);
       setLoading(false);
     });
   }, [dipendente.username]);
