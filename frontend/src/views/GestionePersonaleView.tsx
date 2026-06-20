@@ -32,6 +32,13 @@ function fmtDateIt(d: string) {
   return `${dd}/${m}/${y}`;
 }
 
+// n8n restituisce "id" come campo grezzo per le richieste ferie, non "pageId":
+// normalizziamo qui per evitare di mandare pageId=undefined nelle azioni approva/rifiuta.
+function parseFerie(raw: unknown): any[] {
+  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return arr.map((item: any) => ({ ...item, pageId: item.pageId || item.id || "" }));
+}
+
 export default function GestionePersonaleView({ nome, username, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
   const [view, setView] = useState<GPView>("home");
   const [dipendenti, setDipendenti] = useState<any[]>([]);
@@ -72,8 +79,8 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
       const r = await ProxyApi.gpTimbrature();
       setTimbrature(Array.isArray(r) ? r : []);
     } else if (v === "ferie") {
-      const r = await ProxyApi.gpFerie();
-      setFerie(Array.isArray(r) ? r : []);
+      const r = await ProxyApi.gpFerie({ struttura: "" });
+      setFerie(parseFerie(r));
     } else if (v === "strutture") {
       refreshStrutture();
     } else if ((v === "turni" || v === "comunicazioni" || v === "dipendenti") && strutture.length === 0) {
@@ -88,7 +95,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     try {
       await ProxyApi.ferieUpdate({ action: stato === "Approvata" ? "approva" : "rifiuta", pageId });
       setGpFerieBusy(null);
-      setTimeout(async () => { const r = await ProxyApi.gpFerie(); setFerie(Array.isArray(r) ? r : []); }, 900);
+      setTimeout(async () => { const r = await ProxyApi.gpFerie({ struttura: "" }); setFerie(parseFerie(r)); }, 900);
     } catch {
       setGpFerieBusy(null);
       alert("Errore nell'operazione. Riprova.");
@@ -339,7 +346,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                   </div>
                 ))
               }
-              <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpFerie(); setFerie(Array.isArray(r) ? r : []); }}>Aggiorna</button>
+              <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpFerie({ struttura: "" }); setFerie(parseFerie(r)); }}>Aggiorna</button>
             </div>
           )}
 
