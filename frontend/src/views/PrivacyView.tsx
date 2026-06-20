@@ -5,7 +5,7 @@ import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
 
-type PrivacyTab = "dashboard" | "lista" | "privacy";
+type PrivacyTab = "dashboard" | "lista" | "calendario" | "privacy";
 
 interface Props {
   nome: string;
@@ -220,6 +220,51 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
           </div>
         )}
 
+        {tab === "calendario" && (() => {
+          const oggi = new Date();
+          const mesi = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+          const anno = oggi.getFullYear(), mese = oggi.getMonth();
+          const oggiNum = oggi.getDate();
+          const byDate: Record<string, Post[]> = {};
+          posts.forEach(p => {
+            const parts = (p.dataPubblicazione || "").split("-");
+            if (parts.length < 3) return;
+            if (+parts[0] !== anno || +parts[1] !== mese + 1) return;
+            const dd = parts[2];
+            if (!byDate[dd]) byDate[dd] = [];
+            byDate[dd].push(p);
+          });
+          const firstDay = new Date(anno, mese, 1).getDay();
+          const daysInMonth = new Date(anno, mese + 1, 0).getDate();
+          const start = firstDay === 0 ? 6 : firstDay - 1;
+          const cells: JSX.Element[] = [];
+          for (let si = 0; si < start; si++) cells.push(<div key={`o${si}`} className="cal-day other"></div>);
+          for (let di = 1; di <= daysInMonth; di++) {
+            const ds = String(di).padStart(2, "0");
+            const dp = byDate[ds] || [];
+            cells.push(
+              <div key={di} className={`cal-day${di === oggiNum ? " today" : ""}`}>
+                <div className="cal-num">{di}</div>
+                {dp.slice(0, 2).map((post, ei) => {
+                  const ch = post.canale === "Instagram" ? "IG" : post.canale === "Facebook" ? "FB" : post.canale === "LinkedIn" ? "LI" : (post.canale || "").slice(0, 2).toUpperCase();
+                  return <div key={ei} className={`cal-ev${post.stato === "Pubblicato" ? " pub" : ""}`}>{ch}</div>;
+                })}
+                {dp.length > 2 && <div style={{ fontSize: 8, color: "#7A9999", padding: "1px 3px" }}>+{dp.length - 2}</div>}
+              </div>
+            );
+          }
+          const dn = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+          return (
+            <div className="cal-wrap">
+              <div className="cal-month">{mesi[mese]} {anno}</div>
+              <div className="cal-grid">
+                {dn.map(d => <div key={d} className="cal-dn">{d}</div>)}
+                {cells}
+              </div>
+            </div>
+          );
+        })()}
+
         {tab === "privacy" && privacyDetail && (
           <div>
             <div style={{ background: "var(--teal-dark)", borderRadius: "var(--radius)", padding: "1.5rem", marginBottom: "1rem", position: "relative", overflow: "hidden" }}>
@@ -298,7 +343,7 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
       </div>
 
       <div className="bottom-nav">
-        {([["dashboard","Home","dashboard"],["lista","Lista","lista"],["privacy","Privacy","privacy"]] as [PrivacyTab, string, keyof typeof NavIcons][]).map(([v, l, icon]) => (
+        {([["dashboard","Home","dashboard"],["lista","Lista","lista"],["calendario","Calendario","calendario"],["privacy","Privacy","privacy"]] as [PrivacyTab, string, keyof typeof NavIcons][]).map(([v, l, icon]) => (
           <div key={v} className={`bnav-item ${tab === v ? "active" : ""}`} onClick={() => v === "privacy" ? openPrivacyTab() : setTab(v)}>
             <div className="bnav-icon">{NavIcons[icon]}</div>
             <div className="bnav-label">{l}</div>

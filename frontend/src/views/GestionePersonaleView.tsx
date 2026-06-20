@@ -9,6 +9,9 @@ import ComunicazioniGP from "./gp/ComunicazioniGP.js";
 import AnagraficaFormGP, { nuovoForm, formDaDipendente, type AnagFormData } from "./gp/AnagraficaFormGP.js";
 import BustePagaGP from "./gp/BustePagaGP.js";
 import ExportPdfGP from "./gp/ExportPdfGP.js";
+import StruttureGP from "./gp/StruttureGP.js";
+import TimesheetGP from "./gp/TimesheetGP.js";
+import DocumentiDipendenteGP from "./gp/DocumentiDipendenteGP.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -36,9 +39,10 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
   const [dipForm, setDipForm] = useState<AnagFormData | null>(null);
   const [dipSearch, setDipSearch] = useState("");
   const [timbrature, setTimbrature] = useState<any[]>([]);
-  const [timbratureFilter, setTimbratureFilter] = useState("tutti");
+  const [gpTimbBusy, setGpTimbBusy] = useState<string | null>(null);
   const [ferie, setFerie] = useState<any[]>([]);
   const [strutture, setStrutture] = useState<any[]>([]);
+  const [strutLoading, setStrutLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const firstName = (nome || "").split(" ")[0] || "utente";
@@ -52,6 +56,13 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
 
   useEffect(() => { fetchDip(); }, [fetchDip]);
 
+  async function refreshStrutture() {
+    setStrutLoading(true);
+    const r = await ProxyApi.gpStrutture();
+    setStrutture(Array.isArray(r) ? r : []);
+    setStrutLoading(false);
+  }
+
   async function goView(v: GPView) {
     setView(v);
     setDipDetail(null);
@@ -63,8 +74,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
       const r = await ProxyApi.gpFerie();
       setFerie(Array.isArray(r) ? r : []);
     } else if (v === "strutture") {
-      const r = await ProxyApi.gpStrutture();
-      setStrutture(Array.isArray(r) ? r : []);
+      refreshStrutture();
     } else if ((v === "turni" || v === "comunicazioni" || v === "dipendenti") && strutture.length === 0) {
       const r = await ProxyApi.strutture();
       setStrutture(Array.isArray(r) ? r : []);
@@ -75,6 +85,22 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     await ProxyApi.gpFerie({ pageId, stato });
     const r = await ProxyApi.gpFerie();
     setFerie(Array.isArray(r) ? r : []);
+  }
+
+  async function gpTimbraturaAction(action: "approva" | "rifiuta" | "elimina", pageId: string) {
+    if (!pageId) { alert("ID timbratura mancante. Premi Aggiorna e riprova."); return; }
+    if (gpTimbBusy) return;
+    if (action === "rifiuta" && !confirm("Rifiutare questa timbratura?")) return;
+    if (action === "elimina" && !confirm("Archiviare questa timbratura? Resterà conservata nello storico (a norma di legge non viene mai cancellata), ma non sarà più conteggiata. L'operazione verrà registrata col tuo nome.")) return;
+    setGpTimbBusy(`${pageId}|${action}`);
+    try {
+      await ProxyApi.timbraturaUpdate({ action, pageId, motivo: "Cancellata" });
+      setGpTimbBusy(null);
+      setTimeout(async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(Array.isArray(r) ? r : []); }, 1200);
+    } catch {
+      setGpTimbBusy(null);
+      alert("Errore nell'operazione. Riprova.");
+    }
   }
 
 
@@ -187,7 +213,9 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                   <div style={{ fontSize: 13, color: "var(--text-mid)" }}>{dipDetail.note}</div>
                 </div>
               )}
+              <TimesheetGP dipendente={dipDetail} strutture={strutture} />
               <ExportPdfGP dipendente={dipDetail} />
+              <DocumentiDipendenteGP dipendente={dipDetail} />
               <button className="update-btn" style={{ background: "var(--teal)" }} onClick={() => setDipForm(formDaDipendente(dipDetail))}>✏️ Modifica anagrafica</button>
               {!dipDetail.username && (
                 <div className="ana-card" style={{ padding: "0.85rem 1rem", marginBottom: "0.6rem", background: "#FCE4E4", border: "1px solid #E0A0A0" }}>
@@ -208,32 +236,76 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
             />
           )}
 
-          {view === "timbrature" && (
-            <div>
-              <div className="section-label"><div className="section-title">Timbrature</div></div>
-              <div className="nav-tabs" style={{ marginBottom: "0.75rem" }}>
-                {["tutti", "approvazione", "fuori turno"].map(f => (
-                  <div key={f} className={`nav-tab ${timbratureFilter === f ? "active" : "inactive"}`} onClick={() => setTimbratureFilter(f)}>{f === "tutti" ? "Tutte" : f === "approvazione" ? "Da approvare" : "Fuori turno"}</div>
-                ))}
+          {view === "timbrature" && (() => {
+            const daApprovare = timbrature.filter((t: any) => t.approvazione === "Necessaria approvazione");
+            const altre = timbrature.filter((t: any) => t.approvazione !== "Necessaria approvazione").slice(0, 10);
+            return (
+              <div>
+                <div className="section-label"><div className="section-title">Timbrature</div></div>
+
+                {daApprovare.length > 0 ? (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--coral)", marginBottom: "0.5rem" }}>⚠️ Da approvare ({daApprovare.length})</div>
+                    <div className="ana-card" style={{ marginBottom: "0.75rem" }}>
+                      {daApprovare.map((t: any, i: number) => {
+                        const busyA = gpTimbBusy === `${t.pageId}|approva`;
+                        const busyR = gpTimbBusy === `${t.pageId}|rifiuta`;
+                        return (
+                          <div key={i} style={{ padding: "1rem", borderBottom: "1px solid var(--bg)" }}>
+                            <div style={{ marginBottom: 6 }}>
+                              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-dark)" }}>{t.nome}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-light)" }}>{fmtDateIt(t.data)} · {t.struttura} · {t.oraEntrata || "—"}→{t.oraUscita || "—"}</div>
+                            </div>
+                            <div style={{ display: "flex", gap: "0.5rem" }}>
+                              <button disabled={!!gpTimbBusy} onClick={() => gpTimbraturaAction("approva", t.pageId)} style={{ padding: "0.4rem 0.8rem", background: "#D5F0E0", color: "#1A6B3A", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", opacity: gpTimbBusy && !busyA ? 0.5 : 1 }}>{busyA ? "..." : "✅ Approva"}</button>
+                              <button disabled={!!gpTimbBusy} onClick={() => gpTimbraturaAction("rifiuta", t.pageId)} style={{ padding: "0.4rem 0.8rem", background: "#FCE4E4", color: "#7A1A1A", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: "pointer", opacity: gpTimbBusy && !busyR ? 0.5 : 1 }}>{busyR ? "..." : "❌ Rifiuta"}</button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="timbra-card"><div style={{ textAlign: "center", padding: "1rem", color: "#1A6B3A", fontWeight: 700 }}>✅ Nessuna timbratura in attesa di approvazione</div></div>
+                )}
+
+                {altre.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text-dark)", margin: "0.75rem 0 0.5rem" }}>Storico timbrature</div>
+                    <div className="ana-card">
+                      {altre.map((tb: any, j: number) => {
+                        const appBg = tb.approvazione === "Necessaria approvazione" ? "#FEF3CD" : (tb.approvazione === "Rifiutata" || tb.approvazione === "Rifiutato") ? "#FCE4E4" : "#D5F0E0";
+                        const appCol = tb.approvazione === "Necessaria approvazione" ? "#7A5800" : (tb.approvazione === "Rifiutata" || tb.approvazione === "Rifiutato") ? "#7A1A1A" : "#1A6B3A";
+                        const busyE = gpTimbBusy === `${tb.pageId}|elimina`;
+                        return (
+                          <div key={j} style={{ padding: "0.85rem 1rem", borderBottom: "1px solid var(--bg)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-dark)" }}>{tb.nome}</div>
+                                <div style={{ fontSize: 11, color: "var(--text-light)" }}>{fmtDateIt(tb.data)} · {tb.struttura || "—"} · {tb.oraEntrata || "—"}→{tb.oraUscita || "—"}</div>
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                {tb.eliminata ? (
+                                  <div style={{ padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 800, background: "#E5E5E5", color: "#777" }}>🗑 Archiviata</div>
+                                ) : (
+                                  <>
+                                    <div style={{ padding: "2px 8px", borderRadius: 10, fontSize: 10, fontWeight: 800, background: appBg, color: appCol }}>{tb.approvazione}</div>
+                                    <button disabled={!!gpTimbBusy} onClick={() => gpTimbraturaAction("elimina", tb.pageId)} title="Archivia" style={{ padding: "3px 7px", background: "transparent", border: "1px solid #E0C0C0", color: "#A04040", borderRadius: 8, fontSize: 11, fontWeight: 800, cursor: "pointer" }}>{busyE ? "..." : "🗑"}</button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(Array.isArray(r) ? r : []); }}>Aggiorna</button>
               </div>
-              {timbrature
-                .filter((t: any) => timbratureFilter === "tutti" || (timbratureFilter === "approvazione" && t.approvazione === "Necessaria approvazione") || (timbratureFilter === "fuori turno" && t.stato === "Fuori turno"))
-                .map((t: any, i: number) => (
-                <div className="ana-card" key={i} style={{ marginBottom: "0.5rem", padding: "0.9rem 1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 900, color: "var(--text-dark)" }}>{t.nome}</div>
-                      <div style={{ fontSize: 12, color: "var(--text-light)", fontWeight: 600 }}>{fmtDateIt(t.data)} · {t.struttura}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--teal)" }}>🕐 {t.oraEntrata || "—"} → {t.oraUscita || "—"} · {t.oreTotali ? `${Number(t.oreTotali).toFixed(2)}h` : "—"}</div>
-                    </div>
-                    <div style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 12, background: t.approvazione === "Necessaria approvazione" ? "#FEF3CD" : "#E3F6E9", color: t.approvazione === "Necessaria approvazione" ? "#7A5800" : "#1A5C33" }}>
-                      {t.approvazione === "Necessaria approvazione" ? "⏳ Da approvare" : "✅ Approvata"}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            );
+          })()}
 
           {view === "ferie" && (
             <div>
@@ -268,16 +340,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
           )}
 
           {view === "strutture" && (
-            <div>
-              <div className="section-label"><div className="section-title">Strutture</div></div>
-              {strutture.map((s: any, i: number) => (
-                <div className="ana-card" key={i} style={{ marginBottom: "0.5rem", padding: "0.9rem 1rem" }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: "var(--text-dark)" }}>{s.nome}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-light)", fontWeight: 600 }}>{s.indirizzo || ""}</div>
-                  <div style={{ fontSize: 12, color: "var(--teal)", fontWeight: 700 }}>Raggio: {s.raggio || "—"}m</div>
-                </div>
-              ))}
-            </div>
+            <StruttureGP strutture={strutture} loading={strutLoading} onRefresh={refreshStrutture} />
           )}
 
           {view === "turni" && (
