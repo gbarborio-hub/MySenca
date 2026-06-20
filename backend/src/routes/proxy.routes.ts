@@ -67,7 +67,7 @@ dipendentiProxyRouter.post("/app-ticket", (req: Request, res: Response) => proxy
 dipendentiProxyRouter.post("/dipendente-salva", (req: Request, res: Response) => proxy(`${N8N}/dipendente-salva`, req.body, res));
 
 // Contatti e ciclo (Make)
-dipendentiProxyRouter.post("/contatti", (_req: Request, res: Response) => proxy(MAKE_CONTATTI, {}, res));
+dipendentiProxyRouter.post("/contatti", (_req: Request, res: Response) => proxy(MAKE_CONTATTI, { action: "get_contatti" }, res));
 dipendentiProxyRouter.post("/ciclo", (req: Request, res: Response) => proxy(MAKE_CICLO, req.body, res));
 
 // GP

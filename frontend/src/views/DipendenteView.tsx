@@ -28,6 +28,22 @@ function fmtDateIt(d: unknown) {
   const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
 }
+function parseContatti(raw: unknown): any[] {
+  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return arr.map((item: any) => {
+    const p = item && item.properties_value ? item.properties_value : item || {};
+    let nome = "";
+    if (p.Nome && Array.isArray(p.Nome) && p.Nome[0]) nome = p.Nome[0].plain_text || (p.Nome[0].text && p.Nome[0].text.content) || "";
+    else if (typeof p.Nome === "string") nome = p.Nome;
+    const ruolo = typeof p.Ruolo === "string" ? p.Ruolo : (p.Ruolo && p.Ruolo[0] ? p.Ruolo[0].plain_text || "" : "");
+    const email = p.Email || "";
+    const telefono = p.Telefono || "";
+    const struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
+    const ordine = p.Ordine || 999;
+    return { nome, ruolo, email, telefono, struttura, ordine };
+  }).filter((c: any) => c.nome).sort((a: any, b: any) => a.ordine - b.ordine);
+}
+
 function distanzaMetri(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -137,7 +153,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
     ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r));
     ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
     ProxyApi.profilo(username).then(r => setProfilo(r));
-    ProxyApi.contatti().then(r => setContatti(Array.isArray(r) ? r : []));
+    ProxyApi.contatti().then(r => setContatti(parseContatti(r)));
     loadTurni();
     loadDocs();
   }
@@ -172,7 +188,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
     else if (tab === "turni") loadTurni();
     else if (tab === "timbra") ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
     else if (tab === "Home" || tab === "Informazioni") { loadTurni(); ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : [])); }
-    else if (tab === "profilo" || tab === "Contatti") { ProxyApi.profilo(username).then(setProfilo); ProxyApi.contatti().then(r => setContatti(Array.isArray(r) ? r : [])); }
+    else if (tab === "profilo" || tab === "Contatti") { ProxyApi.profilo(username).then(setProfilo); ProxyApi.contatti().then(r => setContatti(parseContatti(r))); }
     else ProxyApi.profilo(username).then(setProfilo);
     setTimeout(() => setRefreshing(false), 1000);
   }
