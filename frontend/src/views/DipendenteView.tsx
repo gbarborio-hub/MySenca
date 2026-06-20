@@ -3,6 +3,7 @@ import { ProxyApi } from "../services/ProxyApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
+import { useRequestNotificationPermission, useShiftAndCommsNotifications } from "../hooks/useShiftNotifications.js";
 
 // Tab raggiungibili: 3 nella nav orizzontale (Home/Ferie-ROL/Informazioni) + Contatti (dal logo)
 // + 5 raggiungibili solo da card/bottoni interni (Avvisi, Documenti, segnalazione, timbra, turni, profilo)
@@ -184,6 +185,15 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
     setDocsLoading(true);
     ProxyApi.documentiLista({ username }).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); });
   }
+
+  useRequestNotificationPermission(true);
+  useShiftAndCommsNotifications({
+    isDipendente: true,
+    turni, comunicazioni, ferieRichieste, docs,
+    refreshComunicazioni: () => loadComunicazioni(profilo),
+    refreshFerie: () => ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])),
+    refreshDocs: loadDocs
+  });
 
   useEffect(() => {
     loadAll();
