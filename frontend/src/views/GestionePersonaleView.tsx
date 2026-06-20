@@ -8,6 +8,7 @@ import GriglieTurniGP from "./gp/GriglieTurniGP.js";
 import ComunicazioniGP from "./gp/ComunicazioniGP.js";
 import AnagraficaFormGP, { nuovoForm, formDaDipendente, type AnagFormData } from "./gp/AnagraficaFormGP.js";
 import BustePagaGP from "./gp/BustePagaGP.js";
+import ExportPdfGP from "./gp/ExportPdfGP.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -186,6 +187,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                   <div style={{ fontSize: 13, color: "var(--text-mid)" }}>{dipDetail.note}</div>
                 </div>
               )}
+              <ExportPdfGP dipendente={dipDetail} />
               <button className="update-btn" style={{ background: "var(--teal)" }} onClick={() => setDipForm(formDaDipendente(dipDetail))}>✏️ Modifica anagrafica</button>
               {!dipDetail.username && (
                 <div className="ana-card" style={{ padding: "0.85rem 1rem", marginBottom: "0.6rem", background: "#FCE4E4", border: "1px solid #E0A0A0" }}>
