@@ -740,7 +740,15 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
                 <input type="number" className="struttura-select" placeholder="Es: 8" style={{ marginBottom: "0.75rem" }} value={ferieInput.ore} onChange={e => setFerieInput(f => ({ ...f, ore: e.target.value }))} />
                 <label className="field-label">Note (opzionale)</label>
                 <input type="text" className="struttura-select" placeholder="Motivazione..." style={{ marginBottom: "1rem" }} value={ferieInput.note} onChange={e => setFerieInput(f => ({ ...f, note: e.target.value }))} />
-                <button className="timbra-btn entrata" onClick={async () => { await ProxyApi.ferieRichiesta({ username, nome, tipo: ferieForm, dataInizio: ferieInput.inizio, dataFine: ferieInput.fine || ferieInput.inizio, oreRichieste: ferieInput.ore, note: ferieInput.note }); setFerieForm(null); setFerieInput({ inizio: "", fine: "", ore: "", note: "" }); ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])); }}>📤 Invia richiesta</button>
+                <button className="timbra-btn entrata" onClick={async () => {
+                  try {
+                    await ProxyApi.ferieRichiesta({ username, nome, tipo: ferieForm, dataInizio: ferieInput.inizio, dataFine: ferieInput.fine || ferieInput.inizio, oreRichieste: ferieInput.ore, note: ferieInput.note });
+                    setFerieForm(null); setFerieInput({ inizio: "", fine: "", ore: "", note: "" });
+                    ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
+                  } catch (e: any) {
+                    alert(e?.message || "Errore nell'invio della richiesta. Riprova.");
+                  }
+                }}>📤 Invia richiesta</button>
                 <button className="timbra-btn uscita" style={{ marginTop: "0.5rem" }} onClick={() => setFerieForm(null)}>Annulla</button>
               </div>
             }

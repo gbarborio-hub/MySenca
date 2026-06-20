@@ -115,8 +115,8 @@ export default function ComunicazioniGP({ strutture, dipendenti, username }: Pro
       setSending(false); setMsg("✅ Comunicazione inviata.");
       setForm({ ...FORM_DEFAULTS });
       setTimeout(loadSent, 1300);
-    } catch {
-      setSending(false); setMsg("⚠️ Errore nell'invio. Riprova.");
+    } catch (e: any) {
+      setSending(false); setMsg(`⚠️ ${e?.message || "Errore nell'invio. Riprova."}`);
     }
   }
 

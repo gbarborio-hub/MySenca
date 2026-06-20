@@ -6,6 +6,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) }
   });
   const text = await res.text();
+
+  if (!res.ok) {
+    let message = `Errore ${res.status}`;
+    if (res.status === 413) message = "Il file allegato è troppo grande.";
+    else if (text) {
+      try { message = JSON.parse(text).error || message; } catch { /* corpo non JSON, manteniamo il messaggio generico */ }
+    }
+    throw new Error(message);
+  }
+
   if (!text) return null as T;
   try {
     return JSON.parse(text) as T;
