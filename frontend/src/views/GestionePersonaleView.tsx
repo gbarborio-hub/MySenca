@@ -7,6 +7,7 @@ import { NavIcons } from "../components/NavIcons.js";
 import GriglieTurniGP from "./gp/GriglieTurniGP.js";
 import ComunicazioniGP from "./gp/ComunicazioniGP.js";
 import AnagraficaFormGP, { nuovoForm, formDaDipendente, type AnagFormData } from "./gp/AnagraficaFormGP.js";
+import BustePagaGP from "./gp/BustePagaGP.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -282,9 +283,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
           )}
 
           {view === "buste" && (
-            <div className="timbra-card" style={{ textAlign: "center", padding: "1.5rem", color: "var(--text-light)", fontWeight: 700 }}>
-              Buste paga — in arrivo nella prossima versione.
-            </div>
+            <BustePagaGP dipendenti={dipendenti} />
           )}
         </div>
       </div>
