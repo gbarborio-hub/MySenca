@@ -1,4 +1,5 @@
 import { UtentiModel } from "../models/UtentiModel.js";
+import { DipendentiModel } from "../models/DipendentiModel.js";
 import { PasswordService } from "./PasswordService.js";
 import type { AuthResult } from "../types/domain.js";
 
@@ -28,6 +29,12 @@ export const AuthService = {
 
     await UtentiModel.resetTentativiFalliti(utente.pageId);
     const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
-    return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: username };
+
+    // Il nome vero (richiesto da n8n per cercare turni/timbrature/profilo) vive
+    // nell'anagrafica Dipendenti, non in Utenti web app: lo recuperiamo qui.
+    const dipendente = await DipendentiModel.findByUsername(username);
+    const nomeCompleto = dipendente ? `${dipendente.nome} ${dipendente.cognome}`.trim() : username;
+
+    return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto };
   }
 };

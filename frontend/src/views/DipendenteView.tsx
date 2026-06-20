@@ -28,6 +28,23 @@ function fmtDateIt(d: unknown) {
   const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
 }
+function parseTurni(raw: unknown): any[] {
+  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return arr.map((item: any) => {
+    const p = item && item.properties_value ? item.properties_value : item || {};
+    let titolo = "";
+    if (p.Titolo && Array.isArray(p.Titolo) && p.Titolo[0]) titolo = p.Titolo[0].plain_text || "";
+    const dipendente = typeof p.Dipendente === "string" ? p.Dipendente : (p.Dipendente && p.Dipendente[0] ? p.Dipendente[0].plain_text || "" : "");
+    const struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
+    const tipo = (p["Tipo turno"] && p["Tipo turno"].name) ? p["Tipo turno"].name : (typeof p["Tipo turno"] === "string" ? p["Tipo turno"] : (typeof p.tipo === "string" ? p.tipo : ""));
+    const dataRaw = (p.Data && p.Data.start) ? p.Data.start : (typeof p.Data === "string" ? p.Data : (typeof p.data === "string" ? p.data : ""));
+    const data = dataRaw ? dataRaw.split("T")[0] : "";
+    const oraInizio = typeof p["Ora inizio"] === "string" ? p["Ora inizio"] : (p["Ora inizio"] && p["Ora inizio"][0] ? p["Ora inizio"][0].plain_text || "" : (typeof p.oraInizio === "string" ? p.oraInizio : ""));
+    const oraFine = typeof p["Ora fine"] === "string" ? p["Ora fine"] : (p["Ora fine"] && p["Ora fine"][0] ? p["Ora fine"][0].plain_text || "" : (typeof p.oraFine === "string" ? p.oraFine : ""));
+    return { titolo, dipendente, struttura, tipo, data, oraInizio, oraFine };
+  }).filter((t: any) => t.data).sort((a: any, b: any) => (a.data > b.data ? 1 : -1));
+}
+
 function parseContatti(raw: unknown): any[] {
   const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
   return arr.map((item: any) => {
@@ -159,7 +176,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
   }
   function loadTurni() {
     setTurniLoading(true);
-    ProxyApi.turniRead(nome).then(r => { setTurni(Array.isArray(r) ? r : []); setTurniLoading(false); });
+    ProxyApi.turniRead(nome).then(r => { setTurni(parseTurni(r)); setTurniLoading(false); });
   }
   function loadDocs() {
     setDocsLoading(true);
