@@ -5,6 +5,7 @@ import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
 import GriglieTurniGP from "./gp/GriglieTurniGP.js";
+import ComunicazioniGP from "./gp/ComunicazioniGP.js";
 
 type GPView = "home" | "dipendenti" | "turni" | "timbrature" | "comunicazioni" | "ferie" | "strutture" | "buste";
 
@@ -33,16 +34,8 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
   const [timbrature, setTimbrature] = useState<any[]>([]);
   const [timbratureFilter, setTimbratureFilter] = useState("tutti");
   const [ferie, setFerie] = useState<any[]>([]);
-  const [comunicazioni, setComunicazioni] = useState<any[]>([]);
   const [strutture, setStrutture] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Comunicazioni form
-  const [comTitolo, setComTitolo] = useState("");
-  const [comMessaggio, setComMessaggio] = useState("");
-  const [comTipo, setComTipo] = useState("Tutti");
-  const [comSending, setComSending] = useState(false);
-  const [comMsg, setComMsg] = useState<string | null>(null);
 
   const firstName = (nome || "").split(" ")[0] || "utente";
 
@@ -64,13 +57,13 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     } else if (v === "ferie") {
       const r = await ProxyApi.gpFerie();
       setFerie(Array.isArray(r) ? r : []);
-    } else if (v === "comunicazioni") {
-      const r = await ProxyApi.comunicazioniLista();
-      setComunicazioni(Array.isArray(r) ? r : []);
     } else if (v === "strutture") {
       const r = await ProxyApi.gpStrutture();
       setStrutture(Array.isArray(r) ? r : []);
     } else if (v === "turni" && strutture.length === 0) {
+      const r = await ProxyApi.strutture();
+      setStrutture(Array.isArray(r) ? r : []);
+    } else if (v === "comunicazioni" && strutture.length === 0) {
       const r = await ProxyApi.strutture();
       setStrutture(Array.isArray(r) ? r : []);
     }
@@ -82,17 +75,6 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     setFerie(Array.isArray(r) ? r : []);
   }
 
-  async function inviaComunicazione() {
-    if (!comTitolo.trim()) { setComMsg("⚠️ Inserisci un titolo."); return; }
-    setComSending(true);
-    setComMsg("⏳ Invio in corso...");
-    await ProxyApi.comunicazioneCrea({ titolo: comTitolo, messaggio: comMessaggio, mittente: username, tipoDestinatari: comTipo });
-    setComSending(false);
-    setComMsg("✅ Comunicazione inviata.");
-    setComTitolo(""); setComMessaggio("");
-    const r = await ProxyApi.comunicazioniLista();
-    setComunicazioni(Array.isArray(r) ? r : []);
-  }
 
   const filteredDip = dipSearch
     ? dipendenti.filter(d => `${d.nome} ${d.cognome} ${d.username || ""} ${d.mansione || ""} ${d.struttura || ""}`.toLowerCase().includes(dipSearch.toLowerCase()))
@@ -235,33 +217,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
           )}
 
           {view === "comunicazioni" && (
-            <div>
-              <div className="section-label"><div className="section-title">Nuova comunicazione</div></div>
-              <div className="ana-card" style={{ padding: "1rem" }}>
-                <label className="dim-lbl">Titolo</label>
-                <input className="dim-in" placeholder="Oggetto" value={comTitolo} onChange={e => setComTitolo(e.target.value)} />
-                <label className="dim-lbl">Messaggio</label>
-                <textarea className="dim-in" rows={4} placeholder="Testo della comunicazione" value={comMessaggio} onChange={e => setComMessaggio(e.target.value)} style={{ resize: "vertical" }} />
-                <label className="dim-lbl">Destinatari</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                  {["Tutti", "Mirata", "Singoli"].map(t => (
-                    <button key={t} className={`com-pill${comTipo === t ? " on" : ""}`} onClick={() => setComTipo(t)}>{t}</button>
-                  ))}
-                </div>
-                {comMsg && <div style={{ marginBottom: "0.5rem", padding: "0.6rem", borderRadius: 10, background: comMsg.startsWith("✅") ? "#E3F6E9" : "#FEF3CD", color: comMsg.startsWith("✅") ? "#1A5C33" : "#7A5800", fontSize: 13, fontWeight: 700 }}>{comMsg}</div>}
-                <button className="update-btn" style={{ background: "var(--teal)" }} disabled={comSending} onClick={inviaComunicazione}>📢 Invia comunicazione</button>
-              </div>
-              <div className="section-label" style={{ marginTop: "1rem" }}><div className="section-title">Comunicazioni inviate</div></div>
-              {comunicazioni.length === 0
-                ? <div className="timbra-card" style={{ textAlign: "center", color: "var(--text-light)", fontWeight: 700 }}>Nessuna comunicazione inviata</div>
-                : comunicazioni.map((c: any, i: number) => (
-                  <div className="ana-card" key={i} style={{ marginBottom: "0.5rem", padding: "0.9rem 1rem" }}>
-                    <div style={{ fontSize: 14, fontWeight: 900, color: "var(--text-dark)" }}>{c.titolo}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-light)", fontWeight: 600 }}>{fmtDateIt(c.data)} · {c.letture || 0} letture</div>
-                  </div>
-                ))
-              }
-            </div>
+            <ComunicazioniGP strutture={strutture} dipendenti={dipendenti} username={username} />
           )}
 
           {view === "strutture" && (
