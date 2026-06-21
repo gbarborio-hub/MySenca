@@ -1,6 +1,6 @@
 import { notion, rt, sel, title, chk, dateStart } from "./notionClient.js";
 
-const DB_DOCUMENTI = "74480ed918f145f2b960e7ca5177fc77";
+const DB_DOCUMENTI = "f1f54a3159514019958e3c50ba0f9094";
 
 export type StatoFirma = "Da firmare" | "In attesa di verifica" | "Firmato" | "Respinto" | "";
 export type CaricatoDaRuolo = "GP" | "Privacy" | "Dipendente" | "";
