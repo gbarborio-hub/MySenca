@@ -35,6 +35,6 @@ export const AuthService = {
     const dipendente = await DipendentiModel.findByUsername(username);
     const nomeCompleto = dipendente ? `${dipendente.nome} ${dipendente.cognome}`.trim() : username;
 
-    return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto };
+    return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto, createdTime: utente.createdTime };
   }
 };

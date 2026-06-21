@@ -66,7 +66,7 @@ export async function enrollBio(user: CurrentUser): Promise<boolean> {
   const cred = (await navigator.credentials.create({
     publicKey: {
       challenge,
-      rp: { name: "Senca Hub" },
+      rp: { name: "MySenca" },
       user: { id: uid, name: user.username || "utente", displayName: user.nome || user.username || "utente" },
       pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
       authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },

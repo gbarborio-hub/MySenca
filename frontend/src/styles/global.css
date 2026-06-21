@@ -1,9 +1,9 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{--bg:#E8F4F5;--teal:#1B7F7A;--teal-dark:#0D5955;--cyan:#00C2C7;--cyan-light:#E0F7F7;--coral:#E8603A;--white:#FFFFFF;--text-dark:#1A2E2E;--text-mid:#3D5858;--text-light:#7A9999;--radius:16px;--radius-sm:10px;font-family:"Satoshi",sans-serif}
 body{background:var(--bg);min-height:100vh;color:var(--text-dark);font-family:"Satoshi",sans-serif}
-.login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:var(--white)}
-.login-logo-area{width:100%;display:flex;align-items:center;justify-content:center;padding:3rem 2rem 1.5rem}
-.login-logo-wrap{width:160px;height:160px}
+.login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;background:#f0f9fa}
+.login-logo-area{width:100%;display:flex;align-items:center;justify-content:center;padding:3.5rem 2rem 1.5rem}
+.login-logo-wrap{width:180px;height:180px;display:flex;align-items:center;justify-content:center}
 .login-body{width:100%;max-width:420px;padding:1.5rem 2rem 3rem}
 .login-greeting{font-size:28px;font-weight:800;color:var(--text-dark);text-align:center;margin-bottom:0.5rem}
 .login-sub{font-size:15px;color:var(--text-light);text-align:center;margin-bottom:2.5rem}

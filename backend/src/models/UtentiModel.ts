@@ -16,7 +16,8 @@ function fromNotionPage(page: any): UtenteWebApp {
     tentativiFalliti: num(p["Tentativi falliti"]),
     passwordAggiornataIl: dateStart(p["Password aggiornata il"]),
     hashPassword: rt(p["Hash password"]),
-    salt: rt(p["Salt"])
+    salt: rt(p["Salt"]),
+    createdTime: page.created_time || null
   };
 }
 

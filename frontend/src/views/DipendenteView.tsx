@@ -17,6 +17,7 @@ interface Props {
   nome: string;
   mansione?: string;
   ruolo?: string;
+  createdTime?: string | null;
   showRoleSwitch: boolean;
   onShowRoleChooser: () => void;
   onLogout: () => void;
@@ -118,7 +119,7 @@ const SEG_DEFAULTS = {
   quantita: "", interessati: "", danni: ""
 };
 
-export default function DipendenteView({ username, nome, mansione, ruolo, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
+export default function DipendenteView({ username, nome, mansione, ruolo, createdTime, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
   const [tab, setTab] = useState<DipTab>("Home");
   const [strutture, setStrutture] = useState<any[]>([]);
   const [turni, setTurni] = useState<any[]>([]);
@@ -171,7 +172,16 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
 
   function loadComunicazioni(prof: any) {
     ProxyApi.comunicazioniLista({ username, struttura: prof?.struttura || "", ruolo: prof?.mansione || ruolo || "" }).then(r => {
-      const list = (Array.isArray(r) ? r : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" }));
+      let list = (Array.isArray(r) ? r : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" }));
+      if (createdTime) {
+        const soglia = new Date(createdTime).getTime();
+        list = list.filter((c: any) => {
+          const invio = c.dataInvio ? new Date(c.dataInvio).getTime() : null;
+          // Se manca la data invio teniamo la comunicazione (meglio mostrare che perdere dati validi);
+          // altrimenti scartiamo tutto ciò inviato prima della creazione dell'utenza.
+          return invio === null || isNaN(invio) || invio >= soglia;
+        });
+      }
       setComunicazioni(list);
     });
   }

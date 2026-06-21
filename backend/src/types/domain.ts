@@ -39,6 +39,7 @@ export interface UtenteWebApp {
   passwordAggiornataIl: string | null;
   hashPassword: string;
   salt: string;
+  createdTime: string | null;
 }
 
 export interface AuthResult {
@@ -47,6 +48,7 @@ export interface AuthResult {
   ruolo?: Ruolo;
   ruoli?: Ruolo[];
   nome?: string;
+  createdTime?: string | null;
   error?: string;
 }
 

@@ -58,7 +58,7 @@ if (fs.existsSync(frontendDist)) {
 }
 
 const PORT = Number(process.env.PORT || 3001);
-app.listen(PORT, () => console.log(`Senca Hub backend on :${PORT}`));
+app.listen(PORT, () => console.log(`MySenca backend on :${PORT}`));
 
 // 90-day password rotation: check once a day (not a precise cron, good enough for this scale)
 const ONE_DAY = 24 * 60 * 60 * 1000;

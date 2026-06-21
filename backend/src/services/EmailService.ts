@@ -1,4 +1,4 @@
-// Invio email tramite il workflow n8n dedicato ("Senca Hub - Invio Email"),
+// Invio email tramite il workflow n8n dedicato ("MySenca - Invio Email"),
 // che usa la credenziale Microsoft Outlook già autorizzata su n8n.
 // Niente OAuth2 diretto su questo backend: n8n fa da intermediario.
 
@@ -48,7 +48,7 @@ export const EmailService = {
 
   credenzialiTemplate(username: string, password: string): string {
     return `<p>Gentile collega,</p>
-<p>è stato creato il tuo accesso alla web app aziendale <b>Senca Hub</b>.</p>
+<p>è stato creato il tuo accesso alla web app aziendale <b>MySenca</b>.</p>
 <p><b>Username:</b> ${username}<br><b>Password:</b> ${password}</p>
 <p>Per motivi di sicurezza la password verrà rinnovata automaticamente ogni 90 giorni: riceverai una nuova email quando accadrà.</p>
 <p>Ti consigliamo di non condividere queste credenziali con nessuno.</p>
@@ -57,7 +57,7 @@ export const EmailService = {
 
   rotazioneTemplate(username: string, password: string): string {
     return `<p>Gentile collega,</p>
-<p>la tua password di accesso a <b>Senca Hub</b> è stata rinnovata automaticamente, come previsto ogni 90 giorni.</p>
+<p>la tua password di accesso a <b>MySenca</b> è stata rinnovata automaticamente, come previsto ogni 90 giorni.</p>
 <p><b>Username:</b> ${username}<br><b>Nuova password:</b> ${password}</p>
 <p>La password precedente non è più valida da questo momento.</p>
 <p>Cordiali saluti,<br>Senca Senior Care</p>`;

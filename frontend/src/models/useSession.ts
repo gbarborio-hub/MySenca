@@ -26,10 +26,10 @@ export function useSession() {
     // (la sessione serve solo a "ricordare" l'utente per l'enroll biometrico successivo).
   }, []);
 
-  const login = useCallback((username: string, nome: string, ruoli: Ruolo[], remember: boolean) => {
+  const login = useCallback((username: string, nome: string, ruoli: Ruolo[], remember: boolean, createdTime?: string | null) => {
     const valid = ruoliConInterfaccia(ruoli);
     const activeRole = valid.length > 0 ? valid[0] : ruoli[0];
-    const newUser: CurrentUser = { username, nome, ruoli, activeRole };
+    const newUser: CurrentUser = { username, nome, ruoli, activeRole, createdTime };
 
     if (remember) saveSession(newUser);
     else { clearSession(); clearBio(); }

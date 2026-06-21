@@ -43,6 +43,7 @@ export interface AuthResult {
   ruolo?: Ruolo;
   ruoli?: Ruolo[];
   nome?: string;
+  createdTime?: string | null;
   error?: string;
 }
 
@@ -51,4 +52,5 @@ export interface CurrentUser {
   nome: string;
   ruoli: Ruolo[];
   activeRole: Ruolo;
+  createdTime?: string | null;
 }

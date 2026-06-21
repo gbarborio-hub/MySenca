@@ -17,7 +17,7 @@ export default function App() {
     return <LockView nome={pendingUser.nome || pendingUser.username} error={lockErr} onUnlock={unlock} onUsePassword={usePasswordInstead} />;
   }
   if (!user) {
-    return <LoginView onSuccess={(username, nome, ruoli, remember) => login(username, nome, ruoli as any, remember)} />;
+    return <LoginView onSuccess={(username, nome, ruoli, remember, createdTime) => login(username, nome, ruoli as any, remember, createdTime)} />;
   }
   if (choosingRole) {
     return <RoleChooserView nome={user.nome} ruoli={ruoliSelezionabili} onChoose={chooseRole} onLogout={logout} />;
@@ -31,7 +31,7 @@ export default function App() {
     case "Gestione personale":
       return <GestionePersonaleView nome={user.nome} username={user.username} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     case "Dipendente":
-      return <DipendenteView username={user.username} nome={user.nome} ruolo={user.activeRole} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
+      return <DipendenteView username={user.username} nome={user.nome} ruolo={user.activeRole} createdTime={user.createdTime} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     case "Privacy":
       return <PrivacyView nome={user.nome} username={user.username} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     default:

@@ -3,7 +3,7 @@ import { AuthApi } from "../services/AuthApi.js";
 import Logo from "../components/Logo.js";
 
 interface Props {
-  onSuccess: (username: string, nome: string, ruoli: string[], remember: boolean) => void;
+  onSuccess: (username: string, nome: string, ruoli: string[], remember: boolean, createdTime?: string | null) => void;
 }
 
 export default function LoginView({ onSuccess }: Props) {
@@ -20,7 +20,7 @@ export default function LoginView({ onSuccess }: Props) {
     const res = await AuthApi.login(username, password);
     setBusy(false);
     if (res.ok && res.ruoli) {
-      onSuccess(res.username || username, res.nome || username, res.ruoli, remember);
+      onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.createdTime);
     } else {
       setError(res.error || "Credenziali non valide.");
     }
@@ -28,7 +28,7 @@ export default function LoginView({ onSuccess }: Props) {
 
   return (
     <div className="login-screen">
-      <div className="login-logo-area"><div className="login-logo-wrap"><Logo size={64} /></div></div>
+      <div className="login-logo-area"><div className="login-logo-wrap"><Logo size={168} /></div></div>
       <form className="login-body" onSubmit={handleSubmit}>
         <label className="field-label">Username</label>
         <input className="field-input" value={username} onChange={e => setUsername(e.target.value)} autoCapitalize="none" />

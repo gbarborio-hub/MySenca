@@ -10,7 +10,7 @@ interface Props {
 export default function LockView({ nome, error, onUnlock, onUsePassword }: Props) {
   return (
     <div className="login-screen">
-      <div className="login-logo-area"><div className="login-logo-wrap"><Logo size={64} /></div></div>
+      <div className="login-logo-area"><div className="login-logo-wrap"><Logo size={168} /></div></div>
       <div className="login-body">
         <div className="login-greeting">Bentornato</div>
         <div className="login-sub">{nome}</div>
