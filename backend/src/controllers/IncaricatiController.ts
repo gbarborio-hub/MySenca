@@ -28,7 +28,7 @@ export const IncaricatiController = {
     const mancanti = dipendenti
       .filter(d => d.attivo !== false)
       .filter(d => !presenti.has(`${norm(d.nome)}|${norm(d.cognome)}`))
-      .map(d => ({ pageId: d.pageId, nome: d.nome, cognome: d.cognome, mansione: d.mansione, struttura: d.struttura, email: d.email }));
+      .map(d => ({ pageId: d.pageId, nome: d.nome, cognome: d.cognome, mansione: d.mansione, struttura: d.struttura, email: d.email, username: d.username }));
     res.json(mancanti);
   },
 
@@ -42,7 +42,7 @@ export const IncaricatiController = {
     }
     const inputs = dipendenti.map((d: any) => ({
       nome: String(d.nome || ""), cognome: String(d.cognome || ""),
-      email: d.email || "", ruolo: d.mansione || "", struttura: d.struttura || ""
+      email: d.email || "", ruolo: d.mansione || "", struttura: d.struttura || "", username: d.username || ""
     })).filter((i: any) => i.nome);
     const result = await IncaricatiModel.createMany(inputs);
     res.json({ ok: true, creati: result.ok, falliti: result.failed });

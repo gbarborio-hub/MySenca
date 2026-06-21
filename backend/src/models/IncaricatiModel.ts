@@ -13,6 +13,7 @@ export interface Incaricato {
   dataNomina: string | null;
   dataScadenza: string | null;
   documentoFirmato: boolean;
+  username: string;
 }
 
 function fromNotionPage(page: any): Incaricato {
@@ -27,12 +28,13 @@ function fromNotionPage(page: any): Incaricato {
     note: rt(p["Note"]),
     dataNomina: dateStart(p["Data nomina"]),
     dataScadenza: dateStart(p["Data scadenza"]),
-    documentoFirmato: chk(p["Documento firmato"])
+    documentoFirmato: chk(p["Documento firmato"]),
+    username: rt(p["Username"])
   };
 }
 
 export interface IncaricatoCreateInput {
-  nome: string; cognome: string; email?: string; ruolo?: string; struttura?: string; note?: string;
+  nome: string; cognome: string; email?: string; ruolo?: string; struttura?: string; note?: string; username?: string;
 }
 
 export const IncaricatiModel = {
@@ -54,6 +56,7 @@ export const IncaricatiModel = {
     if (input.ruolo) props["Ruolo"] = { rich_text: [{ text: { content: input.ruolo } }] };
     if (input.struttura) props["Struttura"] = { rich_text: [{ text: { content: input.struttura } }] };
     if (input.note) props["Note"] = { rich_text: [{ text: { content: input.note } }] };
+    if (input.username) props["Username"] = { rich_text: [{ text: { content: input.username } }] };
     const res: any = await notion.createPage({ parent: { database_id: DB_INCARICATI }, properties: props });
     return res.id;
   },

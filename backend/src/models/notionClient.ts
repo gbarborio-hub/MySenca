@@ -26,7 +26,30 @@ export const notion = {
   createPage: <T>(body: unknown) =>
     notionFetch<T>(`pages`, { method: "POST", body: JSON.stringify(body) }),
   updatePage: <T>(pageId: string, body: unknown) =>
-    notionFetch<T>(`pages/${pageId}`, { method: "PATCH", body: JSON.stringify(body) })
+    notionFetch<T>(`pages/${pageId}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  // Upload binario in due fasi: 1) crea uno slot di upload, 2) invia i byte.
+  // Restituisce il fileUploadId da usare nella proprietà "file" della pagina
+  // (vedi attachFileUpload nel model che chiama questo client).
+  async uploadFile(filename: string, contentType: string, base64Data: string): Promise<string> {
+    const created: any = await notionFetch(`file_uploads`, {
+      method: "POST",
+      body: JSON.stringify({ filename, content_type: contentType || "application/octet-stream" })
+    });
+    const buffer = Buffer.from(base64Data.includes(",") ? base64Data.split(",")[1] : base64Data, "base64");
+    const form = new FormData();
+    form.append("file", new Blob([buffer], { type: contentType || "application/octet-stream" }), filename);
+    const sendRes = await fetch(`https://api.notion.com/v1/file_uploads/${created.id}/send`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${NOTION_TOKEN}`, "Notion-Version": NOTION_VERSION },
+      body: form
+    });
+    if (!sendRes.ok) {
+      const body = await sendRes.text();
+      throw new Error(`Notion file upload error ${sendRes.status}: ${body}`);
+    }
+    return created.id;
+  }
 };
 
 // Property readers — Notion's raw JSON shape is verbose, these normalize it.

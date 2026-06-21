@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ProxyApi } from "../services/ProxyApi.js";
+import { DocumentiApi } from "../services/DocumentiApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
@@ -128,6 +129,8 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
   const [comSel, setComSel] = useState<any>(null);
   const [docs, setDocs] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [firmaBusy, setFirmaBusy] = useState<string | null>(null);
+  const [firmaMsg, setFirmaMsg] = useState<{ id: string; text: string } | null>(null);
   const [profilo, setProfilo] = useState<any>(null);
   const [contatti, setContatti] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -186,7 +189,28 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
   }
   function loadDocs() {
     setDocsLoading(true);
-    ProxyApi.documentiLista({ username }).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); });
+    DocumentiApi.listByUsername(username).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); });
+  }
+
+  function caricaFirma(pageId: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 18 * 1024 * 1024) { setFirmaMsg({ id: pageId, text: "⚠️ File troppo grande (max ~18MB)." }); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      setFirmaBusy(pageId); setFirmaMsg(null);
+      try {
+        const res = await DocumentiApi.caricaFirmato(pageId, String(reader.result), file.name, file.type || "application/octet-stream");
+        setFirmaBusy(null);
+        if (res.ok) { setFirmaMsg({ id: pageId, text: "✅ Caricato. In attesa di verifica." }); loadDocs(); }
+        else setFirmaMsg({ id: pageId, text: `⚠️ ${res.error || "Errore nel caricamento."}` });
+      } catch {
+        setFirmaBusy(null);
+        setFirmaMsg({ id: pageId, text: "⚠️ Errore nel caricamento. Riprova." });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   }
 
   useRequestNotificationPermission(true);
@@ -835,6 +859,10 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
             ) : docs.map((d: any, i: number) => {
               const titolo = d.titolo || d.tipo || "Documento";
               const link = d.allegatoUrl || d.linkAllegato;
+              const puoCaricare = d.richiedeFirma && (d.statoFirma === "Da firmare" || d.statoFirma === "Respinto");
+              const inVerifica = d.richiedeFirma && d.statoFirma === "In attesa di verifica";
+              const firmato = d.richiedeFirma && d.statoFirma === "Firmato";
+              const respinto = d.richiedeFirma && d.statoFirma === "Respinto";
               return (
                 <div className="ana-card" key={i} style={{ padding: "0.85rem 1rem", marginBottom: "0.5rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -844,7 +872,28 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
                   {d.tipo && d.tipo !== titolo && <div style={{ fontSize: 11, color: "var(--text-light)", marginTop: 1 }}>{d.tipo}</div>}
                   {d.allegatoNome && <div style={{ fontSize: 12, color: "var(--text-mid)", marginTop: 2 }}>{d.allegatoNome}</div>}
                   {d.note && <div style={{ fontSize: 12, color: "var(--text-light)", marginTop: 2 }}>{d.note}</div>}
+
+                  {d.richiedeFirma && (
+                    <div style={{ marginTop: 6 }}>
+                      {d.statoFirma === "Da firmare" && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#FEF3CD", color: "#7A5800" }}>✍️ Da firmare e restituire</span>}
+                      {inVerifica && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#DDEEFF", color: "#1A4A7A" }}>🔍 In attesa di verifica</span>}
+                      {firmato && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#D5F0E0", color: "#1A6B3A" }}>✅ Firmato e accettato</span>}
+                      {respinto && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#FCE4E4", color: "#7A1A1A" }}>❌ Non restituito correttamente: ricarica</span>}
+                    </div>
+                  )}
+
                   {link && <div style={{ marginTop: 6 }}><a href={link} target="_blank" rel="noreferrer" style={{ color: "var(--teal)", fontWeight: 700, fontSize: 13 }}>📎 Apri / scarica</a></div>}
+
+                  {puoCaricare && (
+                    <div style={{ marginTop: 8 }}>
+                      <label style={{ display: "inline-block", padding: "0.5rem 0.9rem", background: "var(--teal)", color: "white", borderRadius: 20, fontSize: 12, fontWeight: 800, cursor: firmaBusy === d.pageId ? "default" : "pointer", opacity: firmaBusy === d.pageId ? 0.6 : 1 }}>
+                        {firmaBusy === d.pageId ? "Caricamento..." : "📤 Carica firmato"}
+                        <input type="file" disabled={firmaBusy === d.pageId} onChange={e => caricaFirma(d.pageId, e)} style={{ display: "none" }} />
+                      </label>
+                      {firmaMsg && firmaMsg.id === d.pageId && <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "var(--teal-dark)" }}>{firmaMsg.text}</div>}
+                    </div>
+                  )}
+
                   {d.caricatoDa && <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 4 }}>Caricato da {d.caricatoDa}</div>}
                 </div>
               );

@@ -234,7 +234,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
               )}
               <TimesheetGP dipendente={dipDetail} strutture={strutture} />
               <ExportPdfGP dipendente={dipDetail} />
-              <DocumentiDipendenteGP dipendente={dipDetail} />
+              <DocumentiDipendenteGP dipendente={dipDetail} caricatoDa={username} ruolo="GP" />
               <button className="update-btn" style={{ background: "var(--teal)" }} onClick={() => setDipForm(formDaDipendente(dipDetail))}>✏️ Modifica anagrafica</button>
               {!dipDetail.username && (
                 <div className="ana-card" style={{ padding: "0.85rem 1rem", marginBottom: "0.6rem", background: "#FCE4E4", border: "1px solid #E0A0A0" }}>

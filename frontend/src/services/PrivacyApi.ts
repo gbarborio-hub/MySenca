@@ -25,6 +25,7 @@ export interface Incaricato {
   dataNomina: string | null;
   dataScadenza: string | null;
   documentoFirmato: boolean;
+  username: string;
 }
 
 export interface DipendenteMancante {
@@ -34,6 +35,7 @@ export interface DipendenteMancante {
   mansione: string;
   struttura: string;
   email: string | null;
+  username: string | null;
 }
 
 export const PostsApi = {

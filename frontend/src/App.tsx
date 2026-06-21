@@ -33,8 +33,8 @@ export default function App() {
     case "Dipendente":
       return <DipendenteView username={user.username} nome={user.nome} ruolo={user.activeRole} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     case "Privacy":
-      return <PrivacyView nome={user.nome} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
+      return <PrivacyView nome={user.nome} username={user.username} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
     default:
-      return <PrivacyView nome={user.nome} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
+      return <PrivacyView nome={user.nome} username={user.username} showRoleSwitch={showRoleSwitch} onShowRoleChooser={reopenChooser} onLogout={logout} />;
   }
 }

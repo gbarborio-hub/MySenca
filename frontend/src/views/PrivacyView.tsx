@@ -4,11 +4,13 @@ import type { Post, Incaricato, DipendenteMancante } from "../services/PrivacyAp
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
+import DocumentiDipendenteGP from "./gp/DocumentiDipendenteGP.js";
 
 type PrivacyTab = "dashboard" | "lista" | "calendario" | "privacy";
 
 interface Props {
   nome: string;
+  username: string;
   showRoleSwitch: boolean;
   onShowRoleChooser: () => void;
   onLogout: () => void;
@@ -57,7 +59,7 @@ function scadenzaPassata(d: string | null) {
   return new Date(d).getTime() < Date.now();
 }
 
-export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
+export default function PrivacyView({ nome, username, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
   const [tab, setTab] = useState<PrivacyTab>("dashboard");
   const [dashTab, setDashTab] = useState<"all" | "marketing" | "privacy">("all");
   const [posts, setPosts] = useState<Post[]>([]);
@@ -318,6 +320,16 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
               </button>
               <button onClick={() => setPrivacyDetail(null)} style={{ padding: "0.9rem", background: "var(--text-light)", borderRadius: 30, border: "none", fontSize: 15, fontWeight: 800, color: "white", cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>← Indietro</button>
             </div>
+
+            {privacyDetail.username ? (
+              <div style={{ marginTop: "1.25rem" }}>
+                <DocumentiDipendenteGP dipendente={privacyDetail} caricatoDa={username} ruolo="Privacy" />
+              </div>
+            ) : (
+              <div className="ana-card" style={{ marginTop: "1rem", padding: "0.85rem 1rem", background: "#FEF3CD" }}>
+                <div style={{ fontSize: 12, color: "#7A5800", fontWeight: 700 }}>⚠️ Questo incaricato non è collegato a uno username (creato prima di questa funzione, o manualmente su Notion): non è possibile caricargli documenti da qui.</div>
+              </div>
+            )}
           </div>
         )}
 

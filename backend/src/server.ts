@@ -12,6 +12,7 @@ import { dipendentiProxyRouter } from "./routes/proxy.routes.js";
 import { postsRouter } from "./routes/posts.routes.js";
 import { incaricatiRouter } from "./routes/incaricati.routes.js";
 import { setupOutlookRouter } from "./routes/setupOutlook.routes.js";
+import { documentiRouter } from "./routes/documenti.routes.js";
 import { RotationService } from "./services/RotationService.js";
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/api/proxy", dipendentiProxyRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api/incaricati", incaricatiRouter);
 app.use("/api/setup-outlook", setupOutlookRouter);
+app.use("/api/documenti", documentiRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
