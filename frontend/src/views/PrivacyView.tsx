@@ -5,8 +5,11 @@ import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
 import DocumentiDipendenteGP from "./gp/DocumentiDipendenteGP.js";
+import { SegnalazioniApi } from "../services/SegnalazioniApi.js";
+import type { Segnalazione } from "../services/SegnalazioniApi.js";
 
 type PrivacyTab = "dashboard" | "lista" | "calendario" | "privacy";
+type PrivacySection = "incaricati" | "segnalazioni" | null;
 
 interface Props {
   nome: string;
@@ -68,11 +71,18 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
   const [loadingPrivacy, setLoadingPrivacy] = useState(false);
   const [filterStato, setFilterStato] = useState("Tutti");
   const [filterCanale, setFilterCanale] = useState("Tutti");
-  const [privacySection, setPrivacySection] = useState<"incaricati" | null>(null);
+  const [privacySection, setPrivacySection] = useState<PrivacySection>(null);
   const [mancanti, setMancanti] = useState<DipendenteMancante[]>([]);
   const [mancantiSel, setMancantiSel] = useState<string[]>([]);
   const [mancantiBusy, setMancantiBusy] = useState(false);
   const [mancantiMsg, setMancantiMsg] = useState<string | null>(null);
+  const [segnalazioni, setSegnalazioni] = useState<Segnalazione[]>([]);
+  const [segnalazioniLoading, setSegnalazioniLoading] = useState(false);
+  const [segnalazioneDetail, setSegnalazioneDetail] = useState<Segnalazione | null>(null);
+  const [segGestioneBusy, setSegGestioneBusy] = useState(false);
+  const [segNoteEdit, setSegNoteEdit] = useState("");
+  const [segMisureEdit, setSegMisureEdit] = useState("");
+  const [segResponsabileEdit, setSegResponsabileEdit] = useState("");
   const [privacyDetail, setPrivacyDetail] = useState<Incaricato | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -124,6 +134,14 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
     setPrivacySection("incaricati");
     loadIncaricati();
     loadMancanti();
+  }
+  function openSegnalazioniSection() {
+    setPrivacySection("segnalazioni");
+    loadSegnalazioni();
+  }
+  function loadSegnalazioni() {
+    setSegnalazioniLoading(true);
+    SegnalazioniApi.list().then(r => { setSegnalazioni(Array.isArray(r) ? r : []); setSegnalazioniLoading(false); }).catch(() => setSegnalazioniLoading(false));
   }
   function loadMancanti() {
     IncaricatiApi.mancanti().then(r => setMancanti(Array.isArray(r) ? r : [])).catch(() => setMancanti([]));
@@ -355,6 +373,18 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>totali registrati</div>
               </div>
             </div>
+            <div className="half-cards">
+              <div className="half-card" style={{ background: "var(--coral)", cursor: "pointer" }} onClick={openSegnalazioniSection}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Segnalazioni</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>eventi e data breach</div>
+              </div>
+              <div className="half-card" style={{ background: "var(--text-mid)" }}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>{segnalazioni.filter(s => s.stato === "Aperto").length}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>aperte</div>
+              </div>
+            </div>
 
             {privacySection === "incaricati" && (
               <>
@@ -396,6 +426,110 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
                 <button className="update-btn" onClick={loadIncaricati}>Aggiorna</button>
               </>
             )}
+
+            {privacySection === "segnalazioni" && !segnalazioneDetail && (
+              <>
+                <div className="section-label"><div className="section-title">Segnalazioni e Data Breach</div></div>
+                {segnalazioniLoading ? (
+                  <div className="ana-card" style={{ padding: "1.2rem", textAlign: "center", color: "var(--text-light)" }}>Caricamento...</div>
+                ) : segnalazioni.length === 0 ? (
+                  <div className="ana-card" style={{ padding: "1.2rem", textAlign: "center", color: "var(--text-light)", fontWeight: 700 }}>Nessuna segnalazione</div>
+                ) : (
+                  <div className="table-card">
+                    {segnalazioni.map((s, i) => {
+                      const statoBg = s.stato === "Aperto" ? "#FCE4E4" : s.stato === "In gestione" ? "#FEF3CD" : "#D5F0E0";
+                      const statoCol = s.stato === "Aperto" ? "#7A1A1A" : s.stato === "In gestione" ? "#7A5800" : "#1A6B3A";
+                      return (
+                        <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => { setSegnalazioneDetail(s); setSegNoteEdit(s.note); setSegMisureEdit(s.misureAdottate); setSegResponsabileEdit(s.responsabileGestione); }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="row-title">{s.numeroEvento} {s.tipo === "Data Breach" && <span style={{ color: "#C0392B" }}>⚠️</span>}</div>
+                            <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{s.tipo} · {s.segnalatoDa || "anonimo"}{s.struttura ? ` · ${s.struttura}` : ""}</div>
+                          </div>
+                          <div style={{ padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 800, background: statoBg, color: statoCol, whiteSpace: "nowrap", flexShrink: 0 }}>{s.stato}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <button className="update-btn" onClick={loadSegnalazioni}>Aggiorna</button>
+              </>
+            )}
+
+            {privacySection === "segnalazioni" && segnalazioneDetail && (() => {
+              const s = segnalazioneDetail;
+              async function setStato(stato: "Aperto" | "In gestione" | "Chiuso") {
+                await SegnalazioniApi.updateStato(s.pageId, stato);
+                setSegnalazioneDetail({ ...s, stato });
+                loadSegnalazioni();
+              }
+              async function salvaGestione() {
+                setSegGestioneBusy(true);
+                await SegnalazioniApi.aggiornaGestione(s.pageId, { responsabileGestione: segResponsabileEdit, misureAdottate: segMisureEdit, note: segNoteEdit });
+                setSegGestioneBusy(false);
+                setSegnalazioneDetail({ ...s, responsabileGestione: segResponsabileEdit, misureAdottate: segMisureEdit, note: segNoteEdit });
+                loadSegnalazioni();
+              }
+              return (
+                <div>
+                  <button onClick={() => setSegnalazioneDetail(null)} style={{ background: "none", border: "none", fontSize: 14, fontWeight: 800, color: "var(--teal)", cursor: "pointer", fontFamily: "Satoshi,sans-serif", marginBottom: "0.5rem" }}>← Indietro</button>
+                  <div style={{ background: "var(--teal-dark)", borderRadius: "var(--radius)", padding: "1.5rem", marginBottom: "1rem" }}>
+                    <div style={{ fontSize: 20, fontWeight: 900, color: "white" }}>{s.numeroEvento}</div>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{s.tipo}{s.tipoViolazione ? ` · ${s.tipoViolazione}` : ""}</div>
+                  </div>
+
+                  <div className="ana-card" style={{ marginBottom: "0.75rem" }}>
+                    <div className="ana-row"><div className="ana-label">Segnalato da</div><div className="ana-value">{s.segnalatoDa || "—"}</div></div>
+                    <div className="ana-row"><div className="ana-label">Data evento</div><div className="ana-value">{fmtDateIt(s.dataEvento)}</div></div>
+                    <div className="ana-row"><div className="ana-label">Data segnalazione</div><div className="ana-value">{fmtDateIt(s.dataSegnalazione)}</div></div>
+                    <div className="ana-row"><div className="ana-label">Area/Sede</div><div className="ana-value">{s.areaSede || "—"}</div></div>
+                  </div>
+
+                  <div className="ana-card" style={{ padding: "1rem", marginBottom: "0.75rem" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", marginBottom: 4 }}>Descrizione</div>
+                    <div style={{ fontSize: 13, color: "var(--text-mid)", whiteSpace: "pre-wrap" }}>{s.descrizione || "—"}</div>
+                  </div>
+
+                  <div className="ana-card" style={{ marginBottom: "0.75rem" }}>
+                    <div className="ana-row"><div className="ana-label">Origine</div><div className="ana-value">{s.origine || "—"}</div></div>
+                    <div className="ana-row"><div className="ana-label">Causa</div><div className="ana-value">{s.causa || "—"}</div></div>
+                    <div className="ana-row"><div className="ana-label">Testimoni</div><div className="ana-value" style={{ fontSize: 12 }}>{s.testimoni || "—"}</div></div>
+                    <div className="ana-row"><div className="ana-label">Info aziendali coinvolte</div><div className="ana-value">{s.infoAziendaliCoinvolte ? "Sì" : "No"}</div></div>
+                    {s.infoAziendaliCoinvolte && <div className="ana-row"><div className="ana-label">Dettaglio</div><div className="ana-value" style={{ fontSize: 12 }}>{s.dettaglioInfoAziendali || "—"}</div></div>}
+                    <div className="ana-row"><div className="ana-label">Dati personali coinvolti</div><div className="ana-value">{s.datiPersonaliCoinvolti ? "Sì" : "No"}</div></div>
+                    <div className="ana-row"><div className="ana-label">Asset coinvolti</div><div className="ana-value" style={{ fontSize: 12 }}>{s.assetCoinvolti || "—"}</div></div>
+                    <div className="ana-row"><div className="ana-label">Responsabile asset</div><div className="ana-value">{s.responsabileAsset || "—"}</div></div>
+                  </div>
+
+                  {s.tipo === "Data Breach" && (
+                    <div className="ana-card" style={{ marginBottom: "0.75rem", border: "1.5px solid #C0392B" }}>
+                      <div style={{ padding: "0.6rem 1rem 0", fontSize: 12, fontWeight: 800, color: "#7A1A1A" }}>Dettaglio Data Breach</div>
+                      <div className="ana-row"><div className="ana-label">Categoria</div><div className="ana-value">{s.categoriaDataBreach || "—"}</div></div>
+                      <div className="ana-row"><div className="ana-label">Categorie dati coinvolti</div><div className="ana-value" style={{ fontSize: 12 }}>{s.categorieDatiCoinvolti || "—"}</div></div>
+                      <div className="ana-row"><div className="ana-label">Quantità dati</div><div className="ana-value" style={{ fontSize: 12 }}>{s.quantitaDati || "—"}</div></div>
+                      <div className="ana-row"><div className="ana-label">Categorie interessati</div><div className="ana-value" style={{ fontSize: 12 }}>{s.categorieInteressati || "—"}</div></div>
+                      <div className="ana-row"><div className="ana-label">Danni agli interessati</div><div className="ana-value" style={{ fontSize: 12 }}>{s.danniInteressati || "—"}</div></div>
+                    </div>
+                  )}
+
+                  <div className="section-label"><div className="section-title">Gestione</div></div>
+                  <div className="ana-card" style={{ padding: "1rem", marginBottom: "0.75rem" }}>
+                    <label className="dim-lbl">Stato</label>
+                    <div style={{ display: "flex", gap: "0.4rem", marginBottom: "0.7rem" }}>
+                      {(["Aperto", "In gestione", "Chiuso"] as const).map(st => (
+                        <button key={st} onClick={() => setStato(st)} className={`com-pill${s.stato === st ? " on" : ""}`}>{st}</button>
+                      ))}
+                    </div>
+                    <label className="dim-lbl">Responsabile gestione</label>
+                    <input className="dim-in" value={segResponsabileEdit} onChange={e => setSegResponsabileEdit(e.target.value)} />
+                    <label className="dim-lbl">Misure adottate</label>
+                    <textarea className="dim-in" rows={3} value={segMisureEdit} onChange={e => setSegMisureEdit(e.target.value)} />
+                    <label className="dim-lbl">Note interne</label>
+                    <textarea className="dim-in" rows={3} value={segNoteEdit} onChange={e => setSegNoteEdit(e.target.value)} />
+                    <button className="ts-save" style={{ marginTop: "0.5rem" }} disabled={segGestioneBusy} onClick={salvaGestione}>{segGestioneBusy ? "Salvataggio..." : "💾 Salva"}</button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

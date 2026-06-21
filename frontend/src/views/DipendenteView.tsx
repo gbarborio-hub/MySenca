@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { ProxyApi } from "../services/ProxyApi.js";
 import { DocumentiApi } from "../services/DocumentiApi.js";
+import { SegnalazioniApi } from "../services/SegnalazioniApi.js";
+import { TicketApi } from "../services/TicketApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
@@ -391,24 +393,39 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
       return;
     }
     setSegBusy(true);
-    await ProxyApi.segnalazione({
-      numeroEvento: `AUTO-${Date.now()}`, ...seg, username, nome,
-      areaSede: seg.areaSede || profilo?.struttura || ""
-    });
-    setSegBusy(false);
-    setSegInviata(true);
-    setSeg({ ...SEG_DEFAULTS });
+    try {
+      const res = await SegnalazioniApi.create({
+        numeroEvento: `AUTO-${Date.now()}`, ...seg, username, nome,
+        areaSede: seg.areaSede || profilo?.struttura || "",
+        dataEvento: seg.dataEvento
+      });
+      setSegBusy(false);
+      if (res.ok) { setSegInviata(true); setSeg({ ...SEG_DEFAULTS }); }
+      else alert(res.error || "Errore nell'invio. Riprova.");
+    } catch {
+      setSegBusy(false);
+      alert("Errore nell'invio. Riprova.");
+    }
   }
 
   async function submitTicket() {
     if (!ticket.titolo.trim() || !ticket.descrizione.trim()) { setTicketMsg("⚠️ Compila titolo e descrizione."); return; }
     setTicketBusy(true);
     setTicketMsg("⏳ Invio...");
-    await ProxyApi.appTicket({ ...ticket, username, nome, ruolo: ruolo || "" });
-    setTicketBusy(false);
-    setTicketOpen(false);
-    setTicket({ titolo: "", categoria: "Problema", descrizione: "" });
-    alert("Segnalazione inviata. Grazie!");
+    try {
+      const res = await TicketApi.create({ ...ticket, username, nome, ruolo: ruolo || "" });
+      setTicketBusy(false);
+      if (res.ok) {
+        setTicketOpen(false);
+        setTicket({ titolo: "", categoria: "Problema", descrizione: "" });
+        alert("Segnalazione inviata. Grazie!");
+      } else {
+        setTicketMsg(`⚠️ ${res.error || "Errore nell'invio."}`);
+      }
+    } catch {
+      setTicketBusy(false);
+      setTicketMsg("⚠️ Errore nell'invio. Riprova.");
+    }
   }
 
   const oggi = new Date().toISOString().split("T")[0];

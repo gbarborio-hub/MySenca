@@ -2,14 +2,17 @@ import { useEffect, useState, useCallback } from "react";
 import type { Dipendente, UtenteWebApp } from "../../models/domain.js";
 import { DipendentiApi } from "../../services/DipendentiApi.js";
 import { UtentiApi } from "../../services/UtentiApi.js";
+import { TicketApi } from "../../services/TicketApi.js";
+import type { Ticket } from "../../services/TicketApi.js";
 import RoleSwitchMini from "../../components/RoleSwitchMini.js";
 import Logo from "../../components/Logo.js";
 import { NavIcons } from "../../components/NavIcons.js";
 import AdminHome from "./AdminHome.js";
 import AdminAbilitare from "./AdminAbilitare.js";
 import AdminUtenti from "./AdminUtenti.js";
+import AdminTicket from "./AdminTicket.js";
 
-type AdminScreen = "home" | "abilitare" | "utenti";
+type AdminScreen = "home" | "abilitare" | "utenti" | "ticket";
 
 interface Props {
   nome: string;
@@ -24,6 +27,8 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
   const [dipLoading, setDipLoading] = useState(true);
   const [utenti, setUtenti] = useState<UtenteWebApp[]>([]);
   const [utentiLoading, setUtentiLoading] = useState(false);
+  const [ticket, setTicket] = useState<Ticket[]>([]);
+  const [ticketLoading, setTicketLoading] = useState(false);
 
   const fetchDipendenti = useCallback(async () => {
     setDipLoading(true);
@@ -35,17 +40,25 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
     setUtenti(await UtentiApi.list());
     setUtentiLoading(false);
   }, []);
+  const fetchTicket = useCallback(async () => {
+    setTicketLoading(true);
+    setTicket(await TicketApi.list());
+    setTicketLoading(false);
+  }, []);
 
   useEffect(() => { fetchDipendenti(); }, [fetchDipendenti]);
   useEffect(() => { if (screen === "utenti") fetchUtenti(); }, [screen, fetchUtenti]);
+  useEffect(() => { if (screen === "ticket") fetchTicket(); }, [screen, fetchTicket]);
 
   const senzaUsername = dipendenti.filter(d => !d.username);
   const firstName = nome.split(" ")[0] || "utente";
+  const nTicketNuovi = ticket.filter(t => t.stato === "Nuovo").length;
 
   const navs: { id: AdminScreen | "logout"; label: string; icon: keyof typeof NavIcons }[] = [
     { id: "home", label: "Home", icon: "home" },
     { id: "abilitare", label: "Da abilitare", icon: "daAbilitare" },
     { id: "utenti", label: "Utenti", icon: "utenti" },
+    { id: "ticket", label: "Ticket", icon: "comunicazioni" },
     { id: "logout", label: "Esci", icon: "logout" }
   ];
 
@@ -63,6 +76,7 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
             <AdminAbilitare dipendenti={senzaUsername} loading={dipLoading} onRefresh={fetchDipendenti} onCreated={() => { fetchDipendenti(); fetchUtenti(); }} />
           )}
           {screen === "utenti" && <AdminUtenti utenti={utenti} loading={utentiLoading} onRefresh={fetchUtenti} />}
+          {screen === "ticket" && <AdminTicket ticket={ticket} loading={ticketLoading} onRefresh={fetchTicket} />}
         </div>
       </div>
       <div className="bottom-nav">
@@ -73,7 +87,7 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
             onClick={() => (nav.id === "logout" ? onLogout() : setScreen(nav.id as AdminScreen))}
           >
             <div className="bnav-icon">{NavIcons[nav.icon]}</div>
-            <div className="bnav-label">{nav.label}</div>
+            <div className="bnav-label">{nav.label}{nav.id === "ticket" && nTicketNuovi > 0 ? ` (${nTicketNuovi})` : ""}</div>
           </div>
         ))}
       </div>
