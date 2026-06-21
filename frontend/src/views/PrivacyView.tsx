@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { PostsApi, IncaricatiApi } from "../services/PrivacyApi.js";
-import type { Post, Incaricato } from "../services/PrivacyApi.js";
+import type { Post, Incaricato, DipendenteMancante } from "../services/PrivacyApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
@@ -67,6 +67,10 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
   const [filterStato, setFilterStato] = useState("Tutti");
   const [filterCanale, setFilterCanale] = useState("Tutti");
   const [privacySection, setPrivacySection] = useState<"incaricati" | null>(null);
+  const [mancanti, setMancanti] = useState<DipendenteMancante[]>([]);
+  const [mancantiSel, setMancantiSel] = useState<string[]>([]);
+  const [mancantiBusy, setMancantiBusy] = useState(false);
+  const [mancantiMsg, setMancantiMsg] = useState<string | null>(null);
   const [privacyDetail, setPrivacyDetail] = useState<Incaricato | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -117,6 +121,30 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
   function openIncaricatiSection() {
     setPrivacySection("incaricati");
     loadIncaricati();
+    loadMancanti();
+  }
+  function loadMancanti() {
+    IncaricatiApi.mancanti().then(r => setMancanti(Array.isArray(r) ? r : [])).catch(() => setMancanti([]));
+  }
+  function toggleMancante(pageId: string) {
+    setMancantiSel(sel => sel.includes(pageId) ? sel.filter(id => id !== pageId) : [...sel, pageId]);
+  }
+  async function aggiungiMancanti(lista: DipendenteMancante[]) {
+    if (lista.length === 0) return;
+    setMancantiBusy(true); setMancantiMsg(null);
+    try {
+      const res = await IncaricatiApi.creaSelezionati(lista);
+      setMancantiBusy(false);
+      setMancantiMsg(res.falliti.length > 0
+        ? `✅ Aggiunti ${res.creati}. ⚠️ ${res.falliti.length} non riusciti.`
+        : `✅ Aggiunti ${res.creati} incaricati.`);
+      setMancantiSel([]);
+      loadMancanti();
+      loadIncaricati();
+    } catch {
+      setMancantiBusy(false);
+      setMancantiMsg("⚠️ Errore nell'operazione. Riprova.");
+    }
   }
 
   const filteredPosts = posts.filter(p => {
@@ -318,6 +346,24 @@ export default function PrivacyView({ nome, showRoleSwitch, onShowRoleChooser, o
 
             {privacySection === "incaricati" && (
               <>
+                {mancanti.length > 0 && (
+                  <div className="ana-card" style={{ padding: "1rem", marginBottom: "1rem", border: "1.5px solid #E8603A" }}>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#7A1A1A", marginBottom: 4 }}>⚠️ {mancanti.length} dipendenti non sono incaricati al trattamento</div>
+                    <div style={{ fontSize: 12, color: "var(--text-mid)", marginBottom: "0.6rem" }}>Verifica se vanno aggiunti: non tutti i dipendenti devono necessariamente esserlo.</div>
+                    {mancanti.map(d => (
+                      <label key={d.pageId} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", fontSize: 13, fontWeight: 700, color: "var(--text-dark)", cursor: "pointer" }}>
+                        <input type="checkbox" checked={mancantiSel.includes(d.pageId)} onChange={() => toggleMancante(d.pageId)} style={{ width: 16, height: 16 }} />
+                        {d.nome} {d.cognome} <span style={{ color: "var(--text-light)", fontWeight: 600, fontSize: 11 }}>{d.mansione ? `· ${d.mansione}` : ""}{d.struttura ? ` · ${d.struttura}` : ""}</span>
+                      </label>
+                    ))}
+                    {mancantiMsg && <div style={{ margin: "8px 0", fontSize: 13, fontWeight: 700, color: "var(--teal-dark)" }}>{mancantiMsg}</div>}
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.7rem", flexWrap: "wrap" }}>
+                      <button className="ts-save" disabled={mancantiBusy} onClick={() => aggiungiMancanti(mancanti)}>{mancantiBusy ? "Aggiunta…" : `➕ Aggiungi tutti (${mancanti.length})`}</button>
+                      <button className="ts-mini" disabled={mancantiBusy || mancantiSel.length === 0} onClick={() => aggiungiMancanti(mancanti.filter(d => mancantiSel.includes(d.pageId)))}>{mancantiBusy ? "…" : `Aggiungi selezionati (${mancantiSel.length})`}</button>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-dark)", margin: "1rem 0 0.75rem" }}>Incaricati al trattamento</div>
                 <div className="table-card">
                   {incaricati.filter(i => i.nome).length === 0
