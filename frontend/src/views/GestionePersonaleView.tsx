@@ -41,7 +41,7 @@ function parseFerie(raw: unknown): any[] {
 // Stesso problema per la lista timbrature GP: normalizziamo id->pageId.
 function parseTimbratureList(raw: unknown): any[] {
   const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  return arr.map((item: any) => ({ ...item, pageId: item.pageId || item.id || "" }));
+  return arr.map((item: any) => ({ ...item, pageId: item.pageId || item.id || "", nome: item.nome || item.dipendente || "" }));
 }
 
 export default function GestionePersonaleView({ nome, username, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
@@ -81,7 +81,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     setDipDetail(null);
     setDipForm(null);
     if (v === "timbrature") {
-      const r = await ProxyApi.gpTimbrature();
+      const r = await ProxyApi.gpTimbrature({ struttura: "" });
       setTimbrature(parseTimbratureList(r));
     } else if (v === "ferie") {
       const r = await ProxyApi.gpFerie({ struttura: "" });
@@ -116,7 +116,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     try {
       await ProxyApi.timbraturaUpdate({ action, pageId, motivo: "Cancellata" });
       setGpTimbBusy(null);
-      setTimeout(async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(parseTimbratureList(r)); }, 1200);
+      setTimeout(async () => { const r = await ProxyApi.gpTimbrature({ struttura: "" }); setTimbrature(parseTimbratureList(r)); }, 1200);
     } catch {
       setGpTimbBusy(null);
       alert("Errore nell'operazione. Riprova.");
@@ -133,7 +133,6 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
     { id: "dipendenti", label: "Dipendenti", icon: "dipendenti" },
     { id: "timbrature", label: "Timbrature", icon: "timbra" },
     { id: "ferie", label: "Ferie/ROL", icon: "ferie" },
-    { id: "comunicazioni", label: "Avvisi", icon: "comunicazioni" },
   ];
 
   return (
@@ -322,7 +321,7 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
                   </>
                 )}
 
-                <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpTimbrature(); setTimbrature(parseTimbratureList(r)); }}>Aggiorna</button>
+                <button className="update-btn" onClick={async () => { const r = await ProxyApi.gpTimbrature({ struttura: "" }); setTimbrature(parseTimbratureList(r)); }}>Aggiorna</button>
               </div>
             );
           })()}
