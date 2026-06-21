@@ -1,26 +1,49 @@
-// Sends mail via Microsoft Graph API using a pre-acquired OAuth2 access token.
-// Token acquisition (client credentials or delegated refresh) lives in its own
-// module so this service only knows "send this html to this address".
+// Invio email tramite il workflow n8n dedicato ("Senca Hub - Invio Email"),
+// che usa la credenziale Microsoft Outlook già autorizzata su n8n.
+// Niente OAuth2 diretto su questo backend: n8n fa da intermediario.
 
-const GRAPH_SEND_URL = "https://graph.microsoft.com/v1.0/me/sendMail";
+const N8N_EMAIL_WEBHOOK = process.env.N8N_EMAIL_WEBHOOK_URL || "https://senca-hub.duckdns.org/webhook/senca-email";
 
 export const EmailService = {
-  async send(accessToken: string, to: string, subject: string, htmlBody: string): Promise<boolean> {
-    const res = await fetch(GRAPH_SEND_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        message: {
-          subject,
-          body: { contentType: "HTML", content: htmlBody },
-          toRecipients: [{ emailAddress: { address: to } }]
-        }
-      })
-    });
-    return res.ok;
+  // Firma mantenuta com'era (accessToken non più usato, tenuto per non toccare i chiamanti)
+  // così CredentialsService/RotationService restano invariati.
+  async send(_accessTokenUnused: string, to: string, subject: string, htmlBody: string): Promise<boolean> {
+    try {
+      const res = await fetch(N8N_EMAIL_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "generico", email: to, subject, htmlBody })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async sendCredenziali(nome: string, username: string, email: string, password: string): Promise<boolean> {
+    try {
+      const res = await fetch(N8N_EMAIL_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "credenziali", nome, username, email, password })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async sendRotazione(nome: string, username: string, email: string, password: string): Promise<boolean> {
+    try {
+      const res = await fetch(N8N_EMAIL_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "rotazione", nome, username, email, password })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   },
 
   credenzialiTemplate(username: string, password: string): string {

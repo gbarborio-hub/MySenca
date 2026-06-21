@@ -1,7 +1,7 @@
 import { UtentiModel } from "../models/UtentiModel.js";
+import { DipendentiModel } from "../models/DipendentiModel.js";
 import { PasswordService } from "./PasswordService.js";
 import { EmailService } from "./EmailService.js";
-import { OutlookTokenService } from "./OutlookTokenService.js";
 
 const ROTATION_DAYS = 90;
 
@@ -23,11 +23,9 @@ export const RotationService = {
       await UtentiModel.aggiornaPassword(u.pageId, hash, salt);
 
       if (u.email) {
-        const token = await OutlookTokenService.getAccessToken();
-        const sent = token
-          ? await EmailService.send(token, u.email, "La tua password Senca Hub è stata rinnovata",
-              EmailService.rotazioneTemplate(u.username, password))
-          : false;
+        const dip = await DipendentiModel.findByUsername(u.username);
+        const nome = dip ? `${dip.nome} ${dip.cognome}`.trim() : u.username;
+        const sent = await EmailService.sendRotazione(nome, u.username, u.email, password);
         if (!sent) emailFailed.push(u.username);
       } else {
         emailFailed.push(u.username);

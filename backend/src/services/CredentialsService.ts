@@ -2,7 +2,6 @@ import { UtentiModel } from "../models/UtentiModel.js";
 import { DipendentiModel } from "../models/DipendentiModel.js";
 import { PasswordService } from "./PasswordService.js";
 import { EmailService } from "./EmailService.js";
-import { OutlookTokenService } from "./OutlookTokenService.js";
 import type { CreaUtenzaInput, CreaUtenzaResult } from "../types/domain.js";
 
 export const CredentialsService = {
@@ -25,13 +24,9 @@ export const CredentialsService = {
 
     let emailInviata = false;
     if (input.email) {
-      const token = await OutlookTokenService.getAccessToken();
-      if (token) {
-        emailInviata = await EmailService.send(
-          token, input.email, "Le tue credenziali di accesso a Senca Hub",
-          EmailService.credenzialiTemplate(username, password)
-        );
-      }
+      const dip = await DipendentiModel.findByUsername(username);
+      const nome = dip ? `${dip.nome} ${dip.cognome}`.trim() : username;
+      emailInviata = await EmailService.sendCredenziali(nome, username, input.email, password);
     }
 
     return { ok: true, username, password, emailInviata };
