@@ -48,16 +48,21 @@ export default function AdminAbilitare({ dipendenti, loading, onRefresh, onCreat
     if (!username.trim()) { setError("Inserisci uno username."); return; }
     setBusy(true);
     setError(null);
-    const res = await UtentiApi.crea({
-      username, email: email || undefined, ruolo, ruoliAggiuntivi,
-      dipendentePageId: selected.pageId
-    });
-    setBusy(false);
-    if (res.ok && res.username && res.password) {
-      setResult({ username: res.username, password: res.password, emailInviata: !!res.emailInviata });
-      onCreated();
-    } else {
-      setError(res.error || "Errore nella creazione dell'utenza.");
+    try {
+      const res = await UtentiApi.crea({
+        username, email: email || undefined, ruolo, ruoliAggiuntivi,
+        dipendentePageId: selected.pageId
+      });
+      setBusy(false);
+      if (res.ok && res.username && res.password) {
+        setResult({ username: res.username, password: res.password, emailInviata: !!res.emailInviata });
+        onCreated();
+      } else {
+        setError(res.error || "Errore nella creazione dell'utenza.");
+      }
+    } catch (err: any) {
+      setBusy(false);
+      setError(err?.message || "Errore nella creazione dell'utenza.");
     }
   }
 

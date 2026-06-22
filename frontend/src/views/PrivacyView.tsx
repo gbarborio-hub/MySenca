@@ -119,10 +119,15 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
 
   async function toggleFirmato(inc: Incaricato) {
     setActionLoading(true);
-    await IncaricatiApi.setFirmato(inc.pageId, !inc.documentoFirmato);
-    setActionLoading(false);
-    loadIncaricati();
-    setPrivacyDetail(null);
+    try {
+      await IncaricatiApi.setFirmato(inc.pageId, !inc.documentoFirmato);
+      loadIncaricati();
+      setPrivacyDetail(null);
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'operazione. Riprova.");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   function openPrivacyTab() {
@@ -458,16 +463,25 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
             {privacySection === "segnalazioni" && segnalazioneDetail && (() => {
               const s = segnalazioneDetail;
               async function setStato(stato: "Aperto" | "In gestione" | "Chiuso") {
-                await SegnalazioniApi.updateStato(s.pageId, stato);
-                setSegnalazioneDetail({ ...s, stato });
-                loadSegnalazioni();
+                try {
+                  await SegnalazioniApi.updateStato(s.pageId, stato);
+                  setSegnalazioneDetail({ ...s, stato });
+                  loadSegnalazioni();
+                } catch (err: any) {
+                  alert(err?.message || "Errore nell'operazione. Riprova.");
+                }
               }
               async function salvaGestione() {
                 setSegGestioneBusy(true);
-                await SegnalazioniApi.aggiornaGestione(s.pageId, { responsabileGestione: segResponsabileEdit, misureAdottate: segMisureEdit, note: segNoteEdit });
-                setSegGestioneBusy(false);
-                setSegnalazioneDetail({ ...s, responsabileGestione: segResponsabileEdit, misureAdottate: segMisureEdit, note: segNoteEdit });
-                loadSegnalazioni();
+                try {
+                  await SegnalazioniApi.aggiornaGestione(s.pageId, { responsabileGestione: segResponsabileEdit, misureAdottate: segMisureEdit, note: segNoteEdit });
+                  setSegnalazioneDetail({ ...s, responsabileGestione: segResponsabileEdit, misureAdottate: segMisureEdit, note: segNoteEdit });
+                  loadSegnalazioni();
+                } catch (err: any) {
+                  alert(err?.message || "Errore nel salvataggio. Riprova.");
+                } finally {
+                  setSegGestioneBusy(false);
+                }
               }
               return (
                 <div>

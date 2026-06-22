@@ -124,14 +124,22 @@ export default function GriglieTurniGP({ strutture, dipendenti }: Props) {
       colore: legendEdit.colore, tipo: legendEdit.tipo,
       struttura: legendEdit.struttura || "", figura: legendEdit.figura || ""
     };
-    await ProxyApi.legendaScrivi(payload);
-    setLegendEdit(null);
-    setTimeout(fetchLegenda, 1500);
+    try {
+      await ProxyApi.legendaScrivi(payload);
+      setLegendEdit(null);
+      setTimeout(fetchLegenda, 1500);
+    } catch (err: any) {
+      alert(err?.message || "Errore nel salvataggio. Riprova.");
+    }
   }
   async function delLeg(id: string) {
     if (!confirm("Eliminare questo tipo di turno?")) return;
-    await ProxyApi.legendaScrivi({ action: "delete", pageId: id });
-    setTimeout(fetchLegenda, 1500);
+    try {
+      await ProxyApi.legendaScrivi({ action: "delete", pageId: id });
+      setTimeout(fetchLegenda, 1500);
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'eliminazione. Riprova.");
+    }
   }
 
   const giorniMese = new Date(anno, mese, 0).getDate();

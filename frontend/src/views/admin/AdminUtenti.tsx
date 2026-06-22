@@ -22,29 +22,49 @@ export default function AdminUtenti({ utenti, loading, onRefresh }: Props) {
   async function riattiva(u: UtenteWebApp) {
     if (!confirm(`Riattivare l'accesso per "${u.username}"? Il blocco e i tentativi falliti verranno azzerati.`)) return;
     setBusyId(u.pageId);
-    await UtentiApi.riattiva(u.pageId);
-    setBusyId(null);
-    onRefresh();
+    try {
+      await UtentiApi.riattiva(u.pageId);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'operazione. Riprova.");
+    } finally {
+      setBusyId(null);
+    }
   }
   async function elimina(u: UtenteWebApp) {
     if (!confirm(`Eliminare l'accesso alla web app per "${u.username}"? Il dipendente resterà nell'anagrafica, ma non potrà più accedere finché non gli crei una nuova utenza.`)) return;
     setBusyId(u.pageId);
-    await UtentiApi.elimina(u.pageId, u.username);
-    setBusyId(null);
-    onRefresh();
+    try {
+      await UtentiApi.elimina(u.pageId, u.username);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'operazione. Riprova.");
+    } finally {
+      setBusyId(null);
+    }
   }
   async function cambiaRuolo(u: UtenteWebApp, nuovoRuolo: Ruolo) {
     setBusyId(u.pageId);
-    await UtentiApi.aggiornaRuoli(u.pageId, nuovoRuolo);
-    setBusyId(null);
-    onRefresh();
+    try {
+      await UtentiApi.aggiornaRuoli(u.pageId, nuovoRuolo);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'operazione. Riprova.");
+    } finally {
+      setBusyId(null);
+    }
   }
   async function toggleRuoloAgg(u: UtenteWebApp, r: Ruolo) {
     const lista = u.ruoliAggiuntivi.includes(r) ? u.ruoliAggiuntivi.filter(x => x !== r) : [...u.ruoliAggiuntivi, r];
     setBusyId(u.pageId);
-    await UtentiApi.aggiornaRuoli(u.pageId, undefined, lista);
-    setBusyId(null);
-    onRefresh();
+    try {
+      await UtentiApi.aggiornaRuoli(u.pageId, undefined, lista);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'operazione. Riprova.");
+    } finally {
+      setBusyId(null);
+    }
   }
 
   if (loading) {

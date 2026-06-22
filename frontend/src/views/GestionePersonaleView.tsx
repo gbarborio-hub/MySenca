@@ -62,18 +62,28 @@ export default function GestionePersonaleView({ nome, username, showRoleSwitch, 
 
   const fetchDip = useCallback(async () => {
     setLoading(true);
-    const r = await DipendentiApi.list();
-    setDipendenti(Array.isArray(r) ? r : []);
-    setLoading(false);
+    try {
+      const r = await DipendentiApi.list();
+      setDipendenti(Array.isArray(r) ? r : []);
+    } catch {
+      setDipendenti([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchDip(); }, [fetchDip]);
 
   async function refreshStrutture() {
     setStrutLoading(true);
-    const r = await ProxyApi.gpStrutture();
-    setStrutture(Array.isArray(r) ? r : []);
-    setStrutLoading(false);
+    try {
+      const r = await ProxyApi.gpStrutture();
+      setStrutture(Array.isArray(r) ? r : []);
+    } catch {
+      setStrutture([]);
+    } finally {
+      setStrutLoading(false);
+    }
   }
 
   async function goView(v: GPView) {

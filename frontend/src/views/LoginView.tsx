@@ -17,12 +17,17 @@ export default function LoginView({ onSuccess }: Props) {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = await AuthApi.login(username, password);
-    setBusy(false);
-    if (res.ok && res.ruoli) {
-      onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.createdTime);
-    } else {
-      setError(res.error || "Credenziali non valide.");
+    try {
+      const res = await AuthApi.login(username, password);
+      setBusy(false);
+      if (res.ok && res.ruoli) {
+        onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.createdTime);
+      } else {
+        setError(res.error || "Credenziali non valide.");
+      }
+    } catch (err: any) {
+      setBusy(false);
+      setError(err?.message || "Credenziali non valide.");
     }
   }
 
