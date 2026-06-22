@@ -19,15 +19,19 @@ export const AuthService = {
       return { ok: false, error: "Errore di configurazione utenza. Contatta un amministratore." };
     }
 
-    const match = PasswordService.verify(password, utente.hashPassword, utente.salt);
+    const match = await PasswordService.verify(password, utente.hashPassword, utente.salt);
     if (!match) {
       const nuovi = utente.tentativiFalliti + 1;
       const daBloccare = nuovi >= MAX_TENTATIVI;
-      await UtentiModel.setTentativiFalliti(utente.pageId, nuovi, daBloccare);
+      // Non blocchiamo la risposta in attesa che Notion registri il contatore:
+      // l'utente non deve aspettare una scrittura che non gli serve vedere subito.
+      UtentiModel.setTentativiFalliti(utente.pageId, nuovi, daBloccare).catch(() => {});
       return { ok: false, error: "Credenziali non valide." };
     }
 
-    await UtentiModel.resetTentativiFalliti(utente.pageId);
+    // Stessa logica per il reset dei tentativi falliti al login riuscito:
+    // non è necessario attendere che Notion confermi prima di rispondere.
+    UtentiModel.resetTentativiFalliti(utente.pageId).catch(() => {});
     const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
 
     // Il nome vero (richiesto da n8n per cercare turni/timbrature/profilo) vive

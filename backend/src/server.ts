@@ -32,22 +32,6 @@ app.use("/api/ticket", ticketRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// ENDPOINT TEMPORANEO — rimuovere dopo aver completato la migrazione delle utenze
-// Uso: GET /api/gen-hash?pwd=TUAPASSWORD
-// Restituisce salt e hash da incollare nei campi Notion dell'utente
-app.get("/api/gen-hash", (req, res) => {
-  const pwd = String(req.query.pwd || "");
-  if (!pwd || pwd.length < 4) {
-    res.status(400).json({ error: "Parametro pwd mancante o troppo corto (min 4 caratteri)" });
-    return;
-  }
-  import("crypto").then(crypto => {
-    const salt = crypto.randomBytes(16).toString("hex");
-    const hash = crypto.pbkdf2Sync(pwd, salt, 100000, 64, "sha256").toString("hex");
-    res.json({ salt, hash, note: "Incolla questi valori nei campi Salt e Hash password su Notion. Poi rimuovi questo endpoint." });
-  });
-});
-
 // If a built frontend is present (combined Docker image), serve it.
 // In the split-services setup this folder simply doesn't exist and nothing changes.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

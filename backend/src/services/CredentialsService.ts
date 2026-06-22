@@ -12,7 +12,7 @@ export const CredentialsService = {
     }
 
     const password = PasswordService.generate(12);
-    const { hash, salt } = PasswordService.hash(password);
+    const { hash, salt } = await PasswordService.hash(password);
 
     await DipendentiModel.setUsername(input.dipendentePageId, username);
     await UtentiModel.create({

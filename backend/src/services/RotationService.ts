@@ -19,7 +19,7 @@ export const RotationService = {
     const emailFailed: string[] = [];
     for (const u of due) {
       const password = PasswordService.generate(12);
-      const { hash, salt } = PasswordService.hash(password);
+      const { hash, salt } = await PasswordService.hash(password);
       await UtentiModel.aggiornaPassword(u.pageId, hash, salt);
 
       if (u.email) {
