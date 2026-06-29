@@ -478,7 +478,8 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
   ];
 
   return (
-    <div className="app-screen">
+    <div className="app-screen gp-screen">
+      <div className="gp-main">
       <div className="app-header">
         <div className="app-greeting">Buongiorno,<br />{firstName}</div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
@@ -1061,6 +1062,8 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
           </div>
         </div>
       )}
+
+      </div>
 
       <div className="bottom-nav">
         {bottomNavItems.map(n => (

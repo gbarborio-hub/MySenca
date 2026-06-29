@@ -192,7 +192,8 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
   }
 
   return (
-    <div className="app-screen">
+    <div className="app-screen gp-screen">
+      <div className="gp-main">
       <div className="app-header">
         <div className="app-greeting">Buongiorno,<br />{firstName}</div>
         <div className="app-logo"><Logo /></div>
@@ -561,6 +562,8 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
             })()}
           </div>
         )}
+      </div>
+
       </div>
 
       <div className="bottom-nav">
