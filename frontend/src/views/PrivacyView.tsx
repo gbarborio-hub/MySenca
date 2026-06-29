@@ -5,11 +5,12 @@ import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
 import DocumentiDipendenteGP from "./gp/DocumentiDipendenteGP.js";
+import StatusLavoriGP from "./gp/StatusLavoriGP.js";
 import { SegnalazioniApi } from "../services/SegnalazioniApi.js";
 import type { Segnalazione } from "../services/SegnalazioniApi.js";
 
 type PrivacyTab = "dashboard" | "lista" | "calendario" | "privacy";
-type PrivacySection = "incaricati" | "segnalazioni" | null;
+type PrivacySection = "incaricati" | "segnalazioni" | "statusLavori" | null;
 
 interface Props {
   nome: string;
@@ -390,6 +391,20 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>aperte</div>
               </div>
             </div>
+            <div className="half-cards">
+              <div className="half-card dark" style={{ cursor: "pointer" }} onClick={() => setPrivacySection("statusLavori")}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Status lavori</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>conformità privacy</div>
+              </div>
+              <div className="half-card" style={{ background: "var(--cyan)" }}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Kanban</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>avanzamento check list</div>
+              </div>
+            </div>
+
+            {privacySection === "statusLavori" && <StatusLavoriGP />}
 
             {privacySection === "incaricati" && (
               <>
