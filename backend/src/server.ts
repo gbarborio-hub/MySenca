@@ -15,6 +15,7 @@ import { documentiRouter } from "./routes/documenti.routes.js";
 import { segnalazioniRouter } from "./routes/segnalazioni.routes.js";
 import { ticketRouter } from "./routes/ticket.routes.js";
 import { statusLavoriRouter } from "./routes/statusLavori.routes.js";
+import { responsabiliRouter } from "./routes/responsabili.routes.js";
 import { RotationService } from "./services/RotationService.js";
 
 const app = express();
@@ -31,6 +32,7 @@ app.use("/api/documenti", documentiRouter);
 app.use("/api/segnalazioni", segnalazioniRouter);
 app.use("/api/ticket", ticketRouter);
 app.use("/api/status-lavori", statusLavoriRouter);
+app.use("/api/responsabili", responsabiliRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

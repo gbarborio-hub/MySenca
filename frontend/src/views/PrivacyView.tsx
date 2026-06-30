@@ -6,11 +6,14 @@ import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
 import DocumentiDipendenteGP from "./gp/DocumentiDipendenteGP.js";
 import StatusLavoriGP from "./gp/StatusLavoriGP.js";
+import ResponsabiliGP from "./gp/ResponsabiliGP.js";
+import { ResponsabiliApi } from "../services/ResponsabiliApi.js";
+import type { Responsabile } from "../services/ResponsabiliApi.js";
 import { SegnalazioniApi } from "../services/SegnalazioniApi.js";
 import type { Segnalazione } from "../services/SegnalazioniApi.js";
 
 type PrivacyTab = "dashboard" | "lista" | "calendario" | "privacy";
-type PrivacySection = "incaricati" | "segnalazioni" | "statusLavori" | null;
+type PrivacySection = "incaricati" | "segnalazioni" | "statusLavori" | "responsabili" | null;
 
 interface Props {
   nome: string;
@@ -78,6 +81,7 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
   const [mancantiBusy, setMancantiBusy] = useState(false);
   const [mancantiMsg, setMancantiMsg] = useState<string | null>(null);
   const [segnalazioni, setSegnalazioni] = useState<Segnalazione[]>([]);
+  const [responsabili, setResponsabili] = useState<Responsabile[]>([]);
   const [segnalazioniLoading, setSegnalazioniLoading] = useState(false);
   const [segnalazioneDetail, setSegnalazioneDetail] = useState<Segnalazione | null>(null);
   const [segGestioneBusy, setSegGestioneBusy] = useState(false);
@@ -135,6 +139,7 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
     setTab("privacy");
     setPrivacySection(null);
     setPrivacyDetail(null);
+    ResponsabiliApi.list().then(r => setResponsabili(Array.isArray(r) ? r : [])).catch(() => {});
   }
   function openIncaricatiSection() {
     setPrivacySection("incaricati");
@@ -404,8 +409,21 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>avanzamento check list</div>
               </div>
             </div>
+            <div className="half-cards">
+              <div className="half-card" style={{ background: "var(--teal)", cursor: "pointer" }} onClick={() => setPrivacySection("responsabili")}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Responsabili</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>al trattamento</div>
+              </div>
+              <div className="half-card" style={{ background: "var(--text-mid)" }}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>{responsabili.length}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>fornitori registrati</div>
+              </div>
+            </div>
 
             {privacySection === "statusLavori" && <StatusLavoriGP />}
+            {privacySection === "responsabili" && <ResponsabiliGP />}
 
             {privacySection === "incaricati" && (
               <>
