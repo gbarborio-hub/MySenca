@@ -26,5 +26,12 @@ export const TicketController = {
     if (!pageId || !stato) { res.status(400).json({ ok: false, error: "Parametri mancanti." }); return; }
     await TicketModel.updateStato(pageId, stato);
     res.json({ ok: true });
+  },
+
+  async setNote(req: Request, res: Response) {
+    const { pageId, note } = req.body || {};
+    if (!pageId) { res.status(400).json({ ok: false, error: "pageId mancante." }); return; }
+    await TicketModel.setNote(pageId, note || "");
+    res.json({ ok: true });
   }
 };

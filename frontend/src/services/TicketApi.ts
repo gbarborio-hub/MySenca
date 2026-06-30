@@ -10,6 +10,7 @@ export interface Ticket {
   ruolo: string;
   username: string;
   descrizione: string;
+  note: string;
 }
 
 export const TicketApi = {
@@ -17,5 +18,7 @@ export const TicketApi = {
   create: (payload: { titolo: string; categoria: string; descrizione: string; username: string; nome: string; ruolo: string }) =>
     api.post<{ ok: boolean; pageId?: string; error?: string }>("/ticket", payload),
   updateStato: (pageId: string, stato: "Nuovo" | "In lavorazione" | "Risolto") =>
-    api.post<{ ok: boolean }>("/ticket/stato", { pageId, stato })
+    api.post<{ ok: boolean }>("/ticket/stato", { pageId, stato }),
+  setNote: (pageId: string, note: string) =>
+    api.post<{ ok: boolean }>("/ticket/nota", { pageId, note })
 };

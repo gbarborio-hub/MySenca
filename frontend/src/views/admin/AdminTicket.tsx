@@ -23,13 +23,44 @@ export default function AdminTicket({ ticket, loading, onRefresh }: Props) {
   const [detail, setDetail] = useState<Ticket | null>(null);
   const [busy, setBusy] = useState(false);
   const [filtro, setFiltro] = useState<"tutti" | "Nuovo" | "In lavorazione" | "Risolto">("tutti");
+  const [noteEdit, setNoteEdit] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
 
   async function setStato(t: Ticket, stato: "Nuovo" | "In lavorazione" | "Risolto") {
     setBusy(true);
-    await TicketApi.updateStato(t.pageId, stato);
-    setBusy(false);
-    setDetail({ ...t, stato });
-    onRefresh();
+    try {
+      await TicketApi.updateStato(t.pageId, stato);
+      setDetail({ ...t, stato });
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || "Errore nell'operazione. Riprova.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function salvaNota() {
+    if (!detail) return;
+    setNoteSaving(true);
+    setNoteSaved(false);
+    try {
+      await TicketApi.setNote(detail.pageId, noteEdit);
+      setDetail({ ...detail, note: noteEdit });
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2000);
+      onRefresh();
+    } catch (err: any) {
+      alert(err?.message || "Errore nel salvataggio. Riprova.");
+    } finally {
+      setNoteSaving(false);
+    }
+  }
+
+  function apriDettaglio(t: Ticket) {
+    setDetail(t);
+    setNoteEdit(t.note || "");
+    setNoteSaved(false);
   }
 
   const filtrati = filtro === "tutti" ? ticket : ticket.filter(t => t.stato === filtro);
@@ -50,12 +81,20 @@ export default function AdminTicket({ ticket, loading, onRefresh }: Props) {
           <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text-light)", textTransform: "uppercase", marginBottom: 4 }}>Descrizione</div>
           <div style={{ fontSize: 14, color: "var(--text-mid)", whiteSpace: "pre-wrap" }}>{detail.descrizione || "—"}</div>
         </div>
-        <div className="ana-card" style={{ padding: "1rem" }}>
+        <div className="ana-card" style={{ padding: "1rem", marginBottom: "0.75rem" }}>
           <div style={{ display: "inline-block", marginBottom: "0.7rem", padding: "3px 10px", borderRadius: 12, fontSize: 11, fontWeight: 800, background: statoBg, color: statoCol }}>{detail.stato}</div>
           <div style={{ display: "flex", gap: "0.4rem" }}>
             {(["Nuovo", "In lavorazione", "Risolto"] as const).map(st => (
               <button key={st} disabled={busy} onClick={() => setStato(detail, st)} className={`com-pill${detail.stato === st ? " on" : ""}`}>{st}</button>
             ))}
+          </div>
+        </div>
+        <div className="ana-card" style={{ padding: "1rem" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text-dark)", marginBottom: 6 }}>📝 Note</div>
+          <textarea className="dim-in" rows={4} placeholder="Annotazioni interne su questo ticket..." value={noteEdit} onChange={e => setNoteEdit(e.target.value)} />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.5rem" }}>
+            <button className="ts-save" disabled={noteSaving || noteEdit === detail.note} onClick={salvaNota}>{noteSaving ? "Salvataggio..." : "💾 Salva nota"}</button>
+            {noteSaved && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--teal-dark)" }}>✅ Salvata</span>}
           </div>
         </div>
       </div>
@@ -80,9 +119,9 @@ export default function AdminTicket({ ticket, loading, onRefresh }: Props) {
             const statoBg = t.stato === "Nuovo" ? "#FCE4E4" : t.stato === "In lavorazione" ? "#FEF3CD" : "#D5F0E0";
             const statoCol = t.stato === "Nuovo" ? "#7A1A1A" : t.stato === "In lavorazione" ? "#7A5800" : "#1A6B3A";
             return (
-              <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => setDetail(t)}>
+              <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => apriDettaglio(t)}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="row-title">{CAT_ICON[t.categoria] || "📋"} {t.titolo}</div>
+                  <div className="row-title">{CAT_ICON[t.categoria] || "📋"} {t.titolo}{t.note ? " 📝" : ""}</div>
                   <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{t.nome || t.username} · {fmtDateIt(t.data)}</div>
                 </div>
                 <div style={{ padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 800, background: statoBg, color: statoCol, whiteSpace: "nowrap", flexShrink: 0 }}>{t.stato}</div>

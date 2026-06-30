@@ -12,6 +12,7 @@ export interface Ticket {
   ruolo: string;
   username: string;
   descrizione: string;
+  note: string;
 }
 
 function fromNotionPage(page: any): Ticket {
@@ -25,7 +26,8 @@ function fromNotionPage(page: any): Ticket {
     nome: rt(p["Nome"]) || "",
     ruolo: rt(p["Ruolo"]) || "",
     username: rt(p["Username"]) || "",
-    descrizione: rt(p["Descrizione"]) || ""
+    descrizione: rt(p["Descrizione"]) || "",
+    note: rt(p["Note"]) || ""
   };
 }
 
@@ -63,5 +65,9 @@ export const TicketModel = {
 
   async updateStato(pageId: string, stato: "Nuovo" | "In lavorazione" | "Risolto"): Promise<void> {
     await notion.updatePage(pageId, { properties: { "Stato": { select: { name: stato } } } });
+  },
+
+  async setNote(pageId: string, note: string): Promise<void> {
+    await notion.updatePage(pageId, { properties: { "Note": { rich_text: [{ text: { content: note } }] } } });
   }
 };
