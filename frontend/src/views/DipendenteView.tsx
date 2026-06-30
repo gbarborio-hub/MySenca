@@ -183,25 +183,25 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
         });
       }
       setComunicazioni(list);
-    });
+    }).catch(() => setComunicazioni([]));
   }
   function loadAll() {
-    ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : []));
-    ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
-    ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r));
-    ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
-    ProxyApi.profilo(username).then(r => { setProfilo(r); loadComunicazioni(r); });
-    ProxyApi.contatti().then(r => setContatti(parseContatti(r)));
+    ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : [])).catch(() => setStrutture([]));
+    ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : [])).catch(() => setTimbrature([]));
+    ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r)).catch(() => {});
+    ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])).catch(() => setFerieRichieste([]));
+    ProxyApi.profilo(username).then(r => { setProfilo(r); loadComunicazioni(r); }).catch(() => { setProfilo({}); loadComunicazioni(null); });
+    ProxyApi.contatti().then(r => setContatti(parseContatti(r))).catch(() => setContatti([]));
     loadTurni();
     loadDocs();
   }
   function loadTurni() {
     setTurniLoading(true);
-    ProxyApi.turniRead(nome).then(r => { setTurni(parseTurni(r)); setTurniLoading(false); });
+    ProxyApi.turniRead(nome).then(r => { setTurni(parseTurni(r)); setTurniLoading(false); }).catch(() => { setTurni([]); setTurniLoading(false); });
   }
   function loadDocs() {
     setDocsLoading(true);
-    DocumentiApi.listByUsername(username).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); });
+    DocumentiApi.listByUsername(username).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); }).catch(() => { setDocs([]); setDocsLoading(false); });
   }
 
   function caricaFirma(pageId: string, e: React.ChangeEvent<HTMLInputElement>) {

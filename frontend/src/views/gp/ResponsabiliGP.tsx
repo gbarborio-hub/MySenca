@@ -119,6 +119,9 @@ export default function ResponsabiliGP() {
   const [items, setItems] = useState<Responsabile[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Responsabile | null>(null);
+  const [noteEdit, setNoteEdit] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved, setNoteSaved] = useState(false);
   const [form, setForm] = useState<NewForm | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -148,6 +151,23 @@ export default function ResponsabiliGP() {
       alert(err?.message || "Errore nella creazione.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function salvaNota() {
+    if (!detail) return;
+    setNoteSaving(true);
+    setNoteSaved(false);
+    try {
+      await ResponsabiliApi.update(detail.pageId, { note: noteEdit });
+      setDetail({ ...detail, note: noteEdit });
+      setItems(prev => prev.map(x => x.pageId === detail.pageId ? { ...x, note: noteEdit } : x));
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2000);
+    } catch (err: any) {
+      alert(err?.message || "Errore nel salvataggio. Riprova.");
+    } finally {
+      setNoteSaving(false);
     }
   }
 
@@ -182,6 +202,15 @@ export default function ResponsabiliGP() {
 
         <DocSlotCard resp={detail} slot="checklist" label="📋 Checklist conformità" fileNome={detail.checklistFileNome} fileUrl={detail.checklistFileUrl} richiedeFirma={detail.checklistRichiedeFirma} statoFirma={detail.checklistStatoFirma} onChanged={() => refreshDetail(detail.pageId)} />
         <DocSlotCard resp={detail} slot="contratto" label="📄 Contratto / nomina" fileNome={detail.contrattoFileNome} fileUrl={detail.contrattoFileUrl} richiedeFirma={detail.contrattoRichiedeFirma} statoFirma={detail.contrattoStatoFirma} onChanged={() => refreshDetail(detail.pageId)} />
+
+        <div className="ana-card" style={{ padding: "1rem", marginBottom: "0.75rem" }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text-dark)", marginBottom: 6 }}>📝 Note</div>
+          <textarea className="dim-in" rows={4} placeholder="Annotazioni interne su questo responsabile..." value={noteEdit} onChange={e => setNoteEdit(e.target.value)} />
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.5rem" }}>
+            <button className="ts-save" disabled={noteSaving || noteEdit === detail.note} onClick={salvaNota}>{noteSaving ? "Salvataggio..." : "💾 Salva nota"}</button>
+            {noteSaved && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--teal-dark)" }}>✅ Salvata</span>}
+          </div>
+        </div>
 
         <button onClick={() => eliminaResponsabile(detail)} style={{ marginTop: "0.5rem", padding: "0.7rem", width: "100%", background: "none", border: "1.5px solid #E8603A", borderRadius: 20, color: "#E8603A", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>🗑 Elimina responsabile</button>
       </div>
@@ -220,7 +249,7 @@ export default function ResponsabiliGP() {
           {items.map((r, i) => {
             const badge = statoInvioBadge(r.statoInvio);
             return (
-              <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => setDetail(r)}>
+              <div className="table-row" key={i} style={{ cursor: "pointer" }} onClick={() => { setDetail(r); setNoteEdit(r.note); setNoteSaved(false); }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="row-title">{r.nome}</div>
                   {r.attivitaSvolta && <div style={{ fontSize: 11, color: "var(--text-light)", fontWeight: 600 }}>{r.attivitaSvolta}</div>}
