@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
+
 import express from "express";
 import cors from "cors";
 import path from "path";
