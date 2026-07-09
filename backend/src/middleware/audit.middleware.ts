@@ -43,7 +43,7 @@ const SKIP_PATHS = [
 ];
 
 export function auditMiddleware(notion: any) {
-  return function (req: Request, res: Response, next: NextFunction) {
+  return function (req: Request, _res: Response, next: NextFunction) {
     // Salta gli endpoint esclusi
     if (SKIP_PATHS.some(p => req.path.startsWith(p))) {
       return next();

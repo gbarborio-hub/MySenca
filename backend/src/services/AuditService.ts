@@ -2,7 +2,6 @@
 import crypto from "crypto";
 
 const DB_AUDIT = "ca05282ca862460b884b4c6804e67ac9";
-const DATA_SOURCE_AUDIT = "92ea908e-5fb4-42b9-86b9-9b6b3f36af43";
 const GENESIS_HASH = "GENESIS-MySenca-AuditLog-v1";
 
 export type AuditAzione = "LOGIN" | "LOGOUT" | "AUTH_FAIL" | "CREATE" | "READ" | "UPDATE" | "DELETE";
