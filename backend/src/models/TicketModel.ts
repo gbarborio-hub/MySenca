@@ -1,18 +1,13 @@
+// Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import { notion, rt, sel, title, dateStart } from "./notionClient.js";
+import { encryptIfPresent, decryptIfPresent } from "../services/EncryptionService.js";
 
 const DB_TICKET = "1663def3e8d447f6a702d4aefbade025";
 
 export interface Ticket {
-  pageId: string;
-  titolo: string;
-  categoria: string;
-  stato: string;
-  data: string | null;
-  nome: string;
-  ruolo: string;
-  username: string;
-  descrizione: string;
-  note: string;
+  pageId: string; titolo: string; categoria: string; stato: string;
+  data: string | null; nome: string; ruolo: string; username: string;
+  descrizione: string; note: string;
 }
 
 function fromNotionPage(page: any): Ticket {
@@ -26,15 +21,13 @@ function fromNotionPage(page: any): Ticket {
     nome: rt(p["Nome"]) || "",
     ruolo: rt(p["Ruolo"]) || "",
     username: rt(p["Username"]) || "",
-    descrizione: rt(p["Descrizione"]) || "",
-    note: rt(p["Note"]) || ""
+    descrizione: decryptIfPresent(rt(p["Descrizione"])),
+    note: decryptIfPresent(rt(p["Note"]))
   };
 }
 
-export interface TicketCreateInput {
-  titolo: string; categoria: string; descrizione: string;
-  username: string; nome: string; ruolo: string;
-}
+function rtEnc(v: string) { return { rich_text: [{ text: { content: encryptIfPresent(v) } }] }; }
+function rtPlain(v: string) { return { rich_text: [{ text: { content: v || "" } }] }; }
 
 export const TicketModel = {
   async list(): Promise<Ticket[]> {
@@ -45,7 +38,7 @@ export const TicketModel = {
     return (res.results || []).map(fromNotionPage);
   },
 
-  async create(input: TicketCreateInput): Promise<string> {
+  async create(input: { titolo: string; categoria: string; descrizione: string; username: string; nome: string; ruolo: string }): Promise<string> {
     const today = new Date().toISOString().slice(0, 10);
     const res: any = await notion.createPage({
       parent: { database_id: DB_TICKET },
@@ -54,10 +47,10 @@ export const TicketModel = {
         "Categoria": { select: { name: input.categoria || "Problema" } },
         "Stato": { select: { name: "Nuovo" } },
         "Data": { date: { start: today } },
-        "Nome": { rich_text: [{ text: { content: input.nome || "" } }] },
-        "Ruolo": { rich_text: [{ text: { content: input.ruolo || "" } }] },
-        "Username": { rich_text: [{ text: { content: input.username || "" } }] },
-        "Descrizione": { rich_text: [{ text: { content: input.descrizione || "" } }] }
+        "Nome": rtPlain(input.nome),
+        "Ruolo": rtPlain(input.ruolo),
+        "Username": rtPlain(input.username),
+        "Descrizione": rtEnc(input.descrizione)
       }
     });
     return res.id;
@@ -68,6 +61,6 @@ export const TicketModel = {
   },
 
   async setNote(pageId: string, note: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Note": { rich_text: [{ text: { content: note } }] } } });
+    await notion.updatePage(pageId, { properties: { "Note": { rich_text: [{ text: { content: encryptIfPresent(note) } }] } } });
   }
 };
