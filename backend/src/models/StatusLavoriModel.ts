@@ -27,7 +27,6 @@ function fromNotionPage(page: any): StatusLavoro {
   };
 }
 
-function rtEnc(v: string | undefined) { return { rich_text: [{ text: { content: encryptIfPresent(v) } }] }; }
 
 export const StatusLavoriModel = {
   async list(): Promise<StatusLavoro[]> {

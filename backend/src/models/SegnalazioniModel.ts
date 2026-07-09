@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import { notion, rt, sel, title, chk, dateStart } from "./notionClient.js";
-import { encrypt, decrypt, encryptIfPresent, decryptIfPresent } from "../services/EncryptionService.js";
+import { encryptIfPresent, decryptIfPresent } from "../services/EncryptionService.js";
 
 const DB_SEGNALAZIONI = "0397ae7f488544df92370da4ba04f5f2";
 
