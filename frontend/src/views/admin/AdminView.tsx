@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import { useEffect, useState, useCallback } from "react";
 import type { Dipendente, UtenteWebApp } from "../../models/domain.js";
 import { DipendentiApi } from "../../services/DipendentiApi.js";
@@ -11,8 +12,9 @@ import AdminHome from "./AdminHome.js";
 import AdminAbilitare from "./AdminAbilitare.js";
 import AdminUtenti from "./AdminUtenti.js";
 import AdminTicket from "./AdminTicket.js";
+import AdminAuditLog from "./AdminAuditLog.js";
 
-type AdminScreen = "home" | "abilitare" | "utenti" | "ticket";
+type AdminScreen = "home" | "abilitare" | "utenti" | "ticket" | "audit";
 
 interface Props {
   nome: string;
@@ -32,18 +34,18 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
 
   const fetchDipendenti = useCallback(async () => {
     setDipLoading(true);
-    setDipendenti(await DipendentiApi.list());
-    setDipLoading(false);
+    try { setDipendenti(await DipendentiApi.list()); } catch { setDipendenti([]); }
+    finally { setDipLoading(false); }
   }, []);
   const fetchUtenti = useCallback(async () => {
     setUtentiLoading(true);
-    setUtenti(await UtentiApi.list());
-    setUtentiLoading(false);
+    try { setUtenti(await UtentiApi.list()); } catch { setUtenti([]); }
+    finally { setUtentiLoading(false); }
   }, []);
   const fetchTicket = useCallback(async () => {
     setTicketLoading(true);
-    setTicket(await TicketApi.list());
-    setTicketLoading(false);
+    try { setTicket(await TicketApi.list()); } catch { setTicket([]); }
+    finally { setTicketLoading(false); }
   }, []);
 
   useEffect(() => { fetchDipendenti(); }, [fetchDipendenti]);
@@ -55,11 +57,12 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
   const nTicketNuovi = ticket.filter(t => t.stato === "Nuovo").length;
 
   const navs: { id: AdminScreen | "logout"; label: string; icon: keyof typeof NavIcons }[] = [
-    { id: "home", label: "Home", icon: "home" },
-    { id: "abilitare", label: "Da abilitare", icon: "daAbilitare" },
-    { id: "utenti", label: "Utenti", icon: "utenti" },
-    { id: "ticket", label: "Ticket", icon: "comunicazioni" },
-    { id: "logout", label: "Esci", icon: "logout" }
+    { id: "home",      label: "Home",         icon: "home" },
+    { id: "abilitare", label: "Da abilitare",  icon: "daAbilitare" },
+    { id: "utenti",    label: "Utenti",        icon: "utenti" },
+    { id: "ticket",    label: "Ticket",        icon: "comunicazioni" },
+    { id: "audit",     label: "Audit Log",     icon: "lista" },
+    { id: "logout",    label: "Esci",          icon: "logout" }
   ];
 
   return (
@@ -75,8 +78,9 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
           {screen === "abilitare" && (
             <AdminAbilitare dipendenti={senzaUsername} loading={dipLoading} onRefresh={fetchDipendenti} onCreated={() => { fetchDipendenti(); fetchUtenti(); }} />
           )}
-          {screen === "utenti" && <AdminUtenti utenti={utenti} loading={utentiLoading} onRefresh={fetchUtenti} />}
-          {screen === "ticket" && <AdminTicket ticket={ticket} loading={ticketLoading} onRefresh={fetchTicket} />}
+          {screen === "utenti"  && <AdminUtenti utenti={utenti} loading={utentiLoading} onRefresh={fetchUtenti} />}
+          {screen === "ticket"  && <AdminTicket ticket={ticket} loading={ticketLoading} onRefresh={fetchTicket} />}
+          {screen === "audit"   && <AdminAuditLog />}
         </div>
       </div>
       <div className="bottom-nav">
@@ -87,7 +91,10 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
             onClick={() => (nav.id === "logout" ? onLogout() : setScreen(nav.id as AdminScreen))}
           >
             <div className="bnav-icon">{NavIcons[nav.icon]}</div>
-            <div className="bnav-label">{nav.label}{nav.id === "ticket" && nTicketNuovi > 0 ? ` (${nTicketNuovi})` : ""}</div>
+            <div className="bnav-label">
+              {nav.label}
+              {nav.id === "ticket" && nTicketNuovi > 0 ? ` (${nTicketNuovi})` : ""}
+            </div>
           </div>
         ))}
       </div>
