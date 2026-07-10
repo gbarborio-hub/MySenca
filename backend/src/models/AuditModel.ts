@@ -1,4 +1,5 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
+import { notion } from "../models/notionClient.js";
 import type { AuditAzione } from "../services/AuditService.js";
 
 const DB_AUDIT = "ca05282ca862460b884b4c6804e67ac9";
@@ -39,7 +40,7 @@ function fromNotionPage(page: any): AuditRecord {
 }
 
 export const AuditModel = {
-  async list(notion: any, options?: { pageSize?: number; startCursor?: string; filtroUtente?: string; filtroAzione?: string }): Promise<{ records: AuditRecord[]; hasMore: boolean; nextCursor?: string }> {
+  async list(options?: { pageSize?: number; startCursor?: string; filtroUtente?: string; filtroAzione?: string }): Promise<{ records: AuditRecord[]; hasMore: boolean; nextCursor?: string }> {
     const filters: any[] = [];
     if (options?.filtroUtente) {
       filters.push({ property: "Utente", rich_text: { contains: options.filtroUtente } });

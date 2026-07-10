@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import crypto from "crypto";
+import { notion } from "../models/notionClient.js";
 
 const DB_AUDIT = "ca05282ca862460b884b4c6804e67ac9";
 const GENESIS_HASH = "GENESIS-MySenca-AuditLog-v1";
@@ -15,8 +16,6 @@ export interface AuditEntry {
   ip?: string;
 }
 
-// Cache dell'ultimo hash in memoria — evita una lettura Notion ad ogni operazione.
-// Viene popolato al primo log e aggiornato ad ogni scrittura.
 let lastHashCache: string | null = null;
 
 function computeHash(entry: AuditEntry, timestamp: string, hashPrecedente: string): string {
@@ -33,7 +32,7 @@ function computeHash(entry: AuditEntry, timestamp: string, hashPrecedente: strin
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
-async function fetchLastHash(notion: any): Promise<string> {
+async function fetchLastHash(): Promise<string> {
   if (lastHashCache !== null) return lastHashCache;
   try {
     const res: any = await notion.queryDatabase(DB_AUDIT, {
@@ -42,21 +41,21 @@ async function fetchLastHash(notion: any): Promise<string> {
     });
     if (!res.results?.length) return GENESIS_HASH;
     const p = res.results[0].properties || {};
-    return p["Hash record"]?.rich_text?.[0]?.text?.content || GENESIS_HASH;
+    const h = p["Hash record"]?.rich_text?.[0]?.text?.content || "";
+    return h || GENESIS_HASH;
   } catch {
     return GENESIS_HASH;
   }
 }
 
 export const AuditService = {
-  async log(notion: any, entry: AuditEntry): Promise<void> {
-    // Esecuzione non bloccante — non rallenta la risposta HTTP
+  log(entry: AuditEntry): void {
+    // Non bloccante — non rallenta la risposta HTTP
     setImmediate(async () => {
       try {
         const timestamp = new Date().toISOString();
-        const hashPrecedente = await fetchLastHash(notion);
+        const hashPrecedente = await fetchLastHash();
         const hashRecord = computeHash(entry, timestamp, hashPrecedente);
-
         const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
 
         await notion.createPage({
@@ -75,17 +74,14 @@ export const AuditService = {
           }
         });
 
-        // Aggiorna la cache con il nuovo hash
         lastHashCache = hashRecord;
       } catch (e) {
-        // Il log non deve mai far crashare l'app — errore silenzioso
         console.error("[AuditService] Errore scrittura log:", e);
       }
     });
   },
 
-  // Verifica l'integrità della catena — da chiamare dall'endpoint admin
-  async verificaIntegrita(notion: any): Promise<{
+  async verificaIntegrita(): Promise<{
     integro: boolean;
     totaleRecord: number;
     rotturaAlRecord?: number;
@@ -109,7 +105,6 @@ export const AuditService = {
     for (let i = 0; i < results.length; i++) {
       const p = results[i].properties || {};
       const getText = (prop: any) => prop?.rich_text?.[0]?.text?.content || "";
-
       const hashPrecedente = getText(p["Hash precedente"]);
       const hashRecord = getText(p["Hash record"]);
       const timestamp = p["Timestamp"]?.date?.start || "";
@@ -122,7 +117,6 @@ export const AuditService = {
         ip: getText(p["IP"])
       };
 
-      // Verifica 1: hash precedente deve corrispondere a quello atteso
       if (hashPrecedente !== hashAtteso) {
         return {
           integro: false,
@@ -132,7 +126,6 @@ export const AuditService = {
         };
       }
 
-      // Verifica 2: hash del record deve corrispondere al ricalcolo
       const hashRicalcolato = computeHash(entry, timestamp, hashPrecedente);
       if (hashRicalcolato !== hashRecord) {
         return {

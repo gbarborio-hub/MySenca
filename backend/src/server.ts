@@ -18,19 +18,16 @@ import { segnalazioniRouter } from "./routes/segnalazioni.routes.js";
 import { ticketRouter } from "./routes/ticket.routes.js";
 import { statusLavoriRouter } from "./routes/statusLavori.routes.js";
 import { responsabiliRouter } from "./routes/responsabili.routes.js";
-import { makeAuditRouter } from "./routes/audit.routes.js";
+import { auditRouter } from "./routes/audit.routes.js";
 import { auditMiddleware } from "./middleware/audit.middleware.js";
 import { RotationService } from "./services/RotationService.js";
-
-// Notion client condiviso (usato da model e audit)
-import { notion } from "./models/notionClient.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
 // Audit middleware — intercetta ogni richiesta autenticata in modo non bloccante
-app.use(auditMiddleware(notion));
+app.use(auditMiddleware());
 
 app.use("/api/auth", authRouter);
 app.use("/api/dipendenti", dipendentiRouter);
@@ -43,11 +40,10 @@ app.use("/api/segnalazioni", segnalazioniRouter);
 app.use("/api/ticket", ticketRouter);
 app.use("/api/status-lavori", statusLavoriRouter);
 app.use("/api/responsabili", responsabiliRouter);
-app.use("/api/audit", makeAuditRouter(notion));
+app.use("/api/audit", auditRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// Se presente il frontend buildato (immagine Docker combinata), lo serve.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDist = path.join(__dirname, "../public");
 if (fs.existsSync(frontendDist)) {
@@ -58,7 +54,6 @@ if (fs.existsSync(frontendDist)) {
 const PORT = Number(process.env.PORT || 3001);
 app.listen(PORT, () => console.log(`MySenca backend on :${PORT}`));
 
-// Rotazione password ogni 90 giorni — controllo giornaliero
 const ONE_DAY = 24 * 60 * 60 * 1000;
 setInterval(async () => {
   try {
