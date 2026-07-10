@@ -48,16 +48,13 @@ function tp(value: string) {
   return { rich_text: [{ type: "text", text: { content: value || "" } }] };
 }
 
-// Scrive un singolo record di audit — usato internamente e dall'endpoint di test.
 async function writeLog(entry: AuditEntry): Promise<void> {
   const timestamp = new Date().toISOString();
   const hashPrecedente = await fetchLastHash();
   const hashRecord = computeHash(entry, timestamp, hashPrecedente);
   const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
 
-  console.log(`[AuditService] Writing: ${descrizione}`);
-
-  const result = await notion.createPage({
+  await notion.createPage({
     parent: { database_id: DB_AUDIT },
     properties: {
       "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
@@ -73,19 +70,21 @@ async function writeLog(entry: AuditEntry): Promise<void> {
     }
   });
 
-  console.log(`[AuditService] Written OK, pageId: ${(result as any)?.id}`);
   lastHashCache = hashRecord;
+  console.log(`[AuditService] ${entry.azione} ${entry.risorsa} [${entry.utente}]`);
 }
 
 export const AuditService = {
-  // Fire-and-forget per uso normale — non blocca la risposta HTTP
+  // Non bloccante — non aspetta il completamento prima di rispondere all'HTTP request.
+  // Usa void + catch invece di Promise.resolve().then() che in alcuni ambienti
+  // non viene eseguito correttamente dopo la risposta HTTP.
   log(entry: AuditEntry): void {
-    writeLog(entry).catch(e => {
-      console.error("[AuditService] WRITE ERROR:", JSON.stringify(e, null, 2));
+    void writeLog(entry).catch(e => {
+      console.error("[AuditService] WRITE ERROR:", e?.message || e);
     });
   },
 
-  // Versione sincrona — per test e verifica diretta
+  // Versione sincrona — usata dall'endpoint /test e dalla verifica
   async logSync(entry: AuditEntry): Promise<void> {
     await writeLog(entry);
   },
