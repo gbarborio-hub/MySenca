@@ -5,7 +5,7 @@ import { AuditService } from "../services/AuditService.js";
 
 export function makeAuditController(notion: any) {
   return {
-    async list(_req: Request, res: Response) {
+    async list(req: Request, res: Response) {
       try {
         const { cursor, utente, azione, pageSize } = req.query as Record<string, string>;
         const result = await AuditModel.list(notion, {
@@ -20,7 +20,7 @@ export function makeAuditController(notion: any) {
       }
     },
 
-    async verifica(req: Request, res: Response) {
+    async verifica(_req: Request, res: Response) {
       try {
         const result = await AuditService.verificaIntegrita(notion);
         res.json(result);
