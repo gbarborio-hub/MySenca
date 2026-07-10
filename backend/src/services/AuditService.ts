@@ -16,20 +16,14 @@ export interface AuditEntry {
   ip?: string;
 }
 
-function computeHash(entry: AuditEntry, timestamp: string, hashPrecedente: string): string {
+function computeHash(entry: AuditEntry, timestampIso: string, hashPrecedente: string): string {
   const payload = [
-    timestamp, entry.utente, entry.ruolo, entry.azione,
+    timestampIso, entry.utente, entry.ruolo, entry.azione,
     entry.risorsa, entry.dettaglio || "", entry.ip || "", hashPrecedente
   ].join("|");
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
-// Interroga sempre Notion direttamente per l'ultimo hash — NESSUNA cache in memoria.
-// Una cache locale diventerebbe silenziosamente disallineata ogni volta che i record
-// vengono modificati o cancellati direttamente su Notion (bypassando il backend),
-// producendo scritture che referenziano un predecessore non più esistente. Per un
-// sistema di audit la correttezza vale più della velocità: un'interrogazione in più
-// per ogni scrittura è un costo accettabile.
 async function fetchLastHash(): Promise<string> {
   try {
     const res: any = await notion.queryDatabase(DB_AUDIT, {
@@ -52,9 +46,14 @@ function tp(value: string) {
 }
 
 async function writeLog(entry: AuditEntry): Promise<void> {
-  const timestamp = new Date().toISOString();
+  // Timestamp con precisione al millisecondo, usato per il calcolo dell'hash.
+  // Va salvato ANCHE in un campo di testo semplice (Timestamp ISO), perché il campo
+  // Data di Notion arrotonda al minuto: se si usasse quel valore per ricalcolare
+  // l'hash in fase di verifica, non corrisponderebbe mai più a quello originale,
+  // producendo falsi positivi di "manomissione" a ogni record.
+  const timestampIso = new Date().toISOString();
   const hashPrecedente = await fetchLastHash();
-  const hashRecord = computeHash(entry, timestamp, hashPrecedente);
+  const hashRecord = computeHash(entry, timestampIso, hashPrecedente);
   const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
 
   await notion.createPage({
@@ -67,17 +66,14 @@ async function writeLog(entry: AuditEntry): Promise<void> {
       "Risorsa":         tp(entry.risorsa),
       "Dettaglio":       tp(entry.dettaglio || ""),
       "IP":              tp(entry.ip || ""),
-      "Timestamp":       { date: { start: timestamp } },
+      "Timestamp":       { date: { start: timestampIso } },
+      "Timestamp ISO":   tp(timestampIso),
       "Hash precedente": tp(hashPrecedente),
       "Hash record":     tp(hashRecord)
     }
   });
 }
 
-// Coda di scrittura: garantisce che le voci di audit vengano scritte STRETTAMENTE
-// una alla volta, mai in parallelo — altrimenti due richieste API simultanee
-// potrebbero leggere lo stesso "ultimo hash" da Notion prima che una delle due
-// scriva la propria, creando una diramazione nella catena invece di una sequenza lineare.
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(entry: AuditEntry): Promise<void> {
@@ -144,7 +140,8 @@ export const AuditService = {
       const page = candidati[0];
       const p = page.properties || {};
       const hashRecord = getText(p["Hash record"]);
-      const timestamp = p["Timestamp"]?.date?.start || "";
+      // Usa il campo di testo con precisione esatta, non il campo Data (arrotondato al minuto)
+      const timestampIso = getText(p["Timestamp ISO"]);
       const entry: AuditEntry = {
         utente:    getText(p["Utente"]),
         ruolo:     getText(p["Ruolo"]),
@@ -154,7 +151,7 @@ export const AuditService = {
         ip:        getText(p["IP"])
       };
 
-      const hashRicalcolato = computeHash(entry, timestamp, hashAtteso);
+      const hashRicalcolato = computeHash(entry, timestampIso, hashAtteso);
       contatore++;
 
       if (hashRicalcolato !== hashRecord) {
