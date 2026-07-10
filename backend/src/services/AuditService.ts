@@ -70,23 +70,39 @@ async function writeLog(entry: AuditEntry): Promise<void> {
     }
   });
 
+  // Aggiorna la cache SOLO dopo che la scrittura è confermata su Notion —
+  // e solo perché questa funzione viene sempre eseguita in coda (mai in parallelo,
+  // vedi enqueueWrite più sotto), quindi non può esserci corsa tra due scritture.
   lastHashCache = hashRecord;
-  console.log(`[AuditService] ${entry.azione} ${entry.risorsa} [${entry.utente}]`);
+}
+
+// Coda di scrittura: garantisce che le voci di audit vengano scritte STRETTAMENTE
+// una alla volta, mai in parallelo. Senza questa coda, richieste API simultanee
+// (normalissime quando l'utente apre una schermata che carica più dati insieme)
+// potrebbero leggere lo stesso "ultimo hash" prima che una scrittura lo aggiorni,
+// creando una diramazione nella catena invece di una sequenza lineare.
+let writeQueue: Promise<void> = Promise.resolve();
+
+function enqueueWrite(entry: AuditEntry): Promise<void> {
+  const result = writeQueue.then(() => writeLog(entry));
+  // Anche se questa scrittura fallisce, la coda deve proseguire per le successive
+  writeQueue = result.catch(() => {});
+  return result;
 }
 
 export const AuditService = {
-  // Non bloccante — non aspetta il completamento prima di rispondere all'HTTP request.
-  // Usa void + catch invece di Promise.resolve().then() che in alcuni ambienti
-  // non viene eseguito correttamente dopo la risposta HTTP.
+  // Non bloccante dal punto di vista della risposta HTTP — ma le scritture
+  // avvengono comunque in sequenza rigorosa una dopo l'altra internamente.
   log(entry: AuditEntry): void {
-    void writeLog(entry).catch(e => {
+    enqueueWrite(entry).catch(e => {
       console.error("[AuditService] WRITE ERROR:", e?.message || e);
     });
   },
 
-  // Versione sincrona — usata dall'endpoint /test e dalla verifica
+  // Versione che attende il completamento — usata da endpoint che vogliono
+  // la conferma di scrittura avvenuta.
   async logSync(entry: AuditEntry): Promise<void> {
-    await writeLog(entry);
+    await enqueueWrite(entry);
   },
 
   async verificaIntegrita(): Promise<{
@@ -98,7 +114,6 @@ export const AuditService = {
     do {
       const res: any = await notion.queryDatabase(DB_AUDIT, {
         page_size: 100,
-        sorts: [{ property: "Timestamp", direction: "ascending" }],
         ...(cursor ? { start_cursor: cursor } : {})
       });
       results.push(...(res.results || []));
@@ -107,15 +122,41 @@ export const AuditService = {
 
     if (!results.length) return { integro: true, totaleRecord: 0 };
 
-    let hashAtteso = GENESIS_HASH;
-    for (let i = 0; i < results.length; i++) {
-      const p = results[i].properties || {};
-      const getText = (prop: any): string =>
-        prop?.rich_text?.[0]?.plain_text || prop?.rich_text?.[0]?.text?.content || "";
+    const getText = (prop: any): string =>
+      prop?.rich_text?.[0]?.plain_text || prop?.rich_text?.[0]?.text?.content || "";
 
-      const hashPrecedente = getText(p["Hash precedente"]);
-      const hashRecord     = getText(p["Hash record"]);
-      const timestamp      = p["Timestamp"]?.date?.start || "";
+    // Ricostruisce l'ordine reale della catena seguendo i puntatori hash
+    // (hash precedente → hash record), invece di fidarsi dell'ordinamento per
+    // Timestamp — che ha solo precisione al minuto e non distingue correttamente
+    // scritture ravvicinate nello stesso minuto.
+    const byHashPrecedente = new Map<string, any[]>();
+    for (const page of results) {
+      const p = page.properties || {};
+      const hp = getText(p["Hash precedente"]);
+      if (!byHashPrecedente.has(hp)) byHashPrecedente.set(hp, []);
+      byHashPrecedente.get(hp)!.push(page);
+    }
+
+    let hashAtteso = GENESIS_HASH;
+    let contatore = 0;
+
+    while (true) {
+      const candidati = byHashPrecedente.get(hashAtteso) || [];
+      if (candidati.length === 0) break;
+
+      if (candidati.length > 1) {
+        return {
+          integro: false,
+          totaleRecord: results.length,
+          rotturaAlRecord: contatore + 1,
+          descrizioneRottura: `Diramazione rilevata dopo il record #${contatore}: ${candidati.length} record diversi puntano allo stesso predecessore — probabile scrittura concorrente non sincronizzata`
+        };
+      }
+
+      const page = candidati[0];
+      const p = page.properties || {};
+      const hashRecord = getText(p["Hash record"]);
+      const timestamp = p["Timestamp"]?.date?.start || "";
       const entry: AuditEntry = {
         utente:    getText(p["Utente"]),
         ruolo:     getText(p["Ruolo"]),
@@ -125,17 +166,30 @@ export const AuditService = {
         ip:        getText(p["IP"])
       };
 
-      if (hashPrecedente !== hashAtteso) {
-        return { integro: false, totaleRecord: results.length, rotturaAlRecord: i + 1,
-          descrizioneRottura: `Record #${i + 1}: hash precedente non corrisponde` };
-      }
-      const hashRicalcolato = computeHash(entry, timestamp, hashPrecedente);
+      const hashRicalcolato = computeHash(entry, timestamp, hashAtteso);
+      contatore++;
+
       if (hashRicalcolato !== hashRecord) {
-        return { integro: false, totaleRecord: results.length, rotturaAlRecord: i + 1,
-          descrizioneRottura: `Record #${i + 1}: hash alterato — possibile manomissione` };
+        return {
+          integro: false,
+          totaleRecord: results.length,
+          rotturaAlRecord: contatore,
+          descrizioneRottura: `Record #${contatore}: hash alterato — possibile manomissione`
+        };
       }
+
       hashAtteso = hashRecord;
     }
+
+    if (contatore !== results.length) {
+      return {
+        integro: false,
+        totaleRecord: results.length,
+        rotturaAlRecord: contatore + 1,
+        descrizioneRottura: `Catena interrotta: ${results.length - contatore} record non raggiungibili dalla sequenza principale`
+      };
+    }
+
     return { integro: true, totaleRecord: results.length };
   }
 };

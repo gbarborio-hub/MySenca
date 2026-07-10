@@ -1,15 +1,9 @@
 import { useState, useEffect } from "react";
 import { ProxyApi } from "../services/ProxyApi.js";
-import { DocumentiApi } from "../services/DocumentiApi.js";
-import { SegnalazioniApi } from "../services/SegnalazioniApi.js";
-import { TicketApi } from "../services/TicketApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
-import { useRequestNotificationPermission, useShiftAndCommsNotifications } from "../hooks/useShiftNotifications.js";
 
-// Tab raggiungibili: 3 nella nav orizzontale (Home/Ferie-ROL/Informazioni) + Contatti (dal logo)
-// + 5 raggiungibili solo da card/bottoni interni (Avvisi, Documenti, segnalazione, timbra, turni, profilo)
 type DipTab = "Home" | "Ferie/ROL" | "Informazioni" | "Contatti" | "Avvisi" | "Documenti" | "segnalazione" | "timbra" | "turni" | "profilo";
 
 interface Props {
@@ -17,7 +11,6 @@ interface Props {
   nome: string;
   mansione?: string;
   ruolo?: string;
-  createdTime?: string | null;
   showRoleSwitch: boolean;
   onShowRoleChooser: () => void;
   onLogout: () => void;
@@ -33,39 +26,6 @@ function fmtDateIt(d: unknown) {
   const [y, m, dd] = parts;
   return `${dd}/${m}/${y}`;
 }
-function parseTurni(raw: unknown): any[] {
-  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  return arr.map((item: any) => {
-    const p = item && item.properties_value ? item.properties_value : item || {};
-    let titolo = "";
-    if (p.Titolo && Array.isArray(p.Titolo) && p.Titolo[0]) titolo = p.Titolo[0].plain_text || "";
-    const dipendente = typeof p.Dipendente === "string" ? p.Dipendente : (p.Dipendente && p.Dipendente[0] ? p.Dipendente[0].plain_text || "" : "");
-    const struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
-    const tipo = (p["Tipo turno"] && p["Tipo turno"].name) ? p["Tipo turno"].name : (typeof p["Tipo turno"] === "string" ? p["Tipo turno"] : (typeof p.tipo === "string" ? p.tipo : ""));
-    const dataRaw = (p.Data && p.Data.start) ? p.Data.start : (typeof p.Data === "string" ? p.Data : (typeof p.data === "string" ? p.data : ""));
-    const data = dataRaw ? dataRaw.split("T")[0] : "";
-    const oraInizio = typeof p["Ora inizio"] === "string" ? p["Ora inizio"] : (p["Ora inizio"] && p["Ora inizio"][0] ? p["Ora inizio"][0].plain_text || "" : (typeof p.oraInizio === "string" ? p.oraInizio : ""));
-    const oraFine = typeof p["Ora fine"] === "string" ? p["Ora fine"] : (p["Ora fine"] && p["Ora fine"][0] ? p["Ora fine"][0].plain_text || "" : (typeof p.oraFine === "string" ? p.oraFine : ""));
-    return { titolo, dipendente, struttura, tipo, data, oraInizio, oraFine };
-  }).filter((t: any) => t.data).sort((a: any, b: any) => (a.data > b.data ? 1 : -1));
-}
-
-function parseContatti(raw: unknown): any[] {
-  const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  return arr.map((item: any) => {
-    const p = item && item.properties_value ? item.properties_value : item || {};
-    let nome = "";
-    if (p.Nome && Array.isArray(p.Nome) && p.Nome[0]) nome = p.Nome[0].plain_text || (p.Nome[0].text && p.Nome[0].text.content) || "";
-    else if (typeof p.Nome === "string") nome = p.Nome;
-    const ruolo = typeof p.Ruolo === "string" ? p.Ruolo : (p.Ruolo && p.Ruolo[0] ? p.Ruolo[0].plain_text || "" : "");
-    const email = p.Email || "";
-    const telefono = p.Telefono || "";
-    const struttura = (p.Struttura && p.Struttura.name) ? p.Struttura.name : (typeof p.Struttura === "string" ? p.Struttura : "");
-    const ordine = p.Ordine || 999;
-    return { nome, ruolo, email, telefono, struttura, ordine };
-  }).filter((c: any) => c.nome).sort((a: any, b: any) => a.ordine - b.ordine);
-}
-
 function distanzaMetri(lat1: number, lon1: number, lat2: number, lon2: number) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -87,18 +47,25 @@ function oggiISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+function soloData(d: any): string {
+  if (!d) return "";
+  return String(d).slice(0, 10);
+}
 function calcOreSettimana(timbrature: any[]) {
   const oggi = new Date();
   const lunedi = new Date(oggi);
   lunedi.setDate(oggi.getDate() - (oggi.getDay() === 0 ? 6 : oggi.getDay() - 1));
   const lunediStr = lunedi.toISOString().split("T")[0];
   const oggiStr = oggi.toISOString().split("T")[0];
-  return timbrature.filter((t: any) => t.data >= lunediStr && t.data <= oggiStr).reduce((acc: number, t: any) => acc + (Number(t.oreTotali) || 0), 0);
+  return timbrature.filter((t: any) => {
+    const d = soloData(t.data);
+    return d >= lunediStr && d <= oggiStr;
+  }).reduce((acc: number, t: any) => acc + (Number(t.oreTotali) || 0), 0);
 }
 function calcOreMese(timbrature: any[]) {
   const oggi = new Date();
   const meseStr = `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, "0")}`;
-  return timbrature.filter((t: any) => t.data && String(t.data).startsWith(meseStr)).reduce((acc: number, t: any) => acc + (Number(t.oreTotali) || 0), 0);
+  return timbrature.filter((t: any) => soloData(t.data).startsWith(meseStr)).reduce((acc: number, t: any) => acc + (Number(t.oreTotali) || 0), 0);
 }
 function calcOrePrevisteMese(turni: any[]) {
   const oggi = new Date();
@@ -119,7 +86,7 @@ const SEG_DEFAULTS = {
   quantita: "", interessati: "", danni: ""
 };
 
-export default function DipendenteView({ username, nome, mansione, ruolo, createdTime, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
+export default function DipendenteView({ username, nome, mansione, ruolo, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
   const [tab, setTab] = useState<DipTab>("Home");
   const [strutture, setStrutture] = useState<any[]>([]);
   const [turni, setTurni] = useState<any[]>([]);
@@ -132,13 +99,10 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
   const [comSel, setComSel] = useState<any>(null);
   const [docs, setDocs] = useState<any[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
-  const [firmaBusy, setFirmaBusy] = useState<string | null>(null);
-  const [firmaMsg, setFirmaMsg] = useState<{ id: string; text: string } | null>(null);
   const [profilo, setProfilo] = useState<any>(null);
   const [contatti, setContatti] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Timbratura state
   const [timbraStruttura, setTimbraStruttura] = useState("");
   const [timbratoEntrata, setTimbratoEntrata] = useState<string | null>(null);
   const [timbraEntrataFull, setTimbraEntrataFull] = useState<string | null>(null);
@@ -147,21 +111,17 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
   const [timbraTurno, setTimbraTurno] = useState<any>(null);
   const [timbraFuoriTurno, setTimbraFuoriTurno] = useState(false);
 
-  // Timbratura dimenticata
   const [dimOpen, setDimOpen] = useState(false);
   const [dimMsg, setDimMsg] = useState<{ text: string; type: string } | null>(null);
   const [dim, setDim] = useState({ data: "", struttura: "", entrata: "", uscita: "", motivo: "" });
 
-  // Ferie form
   const [ferieForm, setFerieForm] = useState<"Ferie" | "ROL" | null>(null);
   const [ferieInput, setFerieInput] = useState({ inizio: "", fine: "", ore: "", note: "" });
 
-  // Segnalazione
   const [segInviata, setSegInviata] = useState(false);
   const [seg, setSeg] = useState({ ...SEG_DEFAULTS });
   const [segBusy, setSegBusy] = useState(false);
 
-  // Ticket modale
   const [ticketOpen, setTicketOpen] = useState(false);
   const [ticket, setTicket] = useState({ titolo: "", categoria: "Problema", descrizione: "" });
   const [ticketBusy, setTicketBusy] = useState(false);
@@ -170,69 +130,25 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
   const firstName = (nome || "").split(" ")[0] || "utente";
   const nUnread = comunicazioni.filter((c: any) => !c.letto).length;
 
-  function loadComunicazioni(prof: any) {
-    ProxyApi.comunicazioniLista({ username, struttura: prof?.struttura || "", ruolo: prof?.mansione || ruolo || "" }).then(r => {
-      let list = (Array.isArray(r) ? r : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" }));
-      if (createdTime) {
-        const soglia = new Date(createdTime).getTime();
-        list = list.filter((c: any) => {
-          const invio = c.dataInvio ? new Date(c.dataInvio).getTime() : null;
-          // Se manca la data invio teniamo la comunicazione (meglio mostrare che perdere dati validi);
-          // altrimenti scartiamo tutto ciò inviato prima della creazione dell'utenza.
-          return invio === null || isNaN(invio) || invio >= soglia;
-        });
-      }
-      setComunicazioni(list);
-    }).catch(() => setComunicazioni([]));
-  }
   function loadAll() {
-    ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : [])).catch(() => setStrutture([]));
-    ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : [])).catch(() => setTimbrature([]));
-    ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r)).catch(() => {});
-    ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])).catch(() => setFerieRichieste([]));
-    ProxyApi.profilo(username).then(r => { setProfilo(r); loadComunicazioni(r); }).catch(() => { setProfilo({}); loadComunicazioni(null); });
-    ProxyApi.contatti().then(r => setContatti(parseContatti(r))).catch(() => setContatti([]));
+    ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : []));
+    ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
+    ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : []));
+    ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r));
+    ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
+    ProxyApi.profilo(username).then(r => setProfilo(r));
+    ProxyApi.contatti().then(r => setContatti(Array.isArray(r) ? r : []));
     loadTurni();
     loadDocs();
   }
   function loadTurni() {
     setTurniLoading(true);
-    ProxyApi.turniRead(nome).then(r => { setTurni(parseTurni(r)); setTurniLoading(false); }).catch(() => { setTurni([]); setTurniLoading(false); });
+    ProxyApi.turniRead(nome).then(r => { setTurni(Array.isArray(r) ? r : []); setTurniLoading(false); });
   }
   function loadDocs() {
     setDocsLoading(true);
-    DocumentiApi.listByUsername(username).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); }).catch(() => { setDocs([]); setDocsLoading(false); });
+    ProxyApi.documentiLista({ username }).then(r => { setDocs(Array.isArray(r) ? r : []); setDocsLoading(false); });
   }
-
-  function caricaFirma(pageId: string, e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (file.size > 18 * 1024 * 1024) { setFirmaMsg({ id: pageId, text: "⚠️ File troppo grande (max ~18MB)." }); return; }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      setFirmaBusy(pageId); setFirmaMsg(null);
-      try {
-        const res = await DocumentiApi.caricaFirmato(pageId, String(reader.result), file.name, file.type || "application/octet-stream");
-        setFirmaBusy(null);
-        if (res.ok) { setFirmaMsg({ id: pageId, text: "✅ Caricato. In attesa di verifica." }); loadDocs(); }
-        else setFirmaMsg({ id: pageId, text: `⚠️ ${res.error || "Errore nel caricamento."}` });
-      } catch {
-        setFirmaBusy(null);
-        setFirmaMsg({ id: pageId, text: "⚠️ Errore nel caricamento. Riprova." });
-      }
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  }
-
-  useRequestNotificationPermission(true);
-  useShiftAndCommsNotifications({
-    isDipendente: true,
-    turni, comunicazioni, ferieRichieste, docs,
-    refreshComunicazioni: () => loadComunicazioni(profilo),
-    refreshFerie: () => ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])),
-    refreshDocs: loadDocs
-  });
 
   useEffect(() => {
     loadAll();
@@ -252,11 +168,11 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
     setRefreshing(true);
     if (tab === "Ferie/ROL") { ProxyApi.ferieSaldo(username).then(setFerieSaldo); ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])); }
     else if (tab === "Documenti") loadDocs();
-    else if (tab === "Avvisi") loadComunicazioni(profilo);
+    else if (tab === "Avvisi") ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : []));
     else if (tab === "turni") loadTurni();
     else if (tab === "timbra") ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
     else if (tab === "Home" || tab === "Informazioni") { loadTurni(); ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : [])); }
-    else if (tab === "profilo" || tab === "Contatti") { ProxyApi.profilo(username).then(setProfilo); ProxyApi.contatti().then(r => setContatti(parseContatti(r))); }
+    else if (tab === "profilo" || tab === "Contatti") { ProxyApi.profilo(username).then(setProfilo); ProxyApi.contatti().then(r => setContatti(Array.isArray(r) ? r : [])); }
     else ProxyApi.profilo(username).then(setProfilo);
     setTimeout(() => setRefreshing(false), 1000);
   }
@@ -403,39 +319,24 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
       return;
     }
     setSegBusy(true);
-    try {
-      const res = await SegnalazioniApi.create({
-        numeroEvento: `AUTO-${Date.now()}`, ...seg, username, nome,
-        areaSede: seg.areaSede || profilo?.struttura || "",
-        dataEvento: seg.dataEvento
-      });
-      setSegBusy(false);
-      if (res.ok) { setSegInviata(true); setSeg({ ...SEG_DEFAULTS }); }
-      else alert(res.error || "Errore nell'invio. Riprova.");
-    } catch {
-      setSegBusy(false);
-      alert("Errore nell'invio. Riprova.");
-    }
+    await ProxyApi.segnalazione({
+      numeroEvento: `AUTO-${Date.now()}`, ...seg, username, nome,
+      areaSede: seg.areaSede || profilo?.struttura || ""
+    });
+    setSegBusy(false);
+    setSegInviata(true);
+    setSeg({ ...SEG_DEFAULTS });
   }
 
   async function submitTicket() {
     if (!ticket.titolo.trim() || !ticket.descrizione.trim()) { setTicketMsg("⚠️ Compila titolo e descrizione."); return; }
     setTicketBusy(true);
     setTicketMsg("⏳ Invio...");
-    try {
-      const res = await TicketApi.create({ ...ticket, username, nome, ruolo: ruolo || "" });
-      setTicketBusy(false);
-      if (res.ok) {
-        setTicketOpen(false);
-        setTicket({ titolo: "", categoria: "Problema", descrizione: "" });
-        alert("Segnalazione inviata. Grazie!");
-      } else {
-        setTicketMsg(`⚠️ ${res.error || "Errore nell'invio."}`);
-      }
-    } catch {
-      setTicketBusy(false);
-      setTicketMsg("⚠️ Errore nell'invio. Riprova.");
-    }
+    await ProxyApi.appTicket({ ...ticket, username, nome, ruolo: ruolo || "" });
+    setTicketBusy(false);
+    setTicketOpen(false);
+    setTicket({ titolo: "", categoria: "Problema", descrizione: "" });
+    alert("Segnalazione inviata. Grazie!");
   }
 
   const oggi = new Date().toISOString().split("T")[0];
@@ -478,8 +379,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
   ];
 
   return (
-    <div className="app-screen gp-screen">
-      <div className="gp-main">
+    <div className="app-screen">
       <div className="app-header">
         <div className="app-greeting">Buongiorno,<br />{firstName}</div>
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
@@ -805,15 +705,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
                 <input type="number" className="struttura-select" placeholder="Es: 8" style={{ marginBottom: "0.75rem" }} value={ferieInput.ore} onChange={e => setFerieInput(f => ({ ...f, ore: e.target.value }))} />
                 <label className="field-label">Note (opzionale)</label>
                 <input type="text" className="struttura-select" placeholder="Motivazione..." style={{ marginBottom: "1rem" }} value={ferieInput.note} onChange={e => setFerieInput(f => ({ ...f, note: e.target.value }))} />
-                <button className="timbra-btn entrata" onClick={async () => {
-                  try {
-                    await ProxyApi.ferieRichiesta({ username, nome, tipo: ferieForm, dataInizio: ferieInput.inizio, dataFine: ferieInput.fine || ferieInput.inizio, oreRichieste: ferieInput.ore, note: ferieInput.note });
-                    setFerieForm(null); setFerieInput({ inizio: "", fine: "", ore: "", note: "" });
-                    ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
-                  } catch (e: any) {
-                    alert(e?.message || "Errore nell'invio della richiesta. Riprova.");
-                  }
-                }}>📤 Invia richiesta</button>
+                <button className="timbra-btn entrata" onClick={async () => { await ProxyApi.ferieRichiesta({ username, nome, tipo: ferieForm, dataInizio: ferieInput.inizio, dataFine: ferieInput.fine || ferieInput.inizio, oreRichieste: ferieInput.ore, note: ferieInput.note }); setFerieForm(null); setFerieInput({ inizio: "", fine: "", ore: "", note: "" }); ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])); }}>📤 Invia richiesta</button>
                 <button className="timbra-btn uscita" style={{ marginTop: "0.5rem" }} onClick={() => setFerieForm(null)}>Annulla</button>
               </div>
             }
@@ -847,7 +739,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
                 <div className="ana-card" key={i} style={{ padding: "0.85rem 1rem", marginBottom: "0.5rem", cursor: "pointer", borderLeft: !c.letto ? "4px solid var(--teal)" : "none" }}
                   onClick={() => {
                     setComSel(c);
-                    if (!c.letto) ProxyApi.comunicazioneLetta(c.id, username, nome).then(() => loadComunicazioni(profilo));
+                    if (!c.letto) ProxyApi.comunicazioneLetta(c.id).then(() => ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : [])));
                   }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <div style={{ fontSize: 14, fontWeight: c.letto ? 700 : 900, color: "var(--text-dark)" }}>{!c.letto ? "🔵 " : ""}{c.titolo || "(senza titolo)"}</div>
@@ -887,10 +779,6 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
             ) : docs.map((d: any, i: number) => {
               const titolo = d.titolo || d.tipo || "Documento";
               const link = d.allegatoUrl || d.linkAllegato;
-              const puoCaricare = d.richiedeFirma && (d.statoFirma === "Da firmare" || d.statoFirma === "Respinto");
-              const inVerifica = d.richiedeFirma && d.statoFirma === "In attesa di verifica";
-              const firmato = d.richiedeFirma && d.statoFirma === "Firmato";
-              const respinto = d.richiedeFirma && d.statoFirma === "Respinto";
               return (
                 <div className="ana-card" key={i} style={{ padding: "0.85rem 1rem", marginBottom: "0.5rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -900,28 +788,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
                   {d.tipo && d.tipo !== titolo && <div style={{ fontSize: 11, color: "var(--text-light)", marginTop: 1 }}>{d.tipo}</div>}
                   {d.allegatoNome && <div style={{ fontSize: 12, color: "var(--text-mid)", marginTop: 2 }}>{d.allegatoNome}</div>}
                   {d.note && <div style={{ fontSize: 12, color: "var(--text-light)", marginTop: 2 }}>{d.note}</div>}
-
-                  {d.richiedeFirma && (
-                    <div style={{ marginTop: 6 }}>
-                      {d.statoFirma === "Da firmare" && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#FEF3CD", color: "#7A5800" }}>✍️ Da firmare e restituire</span>}
-                      {inVerifica && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#DDEEFF", color: "#1A4A7A" }}>🔍 In attesa di verifica</span>}
-                      {firmato && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#D5F0E0", color: "#1A6B3A" }}>✅ Firmato e accettato</span>}
-                      {respinto && <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#FCE4E4", color: "#7A1A1A" }}>❌ Non restituito correttamente: ricarica</span>}
-                    </div>
-                  )}
-
                   {link && <div style={{ marginTop: 6 }}><a href={link} target="_blank" rel="noreferrer" style={{ color: "var(--teal)", fontWeight: 700, fontSize: 13 }}>📎 Apri / scarica</a></div>}
-
-                  {puoCaricare && (
-                    <div style={{ marginTop: 8 }}>
-                      <label style={{ display: "inline-block", padding: "0.5rem 0.9rem", background: "var(--teal)", color: "white", borderRadius: 20, fontSize: 12, fontWeight: 800, cursor: firmaBusy === d.pageId ? "default" : "pointer", opacity: firmaBusy === d.pageId ? 0.6 : 1 }}>
-                        {firmaBusy === d.pageId ? "Caricamento..." : "📤 Carica firmato"}
-                        <input type="file" disabled={firmaBusy === d.pageId} onChange={e => caricaFirma(d.pageId, e)} style={{ display: "none" }} />
-                      </label>
-                      {firmaMsg && firmaMsg.id === d.pageId && <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: "var(--teal-dark)" }}>{firmaMsg.text}</div>}
-                    </div>
-                  )}
-
                   {d.caricatoDa && <div style={{ fontSize: 10, color: "var(--text-light)", marginTop: 4 }}>Caricato da {d.caricatoDa}</div>}
                 </div>
               );
@@ -1062,8 +929,6 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
           </div>
         </div>
       )}
-
-      </div>
 
       <div className="bottom-nav">
         {bottomNavItems.map(n => (

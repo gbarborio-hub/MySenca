@@ -56,12 +56,13 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
   const firstName = nome.split(" ")[0] || "utente";
   const nTicketNuovi = ticket.filter(t => t.stato === "Nuovo").length;
 
+  // "Audit Log" non compare nel menu in basso — si raggiunge dalla home, di fianco
+  // a "Gestisci utenti web app", per non affollare la barra di navigazione principale.
   const navs: { id: AdminScreen | "logout"; label: string; icon: keyof typeof NavIcons }[] = [
     { id: "home",      label: "Home",         icon: "home" },
     { id: "abilitare", label: "Da abilitare",  icon: "daAbilitare" },
     { id: "utenti",    label: "Utenti",        icon: "utenti" },
     { id: "ticket",    label: "Ticket",        icon: "comunicazioni" },
-    { id: "audit",     label: "Audit Log",     icon: "lista" },
     { id: "logout",    label: "Esci",          icon: "logout" }
   ];
 

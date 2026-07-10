@@ -1,8 +1,9 @@
+// Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import type { Dipendente } from "../../models/domain.js";
 
 interface Props {
   dipendentiSenzaUsername: Dipendente[];
-  onGo: (view: "abilitare" | "utenti") => void;
+  onGo: (view: "abilitare" | "utenti" | "audit") => void;
 }
 
 export default function AdminHome({ dipendentiSenzaUsername, onGo }: Props) {
@@ -26,6 +27,15 @@ export default function AdminHome({ dipendentiSenzaUsername, onGo }: Props) {
           <div className="dip-half-orb"></div>
           <div className="dip-half-label">Gestisci</div>
           <div className="dip-half-value" style={{ fontSize: 20 }}>Utenti web app</div>
+        </div>
+        <div
+          className="dip-half-card"
+          style={{ background: "var(--coral)", minHeight: 110, flex: 1, cursor: "pointer" }}
+          onClick={() => onGo("audit")}
+        >
+          <div className="dip-half-orb"></div>
+          <div className="dip-half-label">Consulta</div>
+          <div className="dip-half-value" style={{ fontSize: 20 }}>Audit Log</div>
         </div>
       </div>
     </div>
