@@ -11,6 +11,7 @@ interface Props {
   nome: string;
   mansione?: string;
   ruolo?: string;
+  createdTime?: string | null;
   showRoleSwitch: boolean;
   onShowRoleChooser: () => void;
   onLogout: () => void;
@@ -86,7 +87,7 @@ const SEG_DEFAULTS = {
   quantita: "", interessati: "", danni: ""
 };
 
-export default function DipendenteView({ username, nome, mansione, ruolo, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
+export default function DipendenteView({ username, nome, mansione, ruolo, createdTime, showRoleSwitch, onShowRoleChooser, onLogout }: Props) {
   const [tab, setTab] = useState<DipTab>("Home");
   const [strutture, setStrutture] = useState<any[]>([]);
   const [turni, setTurni] = useState<any[]>([]);
@@ -130,13 +131,29 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
   const firstName = (nome || "").split(" ")[0] || "utente";
   const nUnread = comunicazioni.filter((c: any) => !c.letto).length;
 
+  // Filtra le comunicazioni scartando quelle inviate prima della creazione
+  // dell'utenza — un dipendente non deve vedere avvisi storici antecedenti
+  // al proprio accesso all'app.
+  function loadComunicazioni(prof: any) {
+    ProxyApi.comunicazioniLista({ username, struttura: prof?.struttura || "", ruolo: prof?.mansione || ruolo || "" }).then(r => {
+      let list = (Array.isArray(r) ? r : []).map((item: any) => ({ ...item, id: item.id || item.pageId || "" }));
+      if (createdTime) {
+        const soglia = new Date(createdTime).getTime();
+        list = list.filter((c: any) => {
+          const invio = c.dataInvio ? new Date(c.dataInvio).getTime() : null;
+          return invio === null || isNaN(invio) || invio >= soglia;
+        });
+      }
+      setComunicazioni(list);
+    });
+  }
+
   function loadAll() {
     ProxyApi.strutture().then(r => setStrutture(Array.isArray(r) ? r : []));
     ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
-    ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : []));
     ProxyApi.ferieSaldo(username).then(r => setFerieSaldo(r));
     ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : []));
-    ProxyApi.profilo(username).then(r => setProfilo(r));
+    ProxyApi.profilo(username).then(r => { setProfilo(r); loadComunicazioni(r); });
     ProxyApi.contatti().then(r => setContatti(Array.isArray(r) ? r : []));
     loadTurni();
     loadDocs();
@@ -168,7 +185,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
     setRefreshing(true);
     if (tab === "Ferie/ROL") { ProxyApi.ferieSaldo(username).then(setFerieSaldo); ProxyApi.ferieLettura(username).then(r => setFerieRichieste(Array.isArray(r) ? r : [])); }
     else if (tab === "Documenti") loadDocs();
-    else if (tab === "Avvisi") ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : []));
+    else if (tab === "Avvisi") loadComunicazioni(profilo);
     else if (tab === "turni") loadTurni();
     else if (tab === "timbra") ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : []));
     else if (tab === "Home" || tab === "Informazioni") { loadTurni(); ProxyApi.timbratureRead(username).then(r => setTimbrature(Array.isArray(r) ? r : [])); }
@@ -739,7 +756,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, showRo
                 <div className="ana-card" key={i} style={{ padding: "0.85rem 1rem", marginBottom: "0.5rem", cursor: "pointer", borderLeft: !c.letto ? "4px solid var(--teal)" : "none" }}
                   onClick={() => {
                     setComSel(c);
-                    if (!c.letto) ProxyApi.comunicazioneLetta(c.id).then(() => ProxyApi.comunicazioniLista({ destinatario: username }).then(r => setComunicazioni(Array.isArray(r) ? r : [])));
+                    if (!c.letto) ProxyApi.comunicazioneLetta(c.id, username, nome).then(() => loadComunicazioni(profilo));
                   }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <div style={{ fontSize: 14, fontWeight: c.letto ? 700 : 900, color: "var(--text-dark)" }}>{!c.letto ? "🔵 " : ""}{c.titolo || "(senza titolo)"}</div>
