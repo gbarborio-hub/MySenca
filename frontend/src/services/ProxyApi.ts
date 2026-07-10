@@ -17,6 +17,7 @@ export const ProxyApi = {
   turniGriglia: (payload?: unknown) => p<any[]>("/turni-griglia", payload || {}),
   turniScrivi: (payload: unknown) => p<any>("/turni-scrivi", payload),
   legendaRead: () => p<any[]>("/legenda-read", {}),
+  legendaScrivi: (payload: unknown) => p<any>("/legenda-scrivi", payload),
   // Timbrature
   timbratureRead: (username: string) => p<any[]>("/timbrature-read", { username }),
   timbra: (payload: unknown) => p<any>("/timbra", payload),
@@ -39,6 +40,8 @@ export const ProxyApi = {
   contatti: () => p<any[]>("/contatti", {}),
   // Segnalazione
   segnalazione: (payload: unknown) => p<any>("/segnalazione", payload),
+  // Ticket app (segnalazione bug/problemi dall'interno dell'app)
+  appTicket: (payload: unknown) => p<any>("/app-ticket", payload),
   // GP
   gpDipendenti: () => p<any[]>("/gp-dipendenti", {}),
   gpTimbrature: (payload?: unknown) => p<any[]>("/gp-timbrature", payload || {}),
