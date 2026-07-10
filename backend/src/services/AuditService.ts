@@ -16,8 +16,6 @@ export interface AuditEntry {
   ip?: string;
 }
 
-let lastHashCache: string | null = null;
-
 function computeHash(entry: AuditEntry, timestamp: string, hashPrecedente: string): string {
   const payload = [
     timestamp, entry.utente, entry.ruolo, entry.azione,
@@ -26,8 +24,13 @@ function computeHash(entry: AuditEntry, timestamp: string, hashPrecedente: strin
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
+// Interroga sempre Notion direttamente per l'ultimo hash — NESSUNA cache in memoria.
+// Una cache locale diventerebbe silenziosamente disallineata ogni volta che i record
+// vengono modificati o cancellati direttamente su Notion (bypassando il backend),
+// producendo scritture che referenziano un predecessore non più esistente. Per un
+// sistema di audit la correttezza vale più della velocità: un'interrogazione in più
+// per ogni scrittura è un costo accettabile.
 async function fetchLastHash(): Promise<string> {
-  if (lastHashCache !== null) return lastHashCache;
   try {
     const res: any = await notion.queryDatabase(DB_AUDIT, {
       page_size: 1,
@@ -69,38 +72,27 @@ async function writeLog(entry: AuditEntry): Promise<void> {
       "Hash record":     tp(hashRecord)
     }
   });
-
-  // Aggiorna la cache SOLO dopo che la scrittura è confermata su Notion —
-  // e solo perché questa funzione viene sempre eseguita in coda (mai in parallelo,
-  // vedi enqueueWrite più sotto), quindi non può esserci corsa tra due scritture.
-  lastHashCache = hashRecord;
 }
 
 // Coda di scrittura: garantisce che le voci di audit vengano scritte STRETTAMENTE
-// una alla volta, mai in parallelo. Senza questa coda, richieste API simultanee
-// (normalissime quando l'utente apre una schermata che carica più dati insieme)
-// potrebbero leggere lo stesso "ultimo hash" prima che una scrittura lo aggiorni,
-// creando una diramazione nella catena invece di una sequenza lineare.
+// una alla volta, mai in parallelo — altrimenti due richieste API simultanee
+// potrebbero leggere lo stesso "ultimo hash" da Notion prima che una delle due
+// scriva la propria, creando una diramazione nella catena invece di una sequenza lineare.
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(entry: AuditEntry): Promise<void> {
   const result = writeQueue.then(() => writeLog(entry));
-  // Anche se questa scrittura fallisce, la coda deve proseguire per le successive
   writeQueue = result.catch(() => {});
   return result;
 }
 
 export const AuditService = {
-  // Non bloccante dal punto di vista della risposta HTTP — ma le scritture
-  // avvengono comunque in sequenza rigorosa una dopo l'altra internamente.
   log(entry: AuditEntry): void {
     enqueueWrite(entry).catch(e => {
       console.error("[AuditService] WRITE ERROR:", e?.message || e);
     });
   },
 
-  // Versione che attende il completamento — usata da endpoint che vogliono
-  // la conferma di scrittura avvenuta.
   async logSync(entry: AuditEntry): Promise<void> {
     await enqueueWrite(entry);
   },
@@ -125,10 +117,6 @@ export const AuditService = {
     const getText = (prop: any): string =>
       prop?.rich_text?.[0]?.plain_text || prop?.rich_text?.[0]?.text?.content || "";
 
-    // Ricostruisce l'ordine reale della catena seguendo i puntatori hash
-    // (hash precedente → hash record), invece di fidarsi dell'ordinamento per
-    // Timestamp — che ha solo precisione al minuto e non distingue correttamente
-    // scritture ravvicinate nello stesso minuto.
     const byHashPrecedente = new Map<string, any[]>();
     for (const page of results) {
       const p = page.properties || {};
@@ -149,7 +137,7 @@ export const AuditService = {
           integro: false,
           totaleRecord: results.length,
           rotturaAlRecord: contatore + 1,
-          descrizioneRottura: `Diramazione rilevata dopo il record #${contatore}: ${candidati.length} record diversi puntano allo stesso predecessore — probabile scrittura concorrente non sincronizzata`
+          descrizioneRottura: `Diramazione rilevata dopo il record #${contatore}: ${candidati.length} record diversi puntano allo stesso predecessore`
         };
       }
 
