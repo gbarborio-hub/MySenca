@@ -25,9 +25,42 @@ function overrideAzione(path: string, method: string): AuditAzione {
   return methodToAzione(method);
 }
 
+// Per le chiamate proxy (verso n8n), il primo segmento è sempre "proxy" e non dice
+// nulla di utile — includiamo anche il secondo segmento per identificare l'azione reale
+// (es. "proxy/turni-read" invece di solo "proxy").
 function extractRisorsa(path: string): string {
-  const segments = path.replace(/^\/api\//, "").split("/");
+  const segments = path.replace(/^\/api\//, "").split("/").filter(Boolean);
+  if (segments[0] === "proxy" && segments[1]) return `proxy/${segments[1]}`;
   return segments[0] || "unknown";
+}
+
+// Campi mai da loggare, anche se presenti nel corpo della richiesta.
+const CAMPI_ESCLUSI = new Set(["password", "hashpassword", "hash", "salt", "token", "encryptionkey"]);
+
+// Costruisce un dettaglio leggibile dell'operazione: ID nell'URL, query string,
+// e alcuni campi identificativi comuni nel corpo — mai dati sensibili.
+function buildDettaglio(req: Request): string {
+  const parti: string[] = [];
+
+  if (req.params?.id) parti.push(`id:${req.params.id}`);
+
+  const query = req.query as Record<string, string>;
+  const queryKeys = Object.keys(query || {});
+  if (queryKeys.length) {
+    parti.push(queryKeys.map(k => `${k}=${query[k]}`).join("&"));
+  }
+
+  if (req.body && typeof req.body === "object") {
+    const b = req.body as Record<string, any>;
+    for (const campo of ["username", "pageId", "stato", "azione", "titolo", "categoria"]) {
+      if (CAMPI_ESCLUSI.has(campo.toLowerCase())) continue;
+      if (b[campo] !== undefined && b[campo] !== null && typeof b[campo] !== "object") {
+        parti.push(`${campo}:${b[campo]}`);
+      }
+    }
+  }
+
+  return parti.join(" | ").slice(0, 500); // limite di sicurezza sulla lunghezza
 }
 
 const SKIP_PATHS = ["/api/health", "/api/audit"];
@@ -36,14 +69,9 @@ export function auditMiddleware() {
   return function (req: Request, _res: Response, next: NextFunction) {
     if (SKIP_PATHS.some(p => req.path.startsWith(p))) return next();
 
-    // L'identità arriva via header, impostato dal frontend (apiClient.ts) dopo
-    // login/sblocco Face ID/cambio ruolo. Non esiste sessione server-side (JWT/cookie),
-    // quindi questo è l'unico modo per il middleware di sapere chi sta chiamando.
     const utente = (req.headers["x-username"] as string) || "";
     const ruolo = (req.headers["x-ruolo"] as string) || "";
 
-    // La chiamata di login stessa non ha ancora l'header (l'utente non è ancora
-    // autenticato) — quell'evento specifico è già loggato direttamente da AuthController.
     if (!utente) return next();
 
     const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
@@ -53,7 +81,7 @@ export function auditMiddleware() {
       utente, ruolo,
       azione: overrideAzione(req.path, req.method),
       risorsa: extractRisorsa(req.path),
-      dettaglio: req.params?.id ? `id:${req.params.id}` : "",
+      dettaglio: buildDettaglio(req),
       ip
     });
 
