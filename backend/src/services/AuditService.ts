@@ -41,17 +41,24 @@ async function fetchLastHash(): Promise<string> {
     });
     if (!res.results?.length) return GENESIS_HASH;
     const p = res.results[0].properties || {};
-    const h = p["Hash record"]?.rich_text?.[0]?.text?.content || "";
+    // campo "text" in Notion usa plain_text
+    const h = p["Hash record"]?.rich_text?.[0]?.plain_text || "";
     return h || GENESIS_HASH;
-  } catch {
+  } catch (e) {
+    console.error("[AuditService] fetchLastHash error:", e);
     return GENESIS_HASH;
   }
 }
 
+// Helper per proprietà text di Notion (stessa struttura di rich_text nell'API v1)
+function tp(value: string) {
+  return { rich_text: [{ type: "text", text: { content: value || "" } }] };
+}
+
 export const AuditService = {
+  // Fire-and-forget: non blocca la risposta HTTP ma logga gli errori su console
   log(entry: AuditEntry): void {
-    // Non bloccante — non rallenta la risposta HTTP
-    setImmediate(async () => {
+    Promise.resolve().then(async () => {
       try {
         const timestamp = new Date().toISOString();
         const hashPrecedente = await fetchLastHash();
@@ -61,20 +68,21 @@ export const AuditService = {
         await notion.createPage({
           parent: { database_id: DB_AUDIT },
           properties: {
-            "Descrizione": { title: [{ text: { content: descrizione } }] },
-            "Utente": { rich_text: [{ text: { content: entry.utente || "" } }] },
-            "Ruolo": { rich_text: [{ text: { content: entry.ruolo || "" } }] },
-            "Azione": { select: { name: entry.azione } },
-            "Risorsa": { rich_text: [{ text: { content: entry.risorsa } }] },
-            "Dettaglio": { rich_text: [{ text: { content: entry.dettaglio || "" } }] },
-            "IP": { rich_text: [{ text: { content: entry.ip || "" } }] },
-            "Timestamp": { date: { start: timestamp } },
-            "Hash precedente": { rich_text: [{ text: { content: hashPrecedente } }] },
-            "Hash record": { rich_text: [{ text: { content: hashRecord } }] }
+            "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
+            "Utente":          tp(entry.utente),
+            "Ruolo":           tp(entry.ruolo),
+            "Azione":          { select: { name: entry.azione } },
+            "Risorsa":         tp(entry.risorsa),
+            "Dettaglio":       tp(entry.dettaglio || ""),
+            "IP":              tp(entry.ip || ""),
+            "Timestamp":       { date: { start: timestamp } },
+            "Hash precedente": tp(hashPrecedente),
+            "Hash record":     tp(hashRecord)
           }
         });
 
         lastHashCache = hashRecord;
+        console.log(`[AuditService] ${entry.azione} ${entry.risorsa} [${entry.utente}]`);
       } catch (e) {
         console.error("[AuditService] Errore scrittura log:", e);
       }
@@ -104,17 +112,19 @@ export const AuditService = {
     let hashAtteso = GENESIS_HASH;
     for (let i = 0; i < results.length; i++) {
       const p = results[i].properties || {};
-      const getText = (prop: any) => prop?.rich_text?.[0]?.text?.content || "";
+      const getText = (prop: any): string =>
+        prop?.rich_text?.[0]?.plain_text || prop?.rich_text?.[0]?.text?.content || "";
+
       const hashPrecedente = getText(p["Hash precedente"]);
       const hashRecord = getText(p["Hash record"]);
       const timestamp = p["Timestamp"]?.date?.start || "";
       const entry: AuditEntry = {
-        utente: getText(p["Utente"]),
-        ruolo: getText(p["Ruolo"]),
-        azione: (p["Azione"]?.select?.name || "") as AuditAzione,
-        risorsa: getText(p["Risorsa"]),
+        utente:    getText(p["Utente"]),
+        ruolo:     getText(p["Ruolo"]),
+        azione:    (p["Azione"]?.select?.name || "") as AuditAzione,
+        risorsa:   getText(p["Risorsa"]),
         dettaglio: getText(p["Dettaglio"]),
-        ip: getText(p["IP"])
+        ip:        getText(p["IP"])
       };
 
       if (hashPrecedente !== hashAtteso) {
@@ -122,7 +132,7 @@ export const AuditService = {
           integro: false,
           totaleRecord: results.length,
           rotturaAlRecord: i + 1,
-          descrizioneRottura: `Record #${i + 1}: hash precedente non corrisponde (atteso: ${hashAtteso.slice(0, 16)}..., trovato: ${hashPrecedente.slice(0, 16)}...)`
+          descrizioneRottura: `Record #${i + 1}: hash precedente non corrisponde`
         };
       }
 
@@ -132,7 +142,7 @@ export const AuditService = {
           integro: false,
           totaleRecord: results.length,
           rotturaAlRecord: i + 1,
-          descrizioneRottura: `Record #${i + 1}: hash record alterato — possibile manomissione`
+          descrizioneRottura: `Record #${i + 1}: hash alterato — possibile manomissione`
         };
       }
 
