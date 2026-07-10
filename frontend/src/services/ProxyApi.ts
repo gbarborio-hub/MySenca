@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import { api } from "./apiClient.js";
 
 // Calls the backend /api/proxy/* which proxies to n8n/Make
@@ -10,12 +11,12 @@ export const ProxyApi = {
   strutturaSalva: (payload: unknown) => p<any>("/struttura-salva", payload),
   // Profilo
   profilo: (username: string) => p<any>("/profilo", { username }),
-  // Turni
-  turniRead: (nome: string) => p<any[]>("/turni-read", { nome }),
+  // Turni — lettura diretta dal backend (bypassa n8n, che aveva un formato dati
+  // inconsistente tra i vari workflow paralleli). Scrittura/griglia restano su n8n.
+  turniRead: (nome: string) => api.get<any[]>(`/turni?nome=${encodeURIComponent(nome)}`),
   turniGriglia: (payload?: unknown) => p<any[]>("/turni-griglia", payload || {}),
   turniScrivi: (payload: unknown) => p<any>("/turni-scrivi", payload),
   legendaRead: () => p<any[]>("/legenda-read", {}),
-  legendaScrivi: (payload: unknown) => p<any>("/legenda-scrivi", payload),
   // Timbrature
   timbratureRead: (username: string) => p<any[]>("/timbrature-read", { username }),
   timbra: (payload: unknown) => p<any>("/timbra", payload),
@@ -38,8 +39,6 @@ export const ProxyApi = {
   contatti: () => p<any[]>("/contatti", {}),
   // Segnalazione
   segnalazione: (payload: unknown) => p<any>("/segnalazione", payload),
-  appTicket: (payload: unknown) => p<any>("/app-ticket", payload),
-  dipendenteSalva: (payload: unknown) => p<any>("/dipendente-salva", payload),
   // GP
   gpDipendenti: () => p<any[]>("/gp-dipendenti", {}),
   gpTimbrature: (payload?: unknown) => p<any[]>("/gp-timbrature", payload || {}),
