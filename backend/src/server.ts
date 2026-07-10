@@ -27,6 +27,15 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
+// Disabilita la cache condizionale (ETag/304) per tutte le API — sono risposte
+// dinamiche, non risorse statiche. Senza questo, il browser può ricevere un 304
+// con corpo vuoto su richieste GET ripetute, interpretato dal frontend come
+// "nessun dato" anche quando i dati esistono e sono corretti.
+app.use("/api", (_req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
+
 // Audit middleware — intercetta ogni richiesta autenticata in modo non bloccante
 app.use(auditMiddleware());
 
