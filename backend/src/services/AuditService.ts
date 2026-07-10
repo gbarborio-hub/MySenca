@@ -20,14 +20,8 @@ let lastHashCache: string | null = null;
 
 function computeHash(entry: AuditEntry, timestamp: string, hashPrecedente: string): string {
   const payload = [
-    timestamp,
-    entry.utente,
-    entry.ruolo,
-    entry.azione,
-    entry.risorsa,
-    entry.dettaglio || "",
-    entry.ip || "",
-    hashPrecedente
+    timestamp, entry.utente, entry.ruolo, entry.azione,
+    entry.risorsa, entry.dettaglio || "", entry.ip || "", hashPrecedente
   ].join("|");
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
@@ -41,8 +35,8 @@ async function fetchLastHash(): Promise<string> {
     });
     if (!res.results?.length) return GENESIS_HASH;
     const p = res.results[0].properties || {};
-    // campo "text" in Notion usa plain_text
-    const h = p["Hash record"]?.rich_text?.[0]?.plain_text || "";
+    const h = p["Hash record"]?.rich_text?.[0]?.plain_text
+           || p["Hash record"]?.rich_text?.[0]?.text?.content || "";
     return h || GENESIS_HASH;
   } catch (e) {
     console.error("[AuditService] fetchLastHash error:", e);
@@ -50,50 +44,55 @@ async function fetchLastHash(): Promise<string> {
   }
 }
 
-// Helper per proprietà text di Notion (stessa struttura di rich_text nell'API v1)
 function tp(value: string) {
   return { rich_text: [{ type: "text", text: { content: value || "" } }] };
 }
 
+// Scrive un singolo record di audit — usato internamente e dall'endpoint di test.
+async function writeLog(entry: AuditEntry): Promise<void> {
+  const timestamp = new Date().toISOString();
+  const hashPrecedente = await fetchLastHash();
+  const hashRecord = computeHash(entry, timestamp, hashPrecedente);
+  const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
+
+  console.log(`[AuditService] Writing: ${descrizione}`);
+
+  const result = await notion.createPage({
+    parent: { database_id: DB_AUDIT },
+    properties: {
+      "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
+      "Utente":          tp(entry.utente),
+      "Ruolo":           tp(entry.ruolo),
+      "Azione":          { select: { name: entry.azione } },
+      "Risorsa":         tp(entry.risorsa),
+      "Dettaglio":       tp(entry.dettaglio || ""),
+      "IP":              tp(entry.ip || ""),
+      "Timestamp":       { date: { start: timestamp } },
+      "Hash precedente": tp(hashPrecedente),
+      "Hash record":     tp(hashRecord)
+    }
+  });
+
+  console.log(`[AuditService] Written OK, pageId: ${(result as any)?.id}`);
+  lastHashCache = hashRecord;
+}
+
 export const AuditService = {
-  // Fire-and-forget: non blocca la risposta HTTP ma logga gli errori su console
+  // Fire-and-forget per uso normale — non blocca la risposta HTTP
   log(entry: AuditEntry): void {
-    Promise.resolve().then(async () => {
-      try {
-        const timestamp = new Date().toISOString();
-        const hashPrecedente = await fetchLastHash();
-        const hashRecord = computeHash(entry, timestamp, hashPrecedente);
-        const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
-
-        await notion.createPage({
-          parent: { database_id: DB_AUDIT },
-          properties: {
-            "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
-            "Utente":          tp(entry.utente),
-            "Ruolo":           tp(entry.ruolo),
-            "Azione":          { select: { name: entry.azione } },
-            "Risorsa":         tp(entry.risorsa),
-            "Dettaglio":       tp(entry.dettaglio || ""),
-            "IP":              tp(entry.ip || ""),
-            "Timestamp":       { date: { start: timestamp } },
-            "Hash precedente": tp(hashPrecedente),
-            "Hash record":     tp(hashRecord)
-          }
-        });
-
-        lastHashCache = hashRecord;
-        console.log(`[AuditService] ${entry.azione} ${entry.risorsa} [${entry.utente}]`);
-      } catch (e) {
-        console.error("[AuditService] Errore scrittura log:", e);
-      }
+    writeLog(entry).catch(e => {
+      console.error("[AuditService] WRITE ERROR:", JSON.stringify(e, null, 2));
     });
   },
 
+  // Versione sincrona — per test e verifica diretta
+  async logSync(entry: AuditEntry): Promise<void> {
+    await writeLog(entry);
+  },
+
   async verificaIntegrita(): Promise<{
-    integro: boolean;
-    totaleRecord: number;
-    rotturaAlRecord?: number;
-    descrizioneRottura?: string;
+    integro: boolean; totaleRecord: number;
+    rotturaAlRecord?: number; descrizioneRottura?: string;
   }> {
     const results: any[] = [];
     let cursor: string | undefined;
@@ -116,8 +115,8 @@ export const AuditService = {
         prop?.rich_text?.[0]?.plain_text || prop?.rich_text?.[0]?.text?.content || "";
 
       const hashPrecedente = getText(p["Hash precedente"]);
-      const hashRecord = getText(p["Hash record"]);
-      const timestamp = p["Timestamp"]?.date?.start || "";
+      const hashRecord     = getText(p["Hash record"]);
+      const timestamp      = p["Timestamp"]?.date?.start || "";
       const entry: AuditEntry = {
         utente:    getText(p["Utente"]),
         ruolo:     getText(p["Ruolo"]),
@@ -128,27 +127,16 @@ export const AuditService = {
       };
 
       if (hashPrecedente !== hashAtteso) {
-        return {
-          integro: false,
-          totaleRecord: results.length,
-          rotturaAlRecord: i + 1,
-          descrizioneRottura: `Record #${i + 1}: hash precedente non corrisponde`
-        };
+        return { integro: false, totaleRecord: results.length, rotturaAlRecord: i + 1,
+          descrizioneRottura: `Record #${i + 1}: hash precedente non corrisponde` };
       }
-
       const hashRicalcolato = computeHash(entry, timestamp, hashPrecedente);
       if (hashRicalcolato !== hashRecord) {
-        return {
-          integro: false,
-          totaleRecord: results.length,
-          rotturaAlRecord: i + 1,
-          descrizioneRottura: `Record #${i + 1}: hash alterato — possibile manomissione`
-        };
+        return { integro: false, totaleRecord: results.length, rotturaAlRecord: i + 1,
+          descrizioneRottura: `Record #${i + 1}: hash alterato — possibile manomissione` };
       }
-
       hashAtteso = hashRecord;
     }
-
     return { integro: true, totaleRecord: results.length };
   }
 };
