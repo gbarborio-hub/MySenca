@@ -26,5 +26,25 @@ export const AuditController = {
     } catch (e: any) {
       res.status(500).json({ error: e?.message || "Errore verifica integrità." });
     }
+  },
+
+  // Eventi loggati esplicitamente dal frontend per azioni che non passano da
+  // nessun'altra chiamata API: sblocco Face ID/Touch ID, logout.
+  async event(req: Request, res: Response) {
+    try {
+      const utente = (req.headers["x-username"] as string) || "";
+      const ruolo = (req.headers["x-ruolo"] as string) || "";
+      const { azione, dettaglio } = req.body || {};
+      if (!utente || !azione) {
+        res.status(400).json({ ok: false, error: "Dati mancanti." });
+        return;
+      }
+      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
+                || req.socket?.remoteAddress || "";
+      AuditService.log({ utente, ruolo, azione, risorsa: "client-event", dettaglio: dettaglio || "", ip });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e?.message || "Errore registrazione evento." });
+    }
   }
 };

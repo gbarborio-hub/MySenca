@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import type { Request, Response } from "express";
 import { AuthService } from "../services/AuthService.js";
-import { AuditService } from "../services/AuditService.js";
 
 export const AuthController = {
   async login(req: Request, res: Response) {
@@ -13,19 +12,6 @@ export const AuthController = {
     try {
       const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
                 || req.socket?.remoteAddress || "";
-      
-      // Log diretto qui — bypassa il middleware e AuthService
-      // per isolare il problema
-      console.log(`[AuthController] login attempt: ${username}`);
-      void AuditService.logSync({
-        utente: username, ruolo: "", azione: "LOGIN",
-        risorsa: "auth-controller-direct", dettaglio: "test diretto", ip
-      }).then(() => {
-        console.log("[AuthController] logSync OK");
-      }).catch(e => {
-        console.error("[AuthController] logSync FAILED:", e?.message);
-      });
-
       const result = await AuthService.login(username, password, ip);
       if (!result.ok) {
         res.status(401).json(result);

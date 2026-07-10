@@ -22,7 +22,6 @@ function overrideAzione(path: string, method: string): AuditAzione {
   if (path.includes("/verifica-firma")) return "UPDATE";
   if (path.includes("/carica")) return "UPDATE";
   if (path.includes("/auth/login")) return "LOGIN";
-  if (path.includes("/auth/logout")) return "LOGOUT";
   return methodToAzione(method);
 }
 
@@ -37,10 +36,15 @@ export function auditMiddleware() {
   return function (req: Request, _res: Response, next: NextFunction) {
     if (SKIP_PATHS.some(p => req.path.startsWith(p))) return next();
 
-    const utente = (req as any).user?.username || "";
-    const ruolo = (req as any).user?.ruolo || "";
+    // L'identità arriva via header, impostato dal frontend (apiClient.ts) dopo
+    // login/sblocco Face ID/cambio ruolo. Non esiste sessione server-side (JWT/cookie),
+    // quindi questo è l'unico modo per il middleware di sapere chi sta chiamando.
+    const utente = (req.headers["x-username"] as string) || "";
+    const ruolo = (req.headers["x-ruolo"] as string) || "";
 
-    if (!utente && !req.path.includes("/auth/login")) return next();
+    // La chiamata di login stessa non ha ancora l'header (l'utente non è ancora
+    // autenticato) — quell'evento specifico è già loggato direttamente da AuthController.
+    if (!utente) return next();
 
     const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
               || req.socket?.remoteAddress || "";
