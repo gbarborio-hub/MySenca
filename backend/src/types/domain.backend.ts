@@ -1,3 +1,5 @@
+// Domain types — mirror Notion DB shape, decoupled from Notion's raw property format.
+
 export type Ruolo = "Admin" | "Gestione personale" | "Dipendente" | "Privacy" | "Operatore" | "Utente";
 
 export const RUOLI_CON_INTERFACCIA: Ruolo[] = ["Admin", "Gestione personale", "Dipendente", "Privacy"];
@@ -35,6 +37,12 @@ export interface UtenteWebApp {
   bloccato: boolean;
   tentativiFalliti: number;
   passwordAggiornataIl: string | null;
+  hashPassword: string;
+  salt: string;
+  createdTime: string | null;
+  // TOTP: il segreto resta cifrato lato Notion e non viene mai esposto al frontend.
+  totpSecret: string;
+  totpAbilitato: boolean;
 }
 
 export interface AuthResult {
@@ -45,12 +53,22 @@ export interface AuthResult {
   nome?: string;
   createdTime?: string | null;
   error?: string;
+  // Se true, la password è corretta ma serve ancora il codice TOTP per completare l'accesso.
+  requiresTotp?: boolean;
 }
 
-export interface CurrentUser {
+export interface CreaUtenzaInput {
   username: string;
-  nome: string;
-  ruoli: Ruolo[];
-  activeRole: Ruolo;
-  createdTime?: string | null;
+  email?: string;
+  ruolo: Ruolo;
+  ruoliAggiuntivi?: Ruolo[];
+  dipendentePageId: string;
+}
+
+export interface CreaUtenzaResult {
+  ok: boolean;
+  username?: string;
+  password?: string;
+  emailInviata?: boolean;
+  error?: string;
 }

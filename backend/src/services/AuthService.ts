@@ -3,9 +3,18 @@ import { UtentiModel } from "../models/UtentiModel.js";
 import { DipendentiModel } from "../models/DipendentiModel.js";
 import { PasswordService } from "./PasswordService.js";
 import { AuditService } from "./AuditService.js";
+import { TotpService } from "./TotpService.js";
+import { decrypt } from "./EncryptionService.js";
 import type { AuthResult } from "../types/domain.js";
 
 const MAX_TENTATIVI = 3;
+
+async function buildSuccessResult(utente: any, username: string): Promise<AuthResult> {
+  const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
+  const dipendente = await DipendentiModel.findByUsername(username);
+  const nomeCompleto = dipendente ? `${dipendente.nome} ${dipendente.cognome}`.trim() : username;
+  return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto, createdTime: utente.createdTime };
+}
 
 export const AuthService = {
   async login(usernameRaw: string, password: string, ip?: string): Promise<AuthResult> {
@@ -40,12 +49,34 @@ export const AuthService = {
     }
 
     UtentiModel.resetTentativiFalliti(utente.pageId).catch(() => {});
+
+    // Password corretta ma TOTP attivo: non completare il login, il frontend
+    // dovrà chiamare /auth/totp-verify con il codice a 6 cifre per proseguire.
+    // Nessun log LOGIN qui — l'accesso non è ancora concluso.
+    if (utente.totpAbilitato) {
+      return { ok: true, requiresTotp: true, username: utente.username };
+    }
+
+    AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: "Login diretto (TOTP non attivo)", ip: ip || "" });
+    return buildSuccessResult(utente, username);
+  },
+
+  async verifyTotp(usernameRaw: string, token: string, ip?: string): Promise<AuthResult> {
+    const username = usernameRaw.trim().toLowerCase();
+    const utente = await UtentiModel.findByUsername(username);
+    if (!utente || !utente.totpAbilitato || !utente.totpSecret) {
+      return { ok: false, error: "Autenticazione a due fattori non configurata per questo utente." };
+    }
+
+    const secret = decrypt(utente.totpSecret);
+    const valido = TotpService.verifyToken(secret, token);
+    if (!valido) {
+      AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Codice TOTP errato", ip: ip || "" });
+      return { ok: false, error: "Codice non valido. Riprova." };
+    }
+
     const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
-    const dipendente = await DipendentiModel.findByUsername(username);
-    const nomeCompleto = dipendente ? `${dipendente.nome} ${dipendente.cognome}`.trim() : username;
-
-    AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: `Ruoli: ${ruoli.join(", ")}`, ip: ip || "" });
-
-    return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto, createdTime: utente.createdTime };
+    AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: `Login con TOTP. Ruoli: ${ruoli.join(", ")}`, ip: ip || "" });
+    return buildSuccessResult(utente, username);
   }
 };

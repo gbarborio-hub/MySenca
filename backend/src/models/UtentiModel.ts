@@ -17,7 +17,9 @@ function fromNotionPage(page: any): UtenteWebApp {
     passwordAggiornataIl: dateStart(p["Password aggiornata il"]),
     hashPassword: rt(p["Hash password"]),
     salt: rt(p["Salt"]),
-    createdTime: page.created_time || null
+    createdTime: page.created_time || null,
+    totpSecret: rt(p["TOTP Secret"]),
+    totpAbilitato: chk(p["TOTP Attivo"])
   };
 }
 
@@ -96,6 +98,27 @@ export const UtentiModel = {
         "Hash password": { rich_text: [{ text: { content: hash } }] },
         "Salt": { rich_text: [{ text: { content: salt } }] },
         "Password aggiornata il": { date: { start: today } }
+      }
+    });
+  },
+
+  // TOTP — il segreto arriva già cifrato (AES-256-GCM) da AuthService/TotpService,
+  // questo model si limita a scrivere/leggere il valore così com'è.
+  async setTotpSecret(pageId: string, encryptedSecret: string): Promise<void> {
+    await notion.updatePage(pageId, {
+      properties: { "TOTP Secret": { rich_text: [{ text: { content: encryptedSecret } }] } }
+    });
+  },
+
+  async setTotpAbilitato(pageId: string, abilitato: boolean): Promise<void> {
+    await notion.updatePage(pageId, { properties: { "TOTP Attivo": { checkbox: abilitato } } });
+  },
+
+  async disableTotp(pageId: string): Promise<void> {
+    await notion.updatePage(pageId, {
+      properties: {
+        "TOTP Attivo": { checkbox: false },
+        "TOTP Secret": { rich_text: [{ text: { content: "" } }] }
       }
     });
   }

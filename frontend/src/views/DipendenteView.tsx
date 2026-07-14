@@ -3,6 +3,7 @@ import { ProxyApi } from "../services/ProxyApi.js";
 import RoleSwitchMini from "../components/RoleSwitchMini.js";
 import Logo from "../components/Logo.js";
 import { NavIcons } from "../components/NavIcons.js";
+import TotpSetup from "../components/TotpSetup.js";
 
 type DipTab = "Home" | "Ferie/ROL" | "Informazioni" | "Contatti" | "Avvisi" | "Documenti" | "segnalazione" | "timbra" | "turni" | "profilo";
 
@@ -840,6 +841,7 @@ export default function DipendenteView({ username, nome, mansione, ruolo, create
                 </div>
               </>
             )}
+            <TotpSetup username={username} />
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
               <button onClick={() => setTicketOpen(true)} style={{ flex: 1, background: "white", border: "1.5px solid var(--cyan-light)", borderRadius: 12, padding: "0.6rem 0.4rem", fontSize: 12, fontWeight: 800, color: "var(--teal-dark)", cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>🛠️ Segnala un problema</button>
               <button onClick={() => setTab("segnalazione")} style={{ flex: 1, background: "white", border: "1.5px solid var(--coral)", borderRadius: 12, padding: "0.6rem 0.4rem", fontSize: 12, fontWeight: 800, color: "var(--coral)", cursor: "pointer", fontFamily: "Satoshi,sans-serif" }}>⚠️ Segnala evento</button>
