@@ -6,48 +6,48 @@ const p = <T>(path: string, body: unknown = {}) => api.post<T>(`/proxy/${path}`,
 
 export const ProxyApi = {
   // Strutture
-  strutture: () => p<any[]>("/strutture", {}),
-  gpStrutture: () => p<any[]>("/gp-strutture", {}),
-  strutturaSalva: (payload: unknown) => p<any>("/struttura-salva", payload),
+  strutture: () => p<any[]>("strutture", {}),
+  gpStrutture: () => p<any[]>("gp-strutture", {}),
+  strutturaSalva: (payload: unknown) => p<any>("struttura-salva", payload),
   // Profilo
-  profilo: (username: string) => p<any>("/profilo", { username }),
+  profilo: (username: string) => p<any>("profilo", { username }),
   // Turni — lettura diretta dal backend (bypassa n8n, che aveva un formato dati
   // inconsistente tra i vari workflow paralleli). Scrittura/griglia restano su n8n.
   turniRead: (nome: string) => api.get<any[]>(`/turni?nome=${encodeURIComponent(nome)}`),
-  turniGriglia: (payload?: unknown) => p<any[]>("/turni-griglia", payload || {}),
-  turniScrivi: (payload: unknown) => p<any>("/turni-scrivi", payload),
-  legendaRead: () => p<any[]>("/legenda-read", {}),
-  legendaScrivi: (payload: unknown) => p<any>("/legenda-scrivi", payload),
+  turniGriglia: (payload?: unknown) => p<any[]>("turni-griglia", payload || {}),
+  turniScrivi: (payload: unknown) => p<any>("turni-scrivi", payload),
+  legendaRead: () => p<any[]>("legenda-read", {}),
+  legendaScrivi: (payload: unknown) => p<any>("legenda-scrivi", payload),
   // Timbrature
-  timbratureRead: (username: string) => p<any[]>("/timbrature-read", { username }),
-  timbra: (payload: unknown) => p<any>("/timbra", payload),
-  timbraturaUpdate: (payload: unknown) => p<any>("/timbratura-update", payload),
+  timbratureRead: (username: string) => p<any[]>("timbrature-read", { username }),
+  timbra: (payload: unknown) => p<any>("timbra", payload),
+  timbraturaUpdate: (payload: unknown) => p<any>("timbratura-update", payload),
   // Ferie
-  ferieSaldo: (username: string) => p<any>("/ferie-saldo", { username }),
-  ferieLettura: (username: string) => p<any[]>("/ferie-lettura", { username }),
-  ferieRichiesta: (payload: unknown) => p<any>("/ferie-richiesta", payload),
-  ferieUpdate: (payload: unknown) => p<any>("/ferie-update", payload),
+  ferieSaldo: (username: string) => p<any>("ferie-saldo", { username }),
+  ferieLettura: (username: string) => p<any[]>("ferie-lettura", { username }),
+  ferieRichiesta: (payload: unknown) => p<any>("ferie-richiesta", payload),
+  ferieUpdate: (payload: unknown) => p<any>("ferie-update", payload),
   // Comunicazioni (condivise dipendente + GP)
-  comunicazioniLista: (payload?: unknown) => p<any[]>("/comunicazioni-lista", payload || {}),
-  comunicazioneCrea: (payload: unknown) => p<any>("/comunicazione-crea", payload),
-  comunicazioneLetta: (comunicazioneId: string, username: string, nome: string) => p<any>("/comunicazione-letta", { comunicazioneId, username, nome }),
-  comunicazioneLetture: (comunicazioneId: string) => p<any[]>("/comunicazione-letture", { comunicazioneId }),
+  comunicazioniLista: (payload?: unknown) => p<any[]>("comunicazioni-lista", payload || {}),
+  comunicazioneCrea: (payload: unknown) => p<any>("comunicazione-crea", payload),
+  comunicazioneLetta: (comunicazioneId: string, username: string, nome: string) => p<any>("comunicazione-letta", { comunicazioneId, username, nome }),
+  comunicazioneLetture: (comunicazioneId: string) => p<any[]>("comunicazione-letture", { comunicazioneId }),
   // Documenti (condivisi dipendente + GP)
-  documentiLista: (payload?: unknown) => p<any[]>("/documenti-lista", payload || {}),
-  documentoCarica: (payload: unknown) => p<any>("/documento-carica", payload),
-  documentoElimina: (payload: unknown) => p<any>("/documento-elimina", payload),
-  // Contatti
-  contatti: () => p<any[]>("/contatti", {}),
+  documentiLista: (payload?: unknown) => p<any[]>("documenti-lista", payload || {}),
+  documentoCarica: (payload: unknown) => p<any>("documento-carica", payload),
+  documentoElimina: (payload: unknown) => p<any>("documento-elimina", payload),
+  // Contatti — lettura diretta dal backend (bypassa Make.com, ormai dismesso).
+  contatti: () => api.get<any[]>("/contatti"),
   // Segnalazione
-  segnalazione: (payload: unknown) => p<any>("/segnalazione", payload),
+  segnalazione: (payload: unknown) => p<any>("segnalazione", payload),
   // Ticket app (segnalazione bug/problemi dall'interno dell'app)
-  appTicket: (payload: unknown) => p<any>("/app-ticket", payload),
+  appTicket: (payload: unknown) => p<any>("app-ticket", payload),
   // GP
-  gpDipendenti: () => p<any[]>("/gp-dipendenti", {}),
-  gpTimbrature: (payload?: unknown) => p<any[]>("/gp-timbrature", payload || {}),
-  gpFerie: (payload?: unknown) => p<any[]>("/gp-ferie", payload || {}),
+  gpDipendenti: () => p<any[]>("gp-dipendenti", {}),
+  gpTimbrature: (payload?: unknown) => p<any[]>("gp-timbrature", payload || {}),
+  gpFerie: (payload?: unknown) => p<any[]>("gp-ferie", payload || {}),
   // Privacy (Make)
-  posts: () => p<any[]>("/posts", {}),
-  incaricati: () => p<any[]>("/incaricati", {}),
-  azioneNomina: (payload: unknown) => p<any>("/azione-nomina", payload),
+  posts: () => p<any[]>("posts", {}),
+  incaricati: () => p<any[]>("incaricati", {}),
+  azioneNomina: (payload: unknown) => p<any>("azione-nomina", payload),
 };
