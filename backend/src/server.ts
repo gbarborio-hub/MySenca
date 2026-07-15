@@ -20,6 +20,7 @@ import { statusLavoriRouter } from "./routes/statusLavori.routes.js";
 import { responsabiliRouter } from "./routes/responsabili.routes.js";
 import { auditRouter } from "./routes/audit.routes.js";
 import { turniRouter } from "./routes/turni.routes.js";
+import { contattiRouter } from "./routes/contatti.routes.js";
 import { totpRouter } from "./routes/totp.routes.js";
 import { auditMiddleware } from "./middleware/audit.middleware.js";
 import { RotationService } from "./services/RotationService.js";
@@ -53,6 +54,7 @@ app.use("/api/status-lavori", statusLavoriRouter);
 app.use("/api/responsabili", responsabiliRouter);
 app.use("/api/audit", auditRouter);
 app.use("/api/turni", turniRouter);
+app.use("/api/contatti", contattiRouter);
 app.use("/api/totp", totpRouter);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
