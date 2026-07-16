@@ -23,11 +23,18 @@ export interface AuditListResult {
   nextCursor?: string;
 }
 
+export interface RecordCoinvolto {
+  pageId: string;
+  url: string;
+  descrizione: string;
+}
+
 export interface VerificaResult {
   integro: boolean;
   totaleRecord: number;
   rotturaAlRecord?: number;
   descrizioneRottura?: string;
+  recordCoinvolti?: RecordCoinvolto[];
 }
 
 export const AuditApi = {

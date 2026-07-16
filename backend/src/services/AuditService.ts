@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import crypto from "crypto";
 import { notion } from "../models/notionClient.js";
+import { ChainLockService } from "./ChainLockService.js";
 
 const DB_AUDIT = "ca05282ca862460b884b4c6804e67ac9";
 const GENESIS_HASH = "GENESIS-MySenca-AuditLog-v1";
@@ -24,56 +25,43 @@ function computeHash(entry: AuditEntry, timestampIso: string, hashPrecedente: st
   return crypto.createHash("sha256").update(payload).digest("hex");
 }
 
-async function fetchLastHash(): Promise<string> {
-  try {
-    const res: any = await notion.queryDatabase(DB_AUDIT, {
-      page_size: 1,
-      sorts: [{ property: "Timestamp", direction: "descending" }]
-    });
-    if (!res.results?.length) return GENESIS_HASH;
-    const p = res.results[0].properties || {};
-    const h = p["Hash record"]?.rich_text?.[0]?.plain_text
-           || p["Hash record"]?.rich_text?.[0]?.text?.content || "";
-    return h || GENESIS_HASH;
-  } catch (e) {
-    console.error("[AuditService] fetchLastHash error:", e);
-    return GENESIS_HASH;
-  }
-}
-
 function tp(value: string) {
   return { rich_text: [{ type: "text", text: { content: value || "" } }] };
 }
 
 async function writeLog(entry: AuditEntry): Promise<void> {
-  // Timestamp con precisione al millisecondo, usato per il calcolo dell'hash.
-  // Va salvato ANCHE in un campo di testo semplice (Timestamp ISO), perché il campo
-  // Data di Notion arrotonda al minuto: se si usasse quel valore per ricalcolare
-  // l'hash in fase di verifica, non corrisponderebbe mai più a quello originale,
-  // producendo falsi positivi di "manomissione" a ogni record.
-  const timestampIso = new Date().toISOString();
-  const hashPrecedente = await fetchLastHash();
-  const hashRecord = computeHash(entry, timestampIso, hashPrecedente);
-  const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
+  // Tutto il blocco (calcolo hash + scrittura su Notion) avviene dentro il lock
+  // condiviso via PostgreSQL — nessun altro processo può interferire fino a COMMIT.
+  await ChainLockService.withLock(async (hashPrecedente) => {
+    const timestampIso = new Date().toISOString();
+    const hashRecord = computeHash(entry, timestampIso, hashPrecedente);
+    const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
 
-  await notion.createPage({
-    parent: { database_id: DB_AUDIT },
-    properties: {
-      "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
-      "Utente":          tp(entry.utente),
-      "Ruolo":           tp(entry.ruolo),
-      "Azione":          { select: { name: entry.azione } },
-      "Risorsa":         tp(entry.risorsa),
-      "Dettaglio":       tp(entry.dettaglio || ""),
-      "IP":              tp(entry.ip || ""),
-      "Timestamp":       { date: { start: timestampIso } },
-      "Timestamp ISO":   tp(timestampIso),
-      "Hash precedente": tp(hashPrecedente),
-      "Hash record":     tp(hashRecord)
-    }
+    await notion.createPage({
+      parent: { database_id: DB_AUDIT },
+      properties: {
+        "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
+        "Utente":          tp(entry.utente),
+        "Ruolo":           tp(entry.ruolo),
+        "Azione":          { select: { name: entry.azione } },
+        "Risorsa":         tp(entry.risorsa),
+        "Dettaglio":       tp(entry.dettaglio || ""),
+        "IP":              tp(entry.ip || ""),
+        "Timestamp":       { date: { start: timestampIso } },
+        "Timestamp ISO":   tp(timestampIso),
+        "Hash precedente": tp(hashPrecedente),
+        "Hash record":     tp(hashRecord)
+      }
+    });
+
+    return { result: undefined as void, nuovoHash: hashRecord };
   });
 }
 
+// La coda locale resta come ottimizzazione: evita che lo stesso processo apra
+// molte connessioni Postgres in parallelo per richieste quasi simultanee. Il
+// lock reale che previene le diramazioni è comunque quello in ChainLockService,
+// che funziona correttamente anche se questa coda locale non ci fosse.
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(entry: AuditEntry): Promise<void> {
@@ -96,6 +84,7 @@ export const AuditService = {
   async verificaIntegrita(): Promise<{
     integro: boolean; totaleRecord: number;
     rotturaAlRecord?: number; descrizioneRottura?: string;
+    recordCoinvolti?: { pageId: string; url: string; descrizione: string }[];
   }> {
     const results: any[] = [];
     let cursor: string | undefined;
@@ -133,14 +122,19 @@ export const AuditService = {
           integro: false,
           totaleRecord: results.length,
           rotturaAlRecord: contatore + 1,
-          descrizioneRottura: `Diramazione rilevata dopo il record #${contatore}: ${candidati.length} record diversi puntano allo stesso predecessore`
+          descrizioneRottura: `Diramazione rilevata dopo il record #${contatore}: ${candidati.length} record diversi puntano allo stesso predecessore`,
+          recordCoinvolti: candidati.map((page: any) => ({
+            pageId: page.id,
+            url: page.url,
+            descrizione: page.properties?.["Descrizione"]?.title?.[0]?.plain_text
+                      || page.properties?.["Descrizione"]?.title?.[0]?.text?.content || ""
+          }))
         };
       }
 
       const page = candidati[0];
       const p = page.properties || {};
       const hashRecord = getText(p["Hash record"]);
-      // Usa il campo di testo con precisione esatta, non il campo Data (arrotondato al minuto)
       const timestampIso = getText(p["Timestamp ISO"]);
       const entry: AuditEntry = {
         utente:    getText(p["Utente"]),
@@ -159,7 +153,12 @@ export const AuditService = {
           integro: false,
           totaleRecord: results.length,
           rotturaAlRecord: contatore,
-          descrizioneRottura: `Record #${contatore}: hash alterato — possibile manomissione`
+          descrizioneRottura: `Record #${contatore}: hash alterato — possibile manomissione`,
+          recordCoinvolti: [{
+            pageId: page.id,
+            url: page.url,
+            descrizione: getText(p["Descrizione"] as any) || p["Descrizione"]?.title?.[0]?.plain_text || p["Descrizione"]?.title?.[0]?.text?.content || ""
+          }]
         };
       }
 
@@ -167,11 +166,28 @@ export const AuditService = {
     }
 
     if (contatore !== results.length) {
+      // Ricostruisce l'insieme dei record effettivamente raggiunti percorrendo
+      // la catena dall'inizio, per isolare quelli "orfani" rimasti fuori.
+      const raggiunti = new Set<string>();
+      let cursorHash = GENESIS_HASH;
+      while (byHashPrecedente.has(cursorHash)) {
+        const c = byHashPrecedente.get(cursorHash)!;
+        if (c.length !== 1) break;
+        raggiunti.add(c[0].id);
+        cursorHash = getText((c[0].properties || {})["Hash record"]);
+      }
+      const orfani = results.filter((page: any) => !raggiunti.has(page.id));
       return {
         integro: false,
         totaleRecord: results.length,
         rotturaAlRecord: contatore + 1,
-        descrizioneRottura: `Catena interrotta: ${results.length - contatore} record non raggiungibili dalla sequenza principale`
+        descrizioneRottura: `Catena interrotta: ${results.length - contatore} record non raggiungibili dalla sequenza principale`,
+        recordCoinvolti: orfani.map((page: any) => ({
+          pageId: page.id,
+          url: page.url,
+          descrizione: page.properties?.["Descrizione"]?.title?.[0]?.plain_text
+                    || page.properties?.["Descrizione"]?.title?.[0]?.text?.content || ""
+        }))
       };
     }
 

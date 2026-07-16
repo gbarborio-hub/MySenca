@@ -116,6 +116,24 @@ export default function AdminAuditLog() {
             {verifica.integro
               ? `✅ Integrità confermata — ${verifica.totaleRecord} record verificati, nessuna alterazione rilevata`
               : `❌ Anomalia rilevata al record #${verifica.rotturaAlRecord}: ${verifica.descrizioneRottura}`}
+            {!verifica.integro && verifica.recordCoinvolti && verifica.recordCoinvolti.length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(122,26,26,0.2)" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", marginBottom: 6 }}>
+                  Apri {verifica.recordCoinvolti.length === 1 ? "il record" : "i record"} su Notion
+                </div>
+                {verifica.recordCoinvolti.map((r, i) => (
+                  <a
+                    key={i}
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#7A1A1A", textDecoration: "underline", marginBottom: 4 }}
+                  >
+                    {i + 1}. {r.descrizione || r.pageId} ↗
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
