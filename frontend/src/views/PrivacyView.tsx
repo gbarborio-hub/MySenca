@@ -7,13 +7,15 @@ import { NavIcons } from "../components/NavIcons.js";
 import DocumentiDipendenteGP from "./gp/DocumentiDipendenteGP.js";
 import StatusLavoriGP from "./gp/StatusLavoriGP.js";
 import ResponsabiliGP from "./gp/ResponsabiliGP.js";
+import DocumentazionePrivacyGP from "./gp/DocumentazionePrivacyGP.js";
+import AmministratoriGP from "./gp/AmministratoriGP.js";
 import { ResponsabiliApi } from "../services/ResponsabiliApi.js";
 import type { Responsabile } from "../services/ResponsabiliApi.js";
 import { SegnalazioniApi } from "../services/SegnalazioniApi.js";
 import type { Segnalazione } from "../services/SegnalazioniApi.js";
 
 type PrivacyTab = "dashboard" | "lista" | "calendario" | "privacy";
-type PrivacySection = "incaricati" | "segnalazioni" | "statusLavori" | "responsabili" | null;
+type PrivacySection = "incaricati" | "segnalazioni" | "statusLavori" | "responsabili" | "documentazione" | "amministratori" | null;
 
 interface Props {
   nome: string;
@@ -422,8 +424,23 @@ export default function PrivacyView({ nome, username, showRoleSwitch, onShowRole
               </div>
             </div>
 
+            <div className="half-cards">
+              <div className="half-card" style={{ background: "var(--coral)", cursor: "pointer" }} onClick={() => setPrivacySection("documentazione")}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Documentazione</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>modelli e invii privacy</div>
+              </div>
+              <div className="half-card dark" style={{ cursor: "pointer" }} onClick={() => setPrivacySection("amministratori")}>
+                <div className="half-card-orb"></div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "white" }}>Amministratori</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>di sistema</div>
+              </div>
+            </div>
+
             {privacySection === "statusLavori" && <StatusLavoriGP />}
             {privacySection === "responsabili" && <ResponsabiliGP />}
+            {privacySection === "documentazione" && <DocumentazionePrivacyGP />}
+            {privacySection === "amministratori" && <AmministratoriGP />}
 
             {privacySection === "incaricati" && (
               <>

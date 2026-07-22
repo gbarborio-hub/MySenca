@@ -1,4 +1,5 @@
 import { notion, rt, title, chk, dateStart } from "./notionClient.js";
+import { DocumentazionePrivacyModel } from "./DocumentazionePrivacyModel.js";
 
 const DB_INCARICATI = "fe132a32729b4c7da387603e29ef1a0d";
 
@@ -58,6 +59,15 @@ export const IncaricatiModel = {
     if (input.note) props["Note"] = { rich_text: [{ text: { content: input.note } }] };
     if (input.username) props["Username"] = { rich_text: [{ text: { content: input.username } }] };
     const res: any = await notion.createPage({ parent: { database_id: DB_INCARICATI }, properties: props });
+
+    // Invio automatico del "Modulo incaricato al trattamento" usando l'ultimo
+    // modello caricato in "Documentazione privacy". Non blocca la creazione.
+    if (input.email) {
+      DocumentazionePrivacyModel
+        .inviaANuovoDestinatario("Incaricato trattamento", { nome: `${input.nome} ${input.cognome}`.trim(), email: input.email })
+        .catch(() => {});
+    }
+
     return res.id;
   },
 

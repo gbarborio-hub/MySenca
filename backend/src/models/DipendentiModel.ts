@@ -1,5 +1,6 @@
 import { notion, rt, sel, title, chk, dateStart } from "./notionClient.js";
 import type { Dipendente } from "../types/domain.js";
+import { DocumentazionePrivacyModel } from "./DocumentazionePrivacyModel.js";
 
 const DB_DIPENDENTI = "28edb837413c47bf87d38a52067c3bae";
 
@@ -75,6 +76,16 @@ export const DipendentiModel = {
       parent: { database_id: DB_DIPENDENTI },
       properties: buildProperties(input)
     });
+
+    // Invio automatico dell'informativa privacy corrispondente al tipo di contratto
+    // (Dipendente / Libero professionista): usa sempre l'ultimo modello caricato in
+    // "Documentazione privacy". Non blocca né fa fallire la creazione dell'anagrafica.
+    if (input.email && (input.contratto === "Dipendente" || input.contratto === "Libero professionista")) {
+      DocumentazionePrivacyModel
+        .inviaANuovoDestinatario(input.contratto, { nome: `${input.nome} ${input.cognome}`.trim(), email: input.email })
+        .catch(() => {});
+    }
+
     return res.id;
   },
 

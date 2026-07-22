@@ -46,6 +46,44 @@ export const EmailService = {
     }
   },
 
+  // Invio di un documento privacy (informativa, modulo incaricato, nomina...) con
+  // allegato binario. Il payload aggiunge i campi allegato* al webhook n8n esistente:
+  // il workflow "MySenca - Invio Email" va aggiornato per gestire tipo "documentoPrivacy"
+  // e allegare allegatoBase64/allegatoNome/allegatoContentType al messaggio in uscita.
+  async sendDocumentoPrivacy(
+    to: string,
+    nomeModello: string,
+    htmlBody: string,
+    allegato: { fileName: string; contentType: string; fileBase64: string }
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(N8N_EMAIL_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "documentoPrivacy",
+          email: to,
+          subject: nomeModello,
+          htmlBody,
+          allegatoNome: allegato.fileName,
+          allegatoContentType: allegato.contentType,
+          allegatoBase64: allegato.fileBase64
+        })
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  documentoPrivacyTemplate(nomeDestinatario: string, nomeModello: string): string {
+    const first = (nomeDestinatario || "").split(" ")[0] || "collega";
+    return `<p>Gentile ${first},</p>
+<p>in allegato trovi il documento <b>${nomeModello}</b>.</p>
+<p>Ti chiediamo di prenderne visione con attenzione.</p>
+<p>Cordiali saluti,<br>Senca Senior Care</p>`;
+  },
+
   credenzialiTemplate(username: string, password: string): string {
     return `<p>Gentile collega,</p>
 <p>è stato creato il tuo accesso alla web app aziendale <b>MySenca</b>.</p>
