@@ -26,7 +26,8 @@ function fromNotionPage(page: any): Dipendente {
     monteFerie: p["Monte ferie annuo"]?.number ?? null,
     monteRol: p["Monte ROL annuo"]?.number ?? null,
     residuoFerieIniz: p["Residuo ferie iniziale"]?.number ?? null,
-    residuoRolIniz: p["Residuo ROL iniziale"]?.number ?? null
+    residuoRolIniz: p["Residuo ROL iniziale"]?.number ?? null,
+    informativaPrivacyInviata: dateStart(p["Informativa privacy inviata"])
   };
 }
 
@@ -83,10 +84,17 @@ export const DipendentiModel = {
     if (input.email && (input.contratto === "Dipendente" || input.contratto === "Libero professionista")) {
       DocumentazionePrivacyModel
         .inviaANuovoDestinatario(input.contratto, { nome: `${input.nome} ${input.cognome}`.trim(), email: input.email })
+        .then(inviato => { if (inviato) this.marcaInformativaInviata(res.id).catch(() => {}); })
         .catch(() => {});
     }
 
     return res.id;
+  },
+
+  // Segna la data di invio dell'informativa privacy per questo dipendente. Usato sia
+  // dall'invio automatico all'onboarding sia dagli invii massivi/mirati manuali.
+  async marcaInformativaInviata(pageId: string): Promise<void> {
+    await notion.updatePage(pageId, { properties: { "Informativa privacy inviata": { date: { start: new Date().toISOString() } } } });
   },
 
   async update(pageId: string, input: DipendenteUpdateInput): Promise<void> {

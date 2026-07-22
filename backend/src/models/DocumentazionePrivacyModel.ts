@@ -63,6 +63,7 @@ async function fetchFileAsBase64(url: string): Promise<{ base64: string; content
 }
 
 export interface DestinatarioModello {
+  pageId: string;
   nome: string;
   email: string;
 }
@@ -96,9 +97,16 @@ export const DocumentazionePrivacyModel = {
     });
   },
 
-  // Invio massivo manuale: prende il modello (già letto fresco dal chiamante) e lo
-  // manda a tutti i destinatari passati, poi segna la data dell'ultimo invio.
-  async inviaAggiornamentoATutti(modello: ModelloPrivacy, destinatari: DestinatarioModello[]): Promise<{ ok: boolean; inviati: number; falliti: string[]; error?: string }> {
+  // Invio massivo manuale (o mirato a un sottoinsieme, es. "solo i mancanti"): prende
+  // il modello (già letto fresco dal chiamante) e lo manda ai destinatari passati.
+  // onInviato, se fornito, viene chiamato per ogni invio riuscito con il pageId del
+  // destinatario, così il chiamante può segnare "ricevuto" sull'anagrafica giusta
+  // (Dipendente/Incaricato/Amministratore — il model qui non conosce quelle entità).
+  async inviaAggiornamentoATutti(
+    modello: ModelloPrivacy,
+    destinatari: DestinatarioModello[],
+    onInviato?: (pageId: string) => Promise<void>
+  ): Promise<{ ok: boolean; inviati: number; falliti: string[]; error?: string }> {
     if (!modello.allegatoUrl) return { ok: false, inviati: 0, falliti: [], error: "Nessun documento caricato per questo modello." };
     const file = await fetchFileAsBase64(modello.allegatoUrl);
     if (!file) return { ok: false, inviati: 0, falliti: [], error: "Impossibile leggere il file del modello da Notion." };
@@ -113,7 +121,12 @@ export const DocumentazionePrivacyModel = {
         EmailService.documentoPrivacyTemplate(d.nome, modello.nomeModello),
         { fileName: modello.allegatoNome || `${modello.nomeModello}.pdf`, contentType: file.contentType, fileBase64: file.base64 }
       );
-      if (ok) inviati++; else falliti.push(d.nome);
+      if (ok) {
+        inviati++;
+        if (onInviato) await onInviato(d.pageId).catch(() => {});
+      } else {
+        falliti.push(d.nome);
+      }
     }
 
     await notion.updatePage(modello.pageId, {
@@ -129,7 +142,7 @@ export const DocumentazionePrivacyModel = {
   // campo riguarda solo gli invii massivi manuali, non l'invio standard all'ingresso
   // di una nuova persona. Non lancia mai eccezioni: un errore qui non deve mai far
   // fallire la creazione dell'anagrafica.
-  async inviaANuovoDestinatario(categoria: CategoriaModello, destinatario: DestinatarioModello): Promise<boolean> {
+  async inviaANuovoDestinatario(categoria: CategoriaModello, destinatario: { nome: string; email: string }): Promise<boolean> {
     try {
       if (!destinatario.email) return false;
       const modello = await this.getByCategoria(categoria);

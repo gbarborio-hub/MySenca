@@ -23,9 +23,10 @@ function aggiornamentoPending(m: ModelloPrivacy): boolean {
   return new Date(m.dataUltimoAggiornamento).getTime() > new Date(m.dataUltimoInvio).getTime();
 }
 
-function ModelloCard({ modello, onChanged }: { modello: ModelloPrivacy; onChanged: () => void }) {
+function ModelloCard({ modello, mancanti, onChanged }: { modello: ModelloPrivacy; mancanti: { pageId: string; nome: string; email: string }[]; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [inviando, setInviando] = useState(false);
+  const [inviandoMancanti, setInviandoMancanti] = useState(false);
   const [esito, setEsito] = useState<string | null>(null);
 
   function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -79,6 +80,27 @@ function ModelloCard({ modello, onChanged }: { modello: ModelloPrivacy; onChange
     }
   }
 
+  async function inviaAiMancanti() {
+    if (!confirm(`Inviare "${modello.nomeModello}" solo a chi non l'ha mai ricevuto (${mancanti.length} persone)?`)) return;
+    setInviandoMancanti(true);
+    setEsito(null);
+    try {
+      const res = await DocumentazionePrivacyApi.inviaMancanti(modello.pageId);
+      if (!res.ok) {
+        setEsito(`⚠️ ${res.error || "Errore nell'invio."}`);
+      } else if (res.falliti.length > 0) {
+        setEsito(`✅ Inviato a ${res.inviati}. ⚠️ Non riusciti: ${res.falliti.join(", ")}.`);
+      } else {
+        setEsito(`✅ Inviato ai ${res.inviati} che non l'avevano mai ricevuto.`);
+      }
+      onChanged();
+    } catch (err: any) {
+      setEsito(`⚠️ ${err?.message || "Errore nell'invio."}`);
+    } finally {
+      setInviandoMancanti(false);
+    }
+  }
+
   const pending = aggiornamentoPending(modello);
 
   return (
@@ -98,6 +120,20 @@ function ModelloCard({ modello, onChanged }: { modello: ModelloPrivacy; onChange
 
       {pending && (
         <div style={{ display: "inline-block", marginBottom: 8, padding: "3px 9px", borderRadius: 10, fontSize: 11, fontWeight: 800, background: "#FEF3CD", color: "#7A5800" }}>⏳ Aggiornamento non ancora inviato</div>
+      )}
+
+      {mancanti.length > 0 && (
+        <div className="ana-card" style={{ padding: "0.75rem", marginBottom: 10, background: "#FCE4E4" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#7A1A1A", marginBottom: 4 }}>⚠️ {mancanti.length} interessati non hanno mai ricevuto questo documento</div>
+          <div style={{ fontSize: 11, color: "#7A1A1A", marginBottom: 8 }}>{mancanti.map(m => m.nome).join(", ")}</div>
+          <button
+            disabled={inviandoMancanti || !modello.allegatoUrl}
+            onClick={inviaAiMancanti}
+            style={{ padding: "0.45rem 0.8rem", background: modello.allegatoUrl ? "#7A1A1A" : "#ccc", color: "white", border: "none", borderRadius: 14, fontSize: 12, fontWeight: 800, cursor: modello.allegatoUrl ? "pointer" : "default" }}
+          >
+            {inviandoMancanti ? "Invio..." : `✉️ Invia solo a chi manca (${mancanti.length})`}
+          </button>
+        </div>
       )}
 
       {esito && <div style={{ fontSize: 12, fontWeight: 700, color: "var(--teal-dark)", marginBottom: 8 }}>{esito}</div>}
@@ -121,11 +157,18 @@ function ModelloCard({ modello, onChanged }: { modello: ModelloPrivacy; onChange
 
 export default function DocumentazionePrivacyGP() {
   const [items, setItems] = useState<ModelloPrivacy[]>([]);
+  const [mancanti, setMancanti] = useState<Record<string, { pageId: string; nome: string; email: string }[]>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
     setLoading(true);
-    DocumentazionePrivacyApi.list().then(r => { setItems(Array.isArray(r) ? r : []); setLoading(false); }).catch(() => setLoading(false));
+    Promise.all([DocumentazionePrivacyApi.list(), DocumentazionePrivacyApi.mancanti()])
+      .then(([lista, mancantiMap]) => {
+        setItems(Array.isArray(lista) ? lista : []);
+        setMancanti(mancantiMap && typeof mancantiMap === "object" ? mancantiMap : {});
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -141,7 +184,7 @@ export default function DocumentazionePrivacyGP() {
       ) : items.length === 0 ? (
         <div className="ana-card" style={{ padding: "1.2rem", textAlign: "center", color: "var(--text-light)", fontWeight: 700 }}>Nessun modello trovato</div>
       ) : (
-        items.map((m, i) => <ModelloCard key={i} modello={m} onChanged={load} />)
+        items.map((m, i) => <ModelloCard key={i} modello={m} mancanti={mancanti[m.pageId] || []} onChanged={load} />)
       )}
       <button className="update-btn" onClick={load}>Aggiorna</button>
     </div>

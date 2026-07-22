@@ -25,6 +25,7 @@ export interface Dipendente {
   monteRol: number | null;
   residuoFerieIniz: number | null;
   residuoRolIniz: number | null;
+  informativaPrivacyInviata: string | null;
 }
 
 export interface UtenteWebApp {

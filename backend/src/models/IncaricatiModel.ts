@@ -15,6 +15,7 @@ export interface Incaricato {
   dataScadenza: string | null;
   documentoFirmato: boolean;
   username: string;
+  moduloInviato: string | null;
 }
 
 function fromNotionPage(page: any): Incaricato {
@@ -30,7 +31,8 @@ function fromNotionPage(page: any): Incaricato {
     dataNomina: dateStart(p["Data nomina"]),
     dataScadenza: dateStart(p["Data scadenza"]),
     documentoFirmato: chk(p["Documento firmato"]),
-    username: rt(p["Username"])
+    username: rt(p["Username"]),
+    moduloInviato: dateStart(p["Modulo inviato"])
   };
 }
 
@@ -65,10 +67,17 @@ export const IncaricatiModel = {
     if (input.email) {
       DocumentazionePrivacyModel
         .inviaANuovoDestinatario("Incaricato trattamento", { nome: `${input.nome} ${input.cognome}`.trim(), email: input.email })
+        .then(inviato => { if (inviato) this.marcaModuloInviato(res.id).catch(() => {}); })
         .catch(() => {});
     }
 
     return res.id;
+  },
+
+  // Segna la data di invio del modulo incaricato al trattamento. Usato sia
+  // dall'invio automatico alla creazione sia dagli invii massivi/mirati manuali.
+  async marcaModuloInviato(pageId: string): Promise<void> {
+    await notion.updatePage(pageId, { properties: { "Modulo inviato": { date: { start: new Date().toISOString() } } } });
   },
 
   async createMany(inputs: IncaricatoCreateInput[]): Promise<{ ok: number; failed: { input: IncaricatoCreateInput; error: string }[] }> {

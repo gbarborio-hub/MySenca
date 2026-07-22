@@ -64,15 +64,17 @@ export const AmministratoriModel = {
     // esterni la nomina è già implicita nel contratto sottoscritto, non va inviata.
     if (input.tipo === "Interno" && input.email) {
       DocumentazionePrivacyModel.inviaANuovoDestinatario("Amministratore di sistema", { nome: input.nome, email: input.email })
-        .then(inviato => {
-          if (inviato) {
-            notion.updatePage(res.id, { properties: { "Data nomina": { date: { start: new Date().toISOString() } } } }).catch(() => {});
-          }
-        })
+        .then(inviato => { if (inviato) this.marcaNominaInviata(res.id).catch(() => {}); })
         .catch(() => {});
     }
 
     return res.id;
+  },
+
+  // Segna la data di invio della nomina. Usato sia dall'invio automatico alla
+  // creazione sia dagli invii massivi/mirati manuali.
+  async marcaNominaInviata(pageId: string): Promise<void> {
+    await notion.updatePage(pageId, { properties: { "Data nomina": { date: { start: new Date().toISOString() } } } });
   },
 
   async update(pageId: string, input: Partial<AmministratoreCreateInput> & { nominaFirmata?: boolean }): Promise<void> {
