@@ -4,6 +4,11 @@
 
 const N8N_EMAIL_WEBHOOK = process.env.N8N_EMAIL_WEBHOOK_URL || "https://senca-hub.duckdns.org/webhook/senca-email";
 
+// Workflow separato e dedicato solo ai documenti privacy con allegato ("MySenca -
+// Invio Documenti Privacy"), per non toccare il workflow email esistente e già
+// funzionante. Webhook indipendente, path diverso.
+const N8N_DOCUMENTI_PRIVACY_WEBHOOK = process.env.N8N_DOCUMENTI_PRIVACY_WEBHOOK_URL || "https://senca-hub.duckdns.org/webhook/senca-documenti-privacy";
+
 export const EmailService = {
   // Firma mantenuta com'era (accessToken non più usato, tenuto per non toccare i chiamanti)
   // così CredentialsService/RotationService restano invariati.
@@ -47,9 +52,9 @@ export const EmailService = {
   },
 
   // Invio di un documento privacy (informativa, modulo incaricato, nomina...) con
-  // allegato binario. Il payload aggiunge i campi allegato* al webhook n8n esistente:
-  // il workflow "MySenca - Invio Email" va aggiornato per gestire tipo "documentoPrivacy"
-  // e allegare allegatoBase64/allegatoNome/allegatoContentType al messaggio in uscita.
+  // allegato binario. Passa dal workflow n8n dedicato "MySenca - Invio Documenti
+  // Privacy" (webhook separato da quello usato per credenziali/rotazione), per non
+  // toccare il workflow email esistente e già funzionante.
   async sendDocumentoPrivacy(
     to: string,
     nomeModello: string,
@@ -57,7 +62,7 @@ export const EmailService = {
     allegato: { fileName: string; contentType: string; fileBase64: string }
   ): Promise<boolean> {
     try {
-      const res = await fetch(N8N_EMAIL_WEBHOOK, {
+      const res = await fetch(N8N_DOCUMENTI_PRIVACY_WEBHOOK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
