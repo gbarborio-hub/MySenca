@@ -2,6 +2,7 @@
 
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -25,11 +26,37 @@ import { turniRouter } from "./routes/turni.routes.js";
 import { contattiRouter } from "./routes/contatti.routes.js";
 import { totpRouter } from "./routes/totp.routes.js";
 import { auditMiddleware } from "./middleware/audit.middleware.js";
+import { apiLimiter, authLimiter } from "./middleware/rateLimit.middleware.js";
 import { RotationService } from "./services/RotationService.js";
 
+// Origini ammesse per le chiamate cross-origin. Il frontend viene servito dallo
+// stesso backend (vedi più sotto, express.static), quindi le chiamate dell'app in
+// produzione sono same-origin e non passano nemmeno dal controllo CORS: questa
+// lista serve a bloccare chiamate dirette all'API da altri siti/domini.
+// In locale (nessuna CORS_ORIGIN impostata) resta permissivo per non intralciare lo
+// sviluppo; in produzione va impostata la variabile d'ambiente CORS_ORIGIN su
+// Render con l'URL esatto del servizio (es. "https://mysenca.onrender.com"), anche
+// più di uno separati da virgola se serve.
+const corsOrigins = (process.env.CORS_ORIGIN || "").split(",").map(o => o.trim()).filter(Boolean);
+const corsOptions: cors.CorsOptions = corsOrigins.length > 0
+  ? { origin: corsOrigins }
+  : {}; // nessuna CORS_ORIGIN impostata: permissivo (comportamento precedente), pensato per lo sviluppo locale
+
 const app = express();
-app.use(cors());
+// contentSecurityPolicy disattivata di proposito: la CSP di default di helmet è
+// rigida (blocca per dominio script/immagini/stili non esplicitamente elencati) e
+// non ho modo di verificare da qui tutte le risorse effettivamente caricate in
+// produzione — abilitarla alla cieca rischia di rompere il sito. Le altre
+// protezioni di helmet (X-Frame-Options, X-Content-Type-Options, HSTS, ecc.)
+// restano attive. La CSP si può aggiungere in un secondo momento con un test
+// mirato in produzione.
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "20mb" }));
+
+// Rate limiting per IP su tutte le API, con un limite più stretto sul login/TOTP.
+app.use("/api", apiLimiter);
+app.use("/api/auth", authLimiter);
 
 // Disabilita la cache condizionale (ETag/304) per tutte le API — sono risposte
 // dinamiche, non risorse statiche. Senza questo, il browser può ricevere un 304
