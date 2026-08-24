@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from "react";
 import type { CurrentUser, Ruolo } from "../models/domain.js";
 import { RUOLI_CON_INTERFACCIA } from "../models/domain.js";
 import { saveSession, loadSession, clearSession, getBio, clearBio, bioSupported, enrollBio, unlockBio } from "./session.js";
-import { setApiUser, clearApiUser } from "../services/apiClient.js";
+import { setApiToken, clearApiToken, setApiRuoloAttivo, setUnauthorizedHandler } from "../services/apiClient.js";
 import { AuditEventApi } from "../services/AuditEventApi.js";
 
 function ruoliConInterfaccia(ruoli: Ruolo[]): Ruolo[] {
@@ -16,6 +16,7 @@ export function useSession() {
   const [locked, setLocked] = useState(false);
   const [pendingUser, setPendingUser] = useState<CurrentUser | null>(null);
   const [lockErr, setLockErr] = useState<string | null>(null);
+  const [sessionMsg, setSessionMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const saved = loadSession();
@@ -25,16 +26,37 @@ export function useSession() {
     }
   }, []);
 
-  const login = useCallback((username: string, nome: string, ruoli: Ruolo[], remember: boolean, createdTime?: string | null) => {
+  // Riporta al login senza tentare chiamate autenticate (il token non è più
+  // valido, non avrebbe senso provare a loggare il logout lato server).
+  // Registrato come handler globale: qualunque chiamata API che torni 401
+  // (token scaduto, mancante o manomesso) finisce automaticamente qui.
+  const forceLogout = useCallback((messaggio?: string) => {
+    clearSession();
+    clearBio();
+    clearApiToken();
+    setUser(null);
+    setChoosingRole(false);
+    setLocked(false);
+    setPendingUser(null);
+    if (messaggio) setSessionMsg(messaggio);
+  }, []);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => forceLogout("La sessione è scaduta. Accedi di nuovo."));
+    return () => setUnauthorizedHandler(null);
+  }, [forceLogout]);
+
+  const login = useCallback((username: string, nome: string, ruoli: Ruolo[], remember: boolean, token: string, createdTime?: string | null) => {
     const valid = ruoliConInterfaccia(ruoli);
     const activeRole = valid.length > 0 ? valid[0] : ruoli[0];
-    const newUser: CurrentUser = { username, nome, ruoli, activeRole, createdTime };
+    const newUser: CurrentUser = { username, nome, ruoli, activeRole, createdTime, token };
 
     if (remember) saveSession(newUser);
     else { clearSession(); clearBio(); }
 
-    // Imposta l'identità per l'audit log su ogni chiamata API successiva
-    setApiUser(username, activeRole);
+    setApiToken(token);
+    setApiRuoloAttivo(activeRole);
+    setSessionMsg(null);
 
     if (remember && bioSupported() && !getBio()) {
       setTimeout(() => {
@@ -59,8 +81,9 @@ export function useSession() {
   const chooseRole = useCallback((role: Ruolo) => {
     setUser(u => {
       if (!u) return u;
-      // Il ruolo attivo può cambiare senza un nuovo login — aggiorna l'header di conseguenza
-      setApiUser(u.username, role);
+      // Cambio di sola etichetta per l'audit log: il token resta lo stesso, non
+      // serve un nuovo login (il token porta già tutti i ruoli dell'utente).
+      setApiRuoloAttivo(role);
       return { ...u, activeRole: role };
     });
     setChoosingRole(false);
@@ -74,7 +97,7 @@ export function useSession() {
     }
     clearSession();
     clearBio();
-    clearApiUser();
+    clearApiToken();
     setUser(null);
     setChoosingRole(false);
     setLocked(false);
@@ -89,10 +112,13 @@ export function useSession() {
       const valid = ruoliConInterfaccia(ruoli);
       const activeRole = valid.includes(pendingUser.activeRole) ? pendingUser.activeRole : (valid[0] || pendingUser.activeRole);
 
-      // Imposta l'identità per l'audit log, poi registra esplicitamente l'evento di sblocco
-      // biometrico — l'autenticazione stessa resta locale (Secure Enclave/TPM), ma il backend
-      // deve comunque sapere che è avvenuto un accesso.
-      setApiUser(pendingUser.username, activeRole);
+      // Riattiva il token già ottenuto al login originale (lo sblocco biometrico è
+      // solo un gate locale — Secure Enclave/TPM — non genera un nuovo token). Se
+      // quel token è nel frattempo scaduto, la prossima chiamata API tornerà 401 e
+      // forceLogout riporterà comunque l'utente al login in modo pulito.
+      setApiToken(pendingUser.token);
+      setApiRuoloAttivo(activeRole);
+      setSessionMsg(null);
       AuditEventApi.logEvent("LOGIN", "Sblocco Face ID / Touch ID / impronta");
 
       setUser({ ...pendingUser, ruoli, activeRole });
@@ -112,6 +138,7 @@ export function useSession() {
   return {
     user, choosingRole, login, chooseRole, reopenChooser, logout,
     ruoliSelezionabili: user ? ruoliConInterfaccia(user.ruoli) : [],
-    locked, pendingUser, lockErr, unlock, usePasswordInstead
+    locked, pendingUser, lockErr, unlock, usePasswordInstead,
+    sessionMsg
   };
 }

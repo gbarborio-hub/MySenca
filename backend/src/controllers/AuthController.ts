@@ -9,13 +9,13 @@ function getIp(req: Request): string {
 
 export const AuthController = {
   async login(req: Request, res: Response) {
-    const { username, password } = req.body || {};
+    const { username, password, remember } = req.body || {};
     if (!username || !password) {
       res.status(400).json({ ok: false, error: "Username e password obbligatori." });
       return;
     }
     try {
-      const result = await AuthService.login(username, password, getIp(req));
+      const result = await AuthService.login(username, password, !!remember, getIp(req));
       if (!result.ok) {
         res.status(401).json(result);
         return;
@@ -27,13 +27,13 @@ export const AuthController = {
   },
 
   async verifyTotp(req: Request, res: Response) {
-    const { username, token } = req.body || {};
+    const { username, token, remember } = req.body || {};
     if (!username || !token) {
       res.status(400).json({ ok: false, error: "Username e codice obbligatori." });
       return;
     }
     try {
-      const result = await AuthService.verifyTotp(username, token, getIp(req));
+      const result = await AuthService.verifyTotp(username, token, !!remember, getIp(req));
       if (!result.ok) {
         res.status(401).json(result);
         return;

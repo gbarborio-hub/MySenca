@@ -3,8 +3,12 @@ import { AmministratoriModel } from "../models/AmministratoriModel.js";
 
 export const AmministratoriController = {
   async list(_req: Request, res: Response) {
-    const list = await AmministratoriModel.list();
-    res.json(list);
+    try {
+      const list = await AmministratoriModel.list();
+      res.json(list);
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nel caricamento." });
+    }
   },
 
   async create(req: Request, res: Response) {
@@ -21,14 +25,22 @@ export const AmministratoriController = {
   async update(req: Request, res: Response) {
     const { pageId, ...rest } = req.body || {};
     if (!pageId) { res.status(400).json({ ok: false, error: "pageId mancante." }); return; }
-    await AmministratoriModel.update(pageId, rest);
-    res.json({ ok: true });
+    try {
+      await AmministratoriModel.update(pageId, rest);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nell'aggiornamento." });
+    }
   },
 
   async delete(req: Request, res: Response) {
     const { pageId } = req.body || {};
     if (!pageId) { res.status(400).json({ ok: false, error: "pageId mancante." }); return; }
-    await AmministratoriModel.delete(pageId);
-    res.json({ ok: true });
+    try {
+      await AmministratoriModel.delete(pageId);
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nell'eliminazione." });
+    }
   }
 };

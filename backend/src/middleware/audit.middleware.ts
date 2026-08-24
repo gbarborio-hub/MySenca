@@ -69,8 +69,13 @@ export function auditMiddleware() {
   return function (req: Request, _res: Response, next: NextFunction) {
     if (SKIP_PATHS.some(p => req.path.startsWith(p))) return next();
 
-    const utente = (req.headers["x-username"] as string) || "";
-    const ruolo = (req.headers["x-ruolo"] as string) || "";
+    // Lo username viene SEMPRE dal token verificato: è l'unica fonte affidabile.
+    // Il ruolo invece preferisce l'etichetta "ruolo attivo" (per chi ha più ruoli e
+    // può cambiarli senza un nuovo login) quando presente, altrimenti quello del
+    // token — in ogni caso è solo per rendere leggibile il log, mai per decidere
+    // l'accesso.
+    const utente = req.user?.username || "";
+    const ruolo = (req.headers["x-ruolo-attivo"] as string) || req.user?.ruolo || "";
 
     if (!utente) return next();
 

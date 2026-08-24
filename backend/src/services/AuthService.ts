@@ -4,20 +4,22 @@ import { DipendentiModel } from "../models/DipendentiModel.js";
 import { PasswordService } from "./PasswordService.js";
 import { AuditService } from "./AuditService.js";
 import { TotpService } from "./TotpService.js";
+import { TokenService } from "./TokenService.js";
 import { decrypt } from "./EncryptionService.js";
 import type { AuthResult } from "../types/domain.js";
 
 const MAX_TENTATIVI = 3;
 
-async function buildSuccessResult(utente: any, username: string): Promise<AuthResult> {
+async function buildSuccessResult(utente: any, username: string, remember: boolean): Promise<AuthResult> {
   const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
   const dipendente = await DipendentiModel.findByUsername(username);
   const nomeCompleto = dipendente ? `${dipendente.nome} ${dipendente.cognome}`.trim() : username;
-  return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto, createdTime: utente.createdTime };
+  const token = TokenService.sign({ username: utente.username, ruolo: utente.ruolo, ruoli }, remember);
+  return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto, createdTime: utente.createdTime, token };
 }
 
 export const AuthService = {
-  async login(usernameRaw: string, password: string, ip?: string): Promise<AuthResult> {
+  async login(usernameRaw: string, password: string, remember: boolean, ip?: string): Promise<AuthResult> {
     const username = usernameRaw.trim().toLowerCase();
     if (!username || !password) return { ok: false, error: "Credenziali mancanti." };
 
@@ -58,10 +60,10 @@ export const AuthService = {
     }
 
     AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: "Login diretto (TOTP non attivo)", ip: ip || "" });
-    return buildSuccessResult(utente, username);
+    return buildSuccessResult(utente, username, remember);
   },
 
-  async verifyTotp(usernameRaw: string, token: string, ip?: string): Promise<AuthResult> {
+  async verifyTotp(usernameRaw: string, token: string, remember: boolean, ip?: string): Promise<AuthResult> {
     const username = usernameRaw.trim().toLowerCase();
     const utente = await UtentiModel.findByUsername(username);
     if (!utente || !utente.totpAbilitato || !utente.totpSecret) {
@@ -77,6 +79,6 @@ export const AuthService = {
 
     const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
     AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: `Login con TOTP. Ruoli: ${ruoli.join(", ")}`, ip: ip || "" });
-    return buildSuccessResult(utente, username);
+    return buildSuccessResult(utente, username, remember);
   }
 };

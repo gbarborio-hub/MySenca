@@ -27,7 +27,23 @@ import { contattiRouter } from "./routes/contatti.routes.js";
 import { totpRouter } from "./routes/totp.routes.js";
 import { auditMiddleware } from "./middleware/audit.middleware.js";
 import { apiLimiter, authLimiter } from "./middleware/rateLimit.middleware.js";
+import { authMiddleware } from "./middleware/auth.middleware.js";
 import { RotationService } from "./services/RotationService.js";
+
+// Rete di sicurezza a livello di processo — trovata necessaria testando oggi
+// l'autenticazione: alcuni controller (preesistenti, non introdotti da questo
+// intervento) non hanno un try/catch attorno alle chiamate a Notion. Senza questo,
+// un singolo errore imprevisto (timeout, rate limit, Notion giù) fa crashare
+// l'INTERO processo Node, interrompendo il servizio per tutti gli utenti, non solo
+// per la richiesta che ha fallito. Questo non sostituisce il sistemare i try/catch
+// mancanti nel tempo — la singola richiesta colpita resterà comunque senza risposta
+// pulita — ma impedisce che un problema isolato diventi un'interruzione totale.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception:", err);
+});
 
 // Origini ammesse per le chiamate cross-origin. Il frontend viene servito dallo
 // stesso backend (vedi più sotto, express.static), quindi le chiamate dell'app in
@@ -67,10 +83,23 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
-// Audit middleware — intercetta ogni richiesta autenticata in modo non bloccante
+// Rotte pubbliche: l'health check (per i probe di Render) e login/verifica TOTP,
+// che sono esattamente il modo con cui si ottiene il token — non possono
+// richiedere un token che ancora non esiste.
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.use("/api/auth", authRouter);
+
+// Da qui in poi, OGNI rotta /api richiede un token di sessione valido: prima di
+// questo intervento, un semplice header non verificato (X-Username) bastava per
+// farsi credere chiunque dal backend. Ora un token scaduto, mancante o manomesso
+// viene rifiutato con 401 prima di raggiungere qualsiasi controller.
+app.use("/api", authMiddleware);
+
+// Audit middleware — intercetta ogni richiesta autenticata in modo non bloccante.
+// Gira DOPO authMiddleware apposta: da qui req.user è sempre un'identità verificata,
+// non più un header di cui fidarsi sulla parola.
 app.use(auditMiddleware());
 
-app.use("/api/auth", authRouter);
 app.use("/api/dipendenti", dipendentiRouter);
 app.use("/api/utenti", utentiRouter);
 app.use("/api/proxy", dipendentiProxyRouter);
@@ -87,8 +116,6 @@ app.use("/api/audit", auditRouter);
 app.use("/api/turni", turniRouter);
 app.use("/api/contatti", contattiRouter);
 app.use("/api/totp", totpRouter);
-
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDist = path.join(__dirname, "../public");

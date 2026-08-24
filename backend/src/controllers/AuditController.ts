@@ -32,8 +32,8 @@ export const AuditController = {
   // nessun'altra chiamata API: sblocco Face ID/Touch ID, logout.
   async event(req: Request, res: Response) {
     try {
-      const utente = (req.headers["x-username"] as string) || "";
-      const ruolo = (req.headers["x-ruolo"] as string) || "";
+      const utente = req.user?.username || "";
+      const ruolo = (req.headers["x-ruolo-attivo"] as string) || req.user?.ruolo || "";
       const { azione, dettaglio } = req.body || {};
       if (!utente || !azione) {
         res.status(400).json({ ok: false, error: "Dati mancanti." });

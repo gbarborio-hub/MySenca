@@ -49,19 +49,27 @@ async function risolviCategorie(): Promise<Record<CategoriaModello, CategoriaInf
 
 export const DocumentazionePrivacyController = {
   async list(_req: Request, res: Response) {
-    const list = await DocumentazionePrivacyModel.list();
-    res.json(list);
+    try {
+      const list = await DocumentazionePrivacyModel.list();
+      res.json(list);
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nel caricamento." });
+    }
   },
 
   // Per ogni modello, quanti interessati della sua categoria non hanno ancora
   // ricevuto nulla — usato per lo scomparto "chi manca" in Privacy.
   async mancanti(_req: Request, res: Response) {
-    const [lista, categorie] = await Promise.all([DocumentazionePrivacyModel.list(), risolviCategorie()]);
-    const risultato: Record<string, DestinatarioModello[]> = {};
-    for (const m of lista) {
-      risultato[m.pageId] = m.categoria ? categorie[m.categoria].mancanti : [];
+    try {
+      const [lista, categorie] = await Promise.all([DocumentazionePrivacyModel.list(), risolviCategorie()]);
+      const risultato: Record<string, DestinatarioModello[]> = {};
+      for (const m of lista) {
+        risultato[m.pageId] = m.categoria ? categorie[m.categoria].mancanti : [];
+      }
+      res.json(risultato);
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nel caricamento." });
     }
-    res.json(risultato);
   },
 
   async carica(req: Request, res: Response) {
@@ -80,34 +88,40 @@ export const DocumentazionePrivacyController = {
   async inviaAggiornamento(req: Request, res: Response) {
     const { pageId } = req.body || {};
     if (!pageId) { res.status(400).json({ ok: false, error: "pageId mancante." }); return; }
+    try {
+      const lista = await DocumentazionePrivacyModel.list();
+      const modello = lista.find(m => m.pageId === pageId);
+      if (!modello) { res.status(404).json({ ok: false, error: "Modello non trovato." }); return; }
+      if (!modello.categoria) { res.status(400).json({ ok: false, error: "Modello senza categoria destinatari." }); return; }
 
-    const lista = await DocumentazionePrivacyModel.list();
-    const modello = lista.find(m => m.pageId === pageId);
-    if (!modello) { res.status(404).json({ ok: false, error: "Modello non trovato." }); return; }
-    if (!modello.categoria) { res.status(400).json({ ok: false, error: "Modello senza categoria destinatari." }); return; }
-
-    const categorie = await risolviCategorie();
-    const info = categorie[modello.categoria];
-    const result = await DocumentazionePrivacyModel.inviaAggiornamentoATutti(modello, info.tutti, info.onInviato);
-    if (!result.ok) { res.status(400).json(result); return; }
-    res.json(result);
+      const categorie = await risolviCategorie();
+      const info = categorie[modello.categoria];
+      const result = await DocumentazionePrivacyModel.inviaAggiornamentoATutti(modello, info.tutti, info.onInviato);
+      if (!result.ok) { res.status(400).json(result); return; }
+      res.json(result);
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nell'invio." });
+    }
   },
 
   // Invio solo a chi non ha MAI ricevuto il documento per questa categoria.
   async inviaAiMancanti(req: Request, res: Response) {
     const { pageId } = req.body || {};
     if (!pageId) { res.status(400).json({ ok: false, error: "pageId mancante." }); return; }
+    try {
+      const lista = await DocumentazionePrivacyModel.list();
+      const modello = lista.find(m => m.pageId === pageId);
+      if (!modello) { res.status(404).json({ ok: false, error: "Modello non trovato." }); return; }
+      if (!modello.categoria) { res.status(400).json({ ok: false, error: "Modello senza categoria destinatari." }); return; }
 
-    const lista = await DocumentazionePrivacyModel.list();
-    const modello = lista.find(m => m.pageId === pageId);
-    if (!modello) { res.status(404).json({ ok: false, error: "Modello non trovato." }); return; }
-    if (!modello.categoria) { res.status(400).json({ ok: false, error: "Modello senza categoria destinatari." }); return; }
-
-    const categorie = await risolviCategorie();
-    const info = categorie[modello.categoria];
-    if (info.mancanti.length === 0) { res.json({ ok: true, inviati: 0, falliti: [] }); return; }
-    const result = await DocumentazionePrivacyModel.inviaAggiornamentoATutti(modello, info.mancanti, info.onInviato);
-    if (!result.ok) { res.status(400).json(result); return; }
-    res.json(result);
+      const categorie = await risolviCategorie();
+      const info = categorie[modello.categoria];
+      if (info.mancanti.length === 0) { res.json({ ok: true, inviati: 0, falliti: [] }); return; }
+      const result = await DocumentazionePrivacyModel.inviaAggiornamentoATutti(modello, info.mancanti, info.onInviato);
+      if (!result.ok) { res.status(400).json(result); return; }
+      res.json(result);
+    } catch (e: any) {
+      res.status(502).json({ ok: false, error: e?.message || "Errore nell'invio." });
+    }
   }
 };

@@ -10,14 +10,14 @@ import PrivacyView from "./views/PrivacyView.js";
 export default function App() {
   const {
     user, choosingRole, login, chooseRole, reopenChooser, logout, ruoliSelezionabili,
-    locked, pendingUser, lockErr, unlock, usePasswordInstead
+    locked, pendingUser, lockErr, unlock, usePasswordInstead, sessionMsg
   } = useSession();
 
   if (locked && pendingUser) {
     return <LockView nome={pendingUser.nome || pendingUser.username} error={lockErr} onUnlock={unlock} onUsePassword={usePasswordInstead} />;
   }
   if (!user) {
-    return <LoginView onSuccess={(username, nome, ruoli, remember, createdTime) => login(username, nome, ruoli as any, remember, createdTime)} />;
+    return <LoginView sessionMsg={sessionMsg} onSuccess={(username, nome, ruoli, remember, token, createdTime) => login(username, nome, ruoli as any, remember, token, createdTime)} />;
   }
   if (choosingRole) {
     return <RoleChooserView nome={user.nome} ruoli={ruoliSelezionabili} onChoose={chooseRole} onLogout={logout} />;

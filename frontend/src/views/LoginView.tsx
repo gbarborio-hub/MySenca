@@ -3,10 +3,11 @@ import { AuthApi } from "../services/AuthApi.js";
 import Logo from "../components/Logo.js";
 
 interface Props {
-  onSuccess: (username: string, nome: string, ruoli: string[], remember: boolean, createdTime?: string | null) => void;
+  onSuccess: (username: string, nome: string, ruoli: string[], remember: boolean, token: string, createdTime?: string | null) => void;
+  sessionMsg?: string | null;
 }
 
-export default function LoginView({ onSuccess }: Props) {
+export default function LoginView({ onSuccess, sessionMsg }: Props) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
@@ -22,14 +23,14 @@ export default function LoginView({ onSuccess }: Props) {
     setError(null);
     setBusy(true);
     try {
-      const res = await AuthApi.login(username, password);
+      const res = await AuthApi.login(username, password, remember);
       setBusy(false);
       if (res.requiresTotp) {
         setAwaitingTotp(true);
         return;
       }
-      if (res.ok && res.ruoli) {
-        onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.createdTime);
+      if (res.ok && res.ruoli && res.token) {
+        onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.token, res.createdTime);
       } else {
         setError(res.error || "Credenziali non valide.");
       }
@@ -44,10 +45,10 @@ export default function LoginView({ onSuccess }: Props) {
     setError(null);
     setBusy(true);
     try {
-      const res = await AuthApi.verifyTotp(username, totpCode);
+      const res = await AuthApi.verifyTotp(username, totpCode, remember);
       setBusy(false);
-      if (res.ok && res.ruoli) {
-        onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.createdTime);
+      if (res.ok && res.ruoli && res.token) {
+        onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.token, res.createdTime);
       } else {
         setError(res.error || "Codice non valido.");
       }
@@ -101,6 +102,7 @@ export default function LoginView({ onSuccess }: Props) {
         <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: 13, fontWeight: 700, color: "var(--text-mid)", margin: "0.5rem 0 0.75rem", cursor: "pointer" }}>
           <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 16, height: 16 }} /> Ricordami su questo dispositivo
         </label>
+        {sessionMsg && <div style={{ color: "var(--text-mid)", fontWeight: 700, fontSize: 13, marginBottom: "0.75rem" }}>{sessionMsg}</div>}
         {error && <div style={{ color: "var(--coral)", fontWeight: 700, fontSize: 13, marginBottom: "0.75rem" }}>{error}</div>}
         <button className="login-btn" type="submit" disabled={busy}>{busy ? "Accesso..." : "Accedi"}</button>
       </form>

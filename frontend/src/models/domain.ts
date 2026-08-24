@@ -47,6 +47,7 @@ export interface AuthResult {
   createdTime?: string | null;
   error?: string;
   requiresTotp?: boolean;
+  token?: string;
 }
 
 export interface CurrentUser {
@@ -55,4 +56,5 @@ export interface CurrentUser {
   ruoli: Ruolo[];
   activeRole: Ruolo;
   createdTime?: string | null;
+  token: string;
 }

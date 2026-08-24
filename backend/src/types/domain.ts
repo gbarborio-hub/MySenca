@@ -54,6 +54,7 @@ export interface AuthResult {
   createdTime?: string | null;
   error?: string;
   requiresTotp?: boolean;
+  token?: string;
 }
 
 export interface CreaUtenzaInput {
