@@ -4,6 +4,23 @@ import { DipendentiModel } from "../models/DipendentiModel.js";
 import { IncaricatiModel } from "../models/IncaricatiModel.js";
 import { AmministratoriModel } from "../models/AmministratoriModel.js";
 
+// Solo i formati che un modello di documentazione privacy può ragionevolmente
+// essere: PDF e i formati Word più comuni. Il controllo lato client (dimensione)
+// non basta da solo — è aggirabile da chiunque chiami l'API direttamente, quindi
+// va rifatto qui.
+const CONTENT_TYPE_AMMESSI = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+]);
+const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB — coerente con il limite di 18MB lato client (il base64 gonfia di ~33%)
+
+function base64ByteSize(b64: string): number {
+  const cleaned = b64.includes(",") ? b64.split(",")[1] : b64; // tollera eventuale prefisso data:...;base64,
+  const padding = (cleaned.match(/=+$/) || [""])[0].length;
+  return Math.floor((cleaned.length * 3) / 4) - padding;
+}
+
 interface CategoriaInfo {
   tutti: DestinatarioModello[];
   mancanti: DestinatarioModello[];
@@ -75,6 +92,14 @@ export const DocumentazionePrivacyController = {
   async carica(req: Request, res: Response) {
     const { pageId, fileBase64, fileName, contentType, aggiornatoDa } = req.body || {};
     if (!pageId || !fileBase64 || !fileName) { res.status(400).json({ ok: false, error: "Dati mancanti." }); return; }
+    if (!contentType || !CONTENT_TYPE_AMMESSI.has(contentType)) {
+      res.status(400).json({ ok: false, error: "Formato non ammesso. Sono accettati solo PDF e documenti Word (.doc, .docx)." });
+      return;
+    }
+    if (base64ByteSize(fileBase64) > MAX_FILE_BYTES) {
+      res.status(400).json({ ok: false, error: "File troppo grande (max 15MB)." });
+      return;
+    }
     try {
       await DocumentazionePrivacyModel.carica(pageId, { fileBase64, fileName, contentType, aggiornatoDa: aggiornatoDa || "" });
       res.json({ ok: true });

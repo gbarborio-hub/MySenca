@@ -1,7 +1,6 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import crypto from "crypto";
 import { notion } from "../models/notionClient.js";
-import { ChainLockService } from "./ChainLockService.js";
 
 const DB_AUDIT = "ca05282ca862460b884b4c6804e67ac9";
 const GENESIS_HASH = "GENESIS-MySenca-AuditLog-v1";
@@ -29,39 +28,70 @@ function tp(value: string) {
   return { rich_text: [{ type: "text", text: { content: value || "" } }] };
 }
 
-async function writeLog(entry: AuditEntry): Promise<void> {
-  // Tutto il blocco (calcolo hash + scrittura su Notion) avviene dentro il lock
-  // condiviso via PostgreSQL — nessun altro processo può interferire fino a COMMIT.
-  await ChainLockService.withLock(async (hashPrecedente) => {
-    const timestampIso = new Date().toISOString();
-    const hashRecord = computeHash(entry, timestampIso, hashPrecedente);
-    const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
+// Cache in memoria dell'ultimo hash della catena. Sostituisce il lock condiviso su
+// PostgreSQL (rimosso: il piano gratuito del database è scaduto) con una soluzione
+// puramente in-process, senza dipendenze esterne a pagamento.
+//
+// Perché è comunque corretta: Render (piano gratuito/hobby) esegue UNA SOLA istanza
+// del backend — non c'è autoscaling orizzontale su quel piano. Node.js è
+// single-threaded, quindi la coda `writeQueue` qui sotto serializza già ogni
+// scrittura all'interno dell'unico processo in esecuzione: non può verificarsi una
+// diramazione della catena perché non esistono due processi che scrivono in
+// parallelo. L'unica finestra di rischio teorica è un redeploy in cui, per una
+// frazione di secondo, la vecchia e la nuova istanza coesistono — anche in quel
+// caso, verificaIntegrita() rileva e segnala qualunque diramazione, non la nasconde.
+// Se in futuro si passa a un piano con più istanze concorrenti, questa cache va
+// sostituita di nuovo con un lock condiviso esterno.
+let lastHashCache: string | null = null;
 
-    await notion.createPage({
-      parent: { database_id: DB_AUDIT },
-      properties: {
-        "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
-        "Utente":          tp(entry.utente),
-        "Ruolo":           tp(entry.ruolo),
-        "Azione":          { select: { name: entry.azione } },
-        "Risorsa":         tp(entry.risorsa),
-        "Dettaglio":       tp(entry.dettaglio || ""),
-        "IP":              tp(entry.ip || ""),
-        "Timestamp":       { date: { start: timestampIso } },
-        "Timestamp ISO":   tp(timestampIso),
-        "Hash precedente": tp(hashPrecedente),
-        "Hash record":     tp(hashRecord)
-      }
-    });
-
-    return { result: undefined as void, nuovoHash: hashRecord };
+async function getUltimoHash(): Promise<string> {
+  if (lastHashCache) return lastHashCache;
+  // Prima scrittura dopo un riavvio: recupera l'ultimo hash da Notion (la fonte di
+  // verità persistente) e lo mette in cache per le scritture successive di questo processo.
+  const res: any = await notion.queryDatabase(DB_AUDIT, {
+    page_size: 1,
+    sorts: [{ property: "Timestamp", direction: "descending" }]
   });
+  const ultimo = res.results?.[0];
+  const p = ultimo?.properties || {};
+  const hash = p["Hash record"]?.rich_text?.[0]?.text?.content
+            || p["Hash record"]?.rich_text?.[0]?.plain_text
+            || GENESIS_HASH;
+  lastHashCache = hash;
+  return hash;
 }
 
-// La coda locale resta come ottimizzazione: evita che lo stesso processo apra
-// molte connessioni Postgres in parallelo per richieste quasi simultanee. Il
-// lock reale che previene le diramazioni è comunque quello in ChainLockService,
-// che funziona correttamente anche se questa coda locale non ci fosse.
+async function writeLog(entry: AuditEntry): Promise<void> {
+  const hashPrecedente = await getUltimoHash();
+  const timestampIso = new Date().toISOString();
+  const hashRecord = computeHash(entry, timestampIso, hashPrecedente);
+  const descrizione = `${entry.azione} ${entry.risorsa}${entry.utente ? ` [${entry.utente}]` : ""}`;
+
+  await notion.createPage({
+    parent: { database_id: DB_AUDIT },
+    properties: {
+      "Descrizione": { title: [{ type: "text", text: { content: descrizione } }] },
+      "Utente":          tp(entry.utente),
+      "Ruolo":           tp(entry.ruolo),
+      "Azione":          { select: { name: entry.azione } },
+      "Risorsa":         tp(entry.risorsa),
+      "Dettaglio":       tp(entry.dettaglio || ""),
+      "IP":              tp(entry.ip || ""),
+      "Timestamp":       { date: { start: timestampIso } },
+      "Timestamp ISO":   tp(timestampIso),
+      "Hash precedente": tp(hashPrecedente),
+      "Hash record":     tp(hashRecord)
+    }
+  });
+
+  // Aggiornata SOLO dopo una scrittura riuscita: se notion.createPage fallisce, la
+  // cache resta al valore precedente e il prossimo tentativo riparte dallo stesso
+  // hash — niente buchi nella catena per una scrittura fallita.
+  lastHashCache = hashRecord;
+}
+
+// Coda in memoria: serializza le scritture di questo processo (vedi commento sopra
+// sul perché è sufficiente, senza lock esterno).
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(entry: AuditEntry): Promise<void> {
@@ -166,8 +196,6 @@ export const AuditService = {
     }
 
     if (contatore !== results.length) {
-      // Ricostruisce l'insieme dei record effettivamente raggiunti percorrendo
-      // la catena dall'inizio, per isolare quelli "orfani" rimasti fuori.
       const raggiunti = new Set<string>();
       let cursorHash = GENESIS_HASH;
       while (byHashPrecedente.has(cursorHash)) {

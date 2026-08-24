@@ -28,6 +28,7 @@ import { totpRouter } from "./routes/totp.routes.js";
 import { auditMiddleware } from "./middleware/audit.middleware.js";
 import { apiLimiter, authLimiter } from "./middleware/rateLimit.middleware.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
+import { requireRole } from "./middleware/role.middleware.js";
 import { RotationService } from "./services/RotationService.js";
 
 // Rete di sicurezza a livello di processo — trovata necessaria testando oggi
@@ -59,14 +60,39 @@ const corsOptions: cors.CorsOptions = corsOrigins.length > 0
   : {}; // nessuna CORS_ORIGIN impostata: permissivo (comportamento precedente), pensato per lo sviluppo locale
 
 const app = express();
-// contentSecurityPolicy disattivata di proposito: la CSP di default di helmet è
-// rigida (blocca per dominio script/immagini/stili non esplicitamente elencati) e
-// non ho modo di verificare da qui tutte le risorse effettivamente caricate in
-// produzione — abilitarla alla cieca rischia di rompere il sito. Le altre
-// protezioni di helmet (X-Frame-Options, X-Content-Type-Options, HSTS, ecc.)
-// restano attive. La CSP si può aggiungere in un secondo momento con un test
-// mirato in produzione.
-app.use(helmet({ contentSecurityPolicy: false }));
+
+// Render (come Cloudflare davanti a lui) instrada le richieste attraverso un
+// proprio livello di proxy: senza questa riga, Express non si fida dell'header
+// X-Forwarded-For e usa l'IP del proxy stesso per TUTTE le richieste — il rate
+// limiting per IP diventerebbe inutile (tutti finirebbero nello stesso bucket) e
+// l'IP nei log di audit sarebbe sempre lo stesso, sempre sbagliato. "1" indica un
+// solo hop di proxy fidato, che è la configurazione corretta per un servizio Render
+// standard.
+app.set("trust proxy", 1);
+
+// CSP attivata dopo aver verificato la build di produzione del frontend: nessuno
+// script/font/stylesheet esterno viene mai caricato (solo asset locali + un data:
+// URI per il QR TOTP), quindi si può restringere tutto a 'self'. Eccezione:
+// style-src richiede 'unsafe-inline' perché React scrive gli stili inline
+// (style={{...}}) direttamente come attributo HTML style="" — senza questo,
+// l'intera grafica del sito smetterebbe di funzionare. Un riferimento a
+// cdnjs.cloudflare.com trovato nel bundle di jsPDF è codice morto per questa app
+// (attivo solo con un metodo di export che non usiamo, qui si usa solo .save()).
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"]
+    }
+  }
+}));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "20mb" }));
 
@@ -100,19 +126,25 @@ app.use("/api", authMiddleware);
 // non più un header di cui fidarsi sulla parola.
 app.use(auditMiddleware());
 
-app.use("/api/dipendenti", dipendentiRouter);
-app.use("/api/utenti", utentiRouter);
-app.use("/api/proxy", dipendentiProxyRouter);
-app.use("/api/posts", postsRouter);
-app.use("/api/incaricati", incaricatiRouter);
-app.use("/api/documenti", documentiRouter);
-app.use("/api/segnalazioni", segnalazioniRouter);
-app.use("/api/ticket", ticketRouter);
-app.use("/api/status-lavori", statusLavoriRouter);
-app.use("/api/responsabili", responsabiliRouter);
-app.use("/api/amministratori", amministratoriRouter);
-app.use("/api/documentazione-privacy", documentazionePrivacyRouter);
-app.use("/api/audit", auditRouter);
+// Autorizzazione per ruolo — mappata sui ruoli che, in App.tsx, danno accesso a
+// ciascuna vista frontend (e quindi alle sue chiamate API). /api/turni, /api/contatti
+// e /api/totp restano aperti a qualunque utente autenticato: sono lette semplici
+// (turni/contatti) o gestione del proprio 2FA, senza un singolo ruolo chiamante
+// individuabile con certezza nel frontend attuale — un ulteriore restringimento
+// andrà fatto se in futuro emerge chi li usa davvero.
+app.use("/api/dipendenti", requireRole("Admin", "Gestione personale"), dipendentiRouter);
+app.use("/api/utenti", requireRole("Admin"), utentiRouter);
+app.use("/api/proxy", requireRole("Gestione personale", "Dipendente"), dipendentiProxyRouter);
+app.use("/api/posts", requireRole("Privacy"), postsRouter);
+app.use("/api/incaricati", requireRole("Privacy"), incaricatiRouter);
+app.use("/api/documenti", requireRole("Gestione personale", "Privacy"), documentiRouter);
+app.use("/api/segnalazioni", requireRole("Privacy"), segnalazioniRouter);
+app.use("/api/ticket", requireRole("Admin"), ticketRouter);
+app.use("/api/status-lavori", requireRole("Privacy"), statusLavoriRouter);
+app.use("/api/responsabili", requireRole("Privacy"), responsabiliRouter);
+app.use("/api/amministratori", requireRole("Privacy"), amministratoriRouter);
+app.use("/api/documentazione-privacy", requireRole("Privacy"), documentazionePrivacyRouter);
+app.use("/api/audit", requireRole("Admin"), auditRouter);
 app.use("/api/turni", turniRouter);
 app.use("/api/contatti", contattiRouter);
 app.use("/api/totp", totpRouter);

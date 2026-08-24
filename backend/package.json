@@ -17,8 +17,7 @@
     "jsonwebtoken": "^9.0.2",
     "dotenv": "^16.4.5",
     "node-fetch": "^3.3.2",
-    "qrcode": "^1.5.3",
-    "pg": "^8.13.1"
+    "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
@@ -27,7 +26,6 @@
     "@types/cors": "^2.8.17",
     "@types/node": "^20.14.10",
     "@types/qrcode": "^1.5.5",
-    "@types/pg": "^8.11.10",
     "@types/jsonwebtoken": "^9.0.7"
   }
 }

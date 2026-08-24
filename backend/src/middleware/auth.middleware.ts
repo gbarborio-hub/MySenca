@@ -7,8 +7,9 @@
 // veniva mai verificato.
 import type { Request, Response, NextFunction } from "express";
 import { TokenService } from "../services/TokenService.js";
+import { SessionValidityService } from "../services/SessionValidityService.js";
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers["authorization"] || "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
 
@@ -20,6 +21,15 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
   const payload = TokenService.verify(token);
   if (!payload) {
     res.status(401).json({ ok: false, error: "Sessione scaduta o non valida. Effettua di nuovo l'accesso." });
+    return;
+  }
+
+  // Il token è firmato correttamente e non scaduto, ma l'account potrebbe essere
+  // stato disattivato o bloccato DOPO che è stato emesso — controllo con cache
+  // breve (30s) per non interrogare Notion a ogni richiesta.
+  const valida = await SessionValidityService.isValida(payload.username);
+  if (!valida) {
+    res.status(401).json({ ok: false, error: "Utenza disattivata o bloccata. Contatta un amministratore." });
     return;
   }
 
