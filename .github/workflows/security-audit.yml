@@ -1,0 +1,35 @@
+name: Controllo vulnerabilità dipendenze
+
+on:
+  schedule:
+    # Ogni lunedì alle 6:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+  push:
+    branches: [mvc-rewrite]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Audit backend
+        working-directory: backend
+        run: npm audit --json > ../audit-backend.json || true
+
+      - name: Audit frontend
+        working-directory: frontend
+        run: npm audit --json > ../audit-frontend.json || true
+
+      - name: Costruisci e invia il report
+        env:
+          SECURITY_AUDIT_SECRET: ${{ secrets.SECURITY_AUDIT_SECRET }}
+          SECURITY_AUDIT_URL: ${{ secrets.SECURITY_AUDIT_URL }}
+        run: node .github/scripts/invia-report-sicurezza.mjs

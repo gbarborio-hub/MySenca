@@ -13,8 +13,9 @@ import AdminAbilitare from "./AdminAbilitare.js";
 import AdminUtenti from "./AdminUtenti.js";
 import AdminTicket from "./AdminTicket.js";
 import AdminAuditLog from "./AdminAuditLog.js";
+import AdminSicurezza from "./AdminSicurezza.js";
 
-type AdminScreen = "home" | "abilitare" | "utenti" | "ticket" | "audit";
+type AdminScreen = "home" | "abilitare" | "utenti" | "ticket" | "audit" | "sicurezza";
 
 interface Props {
   nome: string;
@@ -82,6 +83,7 @@ export default function AdminView({ nome, showRoleSwitch, onShowRoleChooser, onL
           {screen === "utenti"  && <AdminUtenti utenti={utenti} loading={utentiLoading} onRefresh={fetchUtenti} />}
           {screen === "ticket"  && <AdminTicket ticket={ticket} loading={ticketLoading} onRefresh={fetchTicket} />}
           {screen === "audit"   && <AdminAuditLog />}
+          {screen === "sicurezza" && <AdminSicurezza />}
         </div>
       </div>
       <div className="bottom-nav">

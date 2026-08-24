@@ -3,7 +3,7 @@ import type { Dipendente } from "../../models/domain.js";
 
 interface Props {
   dipendentiSenzaUsername: Dipendente[];
-  onGo: (view: "abilitare" | "utenti" | "audit") => void;
+  onGo: (view: "abilitare" | "utenti" | "audit" | "sicurezza") => void;
 }
 
 export default function AdminHome({ dipendentiSenzaUsername, onGo }: Props) {
@@ -37,6 +37,15 @@ export default function AdminHome({ dipendentiSenzaUsername, onGo }: Props) {
           <div className="dip-half-label">Consulta</div>
           <div className="dip-half-value" style={{ fontSize: 20 }}>Audit Log</div>
         </div>
+      </div>
+      <div
+        className="dip-half-card"
+        style={{ background: "var(--teal-dark)", minHeight: 90, marginTop: "0.6rem", cursor: "pointer" }}
+        onClick={() => onGo("sicurezza")}
+      >
+        <div className="dip-half-orb"></div>
+        <div className="dip-half-label">Monitora</div>
+        <div className="dip-half-value" style={{ fontSize: 20 }}>🔒 Sicurezza dipendenze</div>
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ import { auditRouter } from "./routes/audit.routes.js";
 import { turniRouter } from "./routes/turni.routes.js";
 import { contattiRouter } from "./routes/contatti.routes.js";
 import { totpRouter } from "./routes/totp.routes.js";
+import { securityAuditIngestRouter, securityAuditReadRouter } from "./routes/securityAudit.routes.js";
 import { auditMiddleware } from "./middleware/audit.middleware.js";
 import { apiLimiter, authLimiter } from "./middleware/rateLimit.middleware.js";
 import { authMiddleware } from "./middleware/auth.middleware.js";
@@ -115,6 +116,11 @@ app.use("/api", (_req, res, next) => {
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);
 
+// Pubblica come /api/health e /api/auth (non richiede un token utente): chiamata
+// da GitHub Actions, non da una persona loggata nell'app. Protetta dal proprio
+// segreto condiviso, verificato dentro SecurityAuditController.ingest.
+app.use("/api/security-audit", securityAuditIngestRouter);
+
 // Da qui in poi, OGNI rotta /api richiede un token di sessione valido: prima di
 // questo intervento, un semplice header non verificato (X-Username) bastava per
 // farsi credere chiunque dal backend. Ora un token scaduto, mancante o manomesso
@@ -145,6 +151,7 @@ app.use("/api/responsabili", requireRole("Privacy"), responsabiliRouter);
 app.use("/api/amministratori", requireRole("Privacy"), amministratoriRouter);
 app.use("/api/documentazione-privacy", requireRole("Privacy"), documentazionePrivacyRouter);
 app.use("/api/audit", requireRole("Admin"), auditRouter);
+app.use("/api/security-audit", requireRole("Admin"), securityAuditReadRouter);
 app.use("/api/turni", turniRouter);
 app.use("/api/contatti", contattiRouter);
 app.use("/api/totp", totpRouter);
