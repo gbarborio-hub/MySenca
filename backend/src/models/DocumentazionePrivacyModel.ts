@@ -88,7 +88,7 @@ export const DocumentazionePrivacyModel = {
   async carica(pageId: string, input: { fileBase64: string; fileName: string; contentType?: string; aggiornatoDa: string }): Promise<void> {
     const uploadId = await notion.uploadFile(input.fileName, input.contentType || "application/octet-stream", input.fileBase64);
     const now = new Date().toISOString();
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_DOCUMENTAZIONE_PRIVACY, pageId, {
       properties: {
         "Allegato": { files: [{ type: "file_upload", file_upload: { id: uploadId }, name: input.fileName }] },
         "Data ultimo aggiornamento": { date: { start: now } },
@@ -129,7 +129,7 @@ export const DocumentazionePrivacyModel = {
       }
     }
 
-    await notion.updatePage(modello.pageId, {
+    await notion.updatePageInDb(DB_DOCUMENTAZIONE_PRIVACY, modello.pageId, {
       properties: { "Data ultimo invio aggiornamento": { date: { start: new Date().toISOString() } } }
     });
 

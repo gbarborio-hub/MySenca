@@ -25,14 +25,19 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   // Il token è firmato correttamente e non scaduto, ma l'account potrebbe essere
-  // stato disattivato o bloccato DOPO che è stato emesso — controllo con cache
-  // breve (30s) per non interrogare Notion a ogni richiesta.
-  const valida = await SessionValidityService.isValida(payload.username);
-  if (!valida) {
+  // stato disattivato o bloccato, o i suoi ruoli cambiati, DOPO che è stato emesso:
+  // controllo con cache breve (30s) per non interrogare Notion a ogni richiesta.
+  const stato = await SessionValidityService.stato(payload.username);
+  if (stato.nonVerificabile) {
+    res.status(503).json({ ok: false, error: "Servizio temporaneamente non disponibile. Riprova tra poco." });
+    return;
+  }
+  if (!stato.valida) {
     res.status(401).json({ ok: false, error: "Utenza disattivata o bloccata. Contatta un amministratore." });
     return;
   }
 
-  req.user = payload;
+  // I ruoli usati da requireRole sono quelli ATTUALI, non quelli scritti nel token.
+  req.user = { ...payload, ruolo: stato.ruolo || payload.ruolo, ruoli: stato.ruoli };
   next();
 }

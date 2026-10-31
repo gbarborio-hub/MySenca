@@ -35,7 +35,6 @@ export const ProxyApi = {
   // Documenti (condivisi dipendente + GP)
   documentiLista: (payload?: unknown) => p<any[]>("documenti-lista", payload || {}),
   documentoCarica: (payload: unknown) => p<any>("documento-carica", payload),
-  documentoElimina: (payload: unknown) => p<any>("documento-elimina", payload),
   // Contatti — lettura diretta dal backend (bypassa Make.com, ormai dismesso).
   contatti: () => api.get<any[]>("/contatti"),
   // Segnalazione
@@ -43,11 +42,6 @@ export const ProxyApi = {
   // Ticket app (segnalazione bug/problemi dall'interno dell'app)
   appTicket: (payload: unknown) => p<any>("app-ticket", payload),
   // GP
-  gpDipendenti: () => p<any[]>("gp-dipendenti", {}),
   gpTimbrature: (payload?: unknown) => p<any[]>("gp-timbrature", payload || {}),
   gpFerie: (payload?: unknown) => p<any[]>("gp-ferie", payload || {}),
-  // Privacy (Make)
-  posts: () => p<any[]>("posts", {}),
-  incaricati: () => p<any[]>("incaricati", {}),
-  azioneNomina: (payload: unknown) => p<any>("azione-nomina", payload),
 };

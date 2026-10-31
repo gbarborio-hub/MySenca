@@ -34,13 +34,13 @@ export const StatusLavoriModel = {
     return (res.results || []).map(fromNotionPage);
   },
   async setStato(pageId: string, stato: StatoAvanzamento): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Stato avanzamento": { select: { name: stato } } } });
+    await notion.updatePageInDb(DB_STATUS_LAVORI, pageId, { properties: { "Stato avanzamento": { select: { name: stato } } } });
   },
   async aggiungiNota(pageId: string, notaEsistente: string, nuovaNota: string): Promise<void> {
     const oggi = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     const ts = `${pad(oggi.getDate())}/${pad(oggi.getMonth() + 1)}/${oggi.getFullYear()}`;
     const aggiornato = notaEsistente ? `${notaEsistente}\n[${ts}] ${nuovaNota}` : `[${ts}] ${nuovaNota}`;
-    await notion.updatePage(pageId, { properties: { "Note e soluzioni": { rich_text: [{ text: { content: encryptIfPresent(aggiornato) } }] } } });
+    await notion.updatePageInDb(DB_STATUS_LAVORI, pageId, { properties: { "Note e soluzioni": { rich_text: [{ text: { content: encryptIfPresent(aggiornato) } }] } } });
   }
 };

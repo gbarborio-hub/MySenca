@@ -1,6 +1,7 @@
 // Invio email tramite il workflow n8n dedicato ("MySenca - Invio Email"),
 // che usa la credenziale Microsoft Outlook già autorizzata su n8n.
 // Niente OAuth2 diretto su questo backend: n8n fa da intermediario.
+import { webhookHeaders } from "./WebhookAuth.js";
 
 const N8N_EMAIL_WEBHOOK = process.env.N8N_EMAIL_WEBHOOK_URL || "https://senca-hub.duckdns.org/webhook/senca-email";
 
@@ -16,7 +17,7 @@ export const EmailService = {
     try {
       const res = await fetch(N8N_EMAIL_WEBHOOK, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: webhookHeaders(),
         body: JSON.stringify({ tipo: "generico", email: to, subject, htmlBody })
       });
       return res.ok;
@@ -29,7 +30,7 @@ export const EmailService = {
     try {
       const res = await fetch(N8N_EMAIL_WEBHOOK, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: webhookHeaders(),
         body: JSON.stringify({ tipo: "credenziali", nome, username, email, password })
       });
       return res.ok;
@@ -42,7 +43,7 @@ export const EmailService = {
     try {
       const res = await fetch(N8N_EMAIL_WEBHOOK, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: webhookHeaders(),
         body: JSON.stringify({ tipo: "rotazione", nome, username, email, password })
       });
       return res.ok;
@@ -64,7 +65,7 @@ export const EmailService = {
     try {
       const res = await fetch(N8N_DOCUMENTI_PRIVACY_WEBHOOK, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: webhookHeaders(),
         body: JSON.stringify({
           tipo: "documentoPrivacy",
           email: to,

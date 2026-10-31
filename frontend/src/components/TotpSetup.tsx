@@ -57,11 +57,14 @@ export default function TotpSetup({ username }: Props) {
   }
 
   async function disattiva() {
+    if (codice.length !== 6) { setMsg({ text: "Inserisci il codice a 6 cifre dalla tua app per disattivare.", type: "err" }); return; }
     if (!confirm("Disattivare l'autenticazione a due fattori?")) return;
     setBusy(true);
     setMsg(null);
     try {
-      await TotpApi.disable(username);
+      const res = await TotpApi.disable(username, codice);
+      if (res && res.ok === false) { setMsg({ text: res.error || "Codice non valido.", type: "err" }); return; }
+      setCodice("");
       setFase("disattivo");
       setMsg({ text: "Autenticazione a due fattori disattivata.", type: "ok" });
     } catch (e: any) {
@@ -127,7 +130,16 @@ export default function TotpSetup({ username }: Props) {
           <div style={{ fontSize: 12, color: "#1A6B3A", fontWeight: 700, marginBottom: 10 }}>
             ✅ Attiva su questo account
           </div>
-          <button className="ts-cancel" disabled={busy} onClick={disattiva}>
+          <input
+            className="dim-in"
+            value={codice}
+            onChange={e => setCodice(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="Codice attuale per disattivare"
+            style={{ letterSpacing: 4, fontSize: 16, textAlign: "center", marginBottom: 10 }}
+          />
+          <button className="ts-cancel" disabled={busy || codice.length !== 6} onClick={disattiva}>
             {busy ? "..." : "Disattiva"}
           </button>
         </>

@@ -47,6 +47,7 @@ export interface AuthResult {
   createdTime?: string | null;
   error?: string;
   requiresTotp?: boolean;
+  mfaToken?: string;
   token?: string;
 }
 

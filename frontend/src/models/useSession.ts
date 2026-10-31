@@ -20,7 +20,10 @@ export function useSession() {
 
   useEffect(() => {
     const saved = loadSession();
-    if (saved && getBio() && bioSupported()) {
+    const bio = getBio();
+    // Lo sblocco biometrico vale solo per l'utente che lo ha attivato.
+    if (saved && bio && bio.username !== saved.username) clearBio();
+    if (saved && bio && bio.username === saved.username && bioSupported()) {
       setPendingUser(saved);
       setLocked(true);
     }
@@ -51,6 +54,10 @@ export function useSession() {
     const activeRole = valid.length > 0 ? valid[0] : ruoli[0];
     const newUser: CurrentUser = { username, nome, ruoli, activeRole, createdTime, token };
 
+    // Un altro utente che salva la sessione su questo dispositivo annulla lo
+    // sblocco biometrico del precedente (che altrimenti aprirebbe la sua sessione).
+    const bioPrec = getBio();
+    if (bioPrec && bioPrec.username !== username) clearBio();
     if (remember) saveSession(newUser);
     else { clearSession(); clearBio(); }
 

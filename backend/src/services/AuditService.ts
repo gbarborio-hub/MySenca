@@ -94,7 +94,16 @@ async function writeLog(entry: AuditEntry): Promise<void> {
 // sul perché è sufficiente, senza lock esterno).
 let writeQueue: Promise<void> = Promise.resolve();
 
-function enqueueWrite(entry: AuditEntry): Promise<void> {
+// Notion rifiuta i testi oltre 2000 caratteri: un campo troppo lungo faceva
+// fallire in silenzio la scrittura, e l'azione spariva dal registro. Si tronca
+// PRIMA di calcolare l'hash, così valore salvato e hash coincidono.
+function limita(entry: AuditEntry): AuditEntry {
+  const cut = (v: unknown, n: number) => String(v ?? "").slice(0, n);
+  return { ...entry, utente: cut(entry.utente, 200), ruolo: cut(entry.ruolo, 64), risorsa: cut(entry.risorsa, 200), dettaglio: cut(entry.dettaglio, 1500), ip: cut(entry.ip, 64) };
+}
+
+function enqueueWrite(raw: AuditEntry): Promise<void> {
+  const entry = limita(raw);
   const result = writeQueue.then(() => writeLog(entry));
   writeQueue = result.catch(() => {});
   return result;

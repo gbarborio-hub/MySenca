@@ -1,81 +1,93 @@
-import { Router, Request, Response } from "express";
+// Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
+//
+// Proxy verso i workflow n8n. Tre regole, tutte applicate QUI sul server:
+//  1. Ogni rotta ha i suoi ruoli: le operazioni da Gestione personale (approvare
+//     ferie/timbrature, liste di tutti, turni, strutture, comunicazioni, documenti)
+//     non sono più raggiungibili da un Dipendente.
+//  2. Per chi non è Gestione personale lo "username" inoltrato è SEMPRE quello del
+//     token: un dipendente non può più leggere o agire a nome di un collega.
+//  3. Ogni chiamata a n8n porta il segreto condiviso (vedi WebhookAuth).
+// Rimosse le rotte che il frontend non usa più (gp-dipendenti, dipendente-salva,
+// documento-elimina, turni-read) e quelle verso Make.com (contatti, ciclo, posts,
+// incaricati, azione-nomina), i cui dati passano già dalle rotte native protette.
+import { Router, Request, Response, NextFunction } from "express";
+import { webhookHeaders } from "../services/WebhookAuth.js";
 
-const N8N = "https://senca-hub.duckdns.org/webhook";
-// Endpoint Make.com - marketing/privacy e contatti dipendente, diversi da n8n
-const MAKE_DATI = "https://hook.eu1.make.com/y882re16wkatcqdk7zevhr24uknk78v4";
-const MAKE_PRIVACY = "https://hook.eu1.make.com/dmdvislgavso2dhh7ccp5iy4pa69vuox";
-const MAKE_AZIONE = "https://hook.eu1.make.com/6vp67eiqkpd861to9dqqolvfft62ahcq";
-const MAKE_CONTATTI = "https://hook.eu1.make.com/3pkwi2nqujb04dfklwql6tpa52fxq4rj";
-const MAKE_CICLO = "https://hook.eu1.make.com/amh2svifhurdxby9dc2b9fms2fnk9f6x";
+const N8N = (process.env.N8N_BASE_URL || "https://senca-hub.duckdns.org/webhook").replace(/\/+$/, "");
+const GP = "Gestione personale";
+const TIMEOUT_MS = 30_000;
 
-async function proxy(url: string, body: unknown, res: Response) {
+type Ruolo = typeof GP | "Dipendente";
+
+function isGP(req: Request): boolean {
+  return (req.user?.ruoli || []).includes(GP);
+}
+
+function consenti(...ruoli: Ruolo[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const mie = req.user?.ruoli || [];
+    if (!mie.some(r => (ruoli as string[]).includes(r))) {
+      res.status(403).json({ ok: false, error: "Non hai i permessi per questa operazione." });
+      return;
+    }
+    next();
+  };
+}
+
+function corpo(req: Request): Record<string, unknown> {
+  return req.body && typeof req.body === "object" && !Array.isArray(req.body) ? { ...req.body } : {};
+}
+
+// Il soggetto dell'operazione è l'utente del token. Gestione personale può indicare
+// un altro dipendente (lo fa legittimamente per timbrature, ferie, comunicazioni).
+function soloSeStesso(req: Request): Record<string, unknown> {
+  const b = corpo(req);
+  if (!isGP(req)) {
+    b.username = req.user!.username;
+    delete b.all; // la lista completa delle comunicazioni è solo per GP
+  }
+  return b;
+}
+
+// Per segnalazioni e ticket l'autore è sempre chi chiama, qualunque ruolo abbia.
+function autoreDalToken(req: Request): Record<string, unknown> {
+  return { ...corpo(req), username: req.user!.username };
+}
+
+async function proxy(url: string, body: unknown, req: Request, res: Response) {
   try {
     const r = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
+      headers: webhookHeaders(req.user ? { username: req.user.username, ruoli: req.user.ruoli } : undefined),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS)
     });
     const data = await r.text();
     res.status(r.status).set("Content-Type", "application/json").send(data);
-  } catch (e) {
+  } catch {
     res.status(502).json({ error: "Upstream error" });
   }
 }
 
+const tutti = consenti(GP, "Dipendente");
+const soloGP = consenti(GP);
+
 export const dipendentiProxyRouter = Router();
 
-// Timbratura
-dipendentiProxyRouter.post("/timbra", (req: Request, res: Response) => proxy(`${N8N}/timbra`, req.body, res));
-dipendentiProxyRouter.post("/timbrature-read", (req: Request, res: Response) => proxy(`${N8N}/timbrature-read`, req.body, res));
-dipendentiProxyRouter.post("/timbratura-update", (req: Request, res: Response) => proxy(`${N8N}/timbratura-update`, req.body, res));
+// --- Self-service del dipendente (e GP per conto di un dipendente) ---
+for (const path of ["timbra", "timbrature-read", "profilo", "ferie-saldo", "ferie-lettura", "ferie-richiesta", "documenti-lista", "comunicazioni-lista"]) {
+  dipendentiProxyRouter.post(`/${path}`, tutti, (req, res) => proxy(`${N8N}/${path}`, soloSeStesso(req), req, res));
+}
+for (const path of ["comunicazione-letta", "segnalazione", "app-ticket"]) {
+  dipendentiProxyRouter.post(`/${path}`, tutti, (req, res) => proxy(`${N8N}/${path}`, autoreDalToken(req), req, res));
+}
+dipendentiProxyRouter.post("/strutture", tutti, (req, res) => proxy(`${N8N}/strutture`, corpo(req), req, res));
 
-// Turni
-dipendentiProxyRouter.post("/turni-read", (req: Request, res: Response) => proxy(`${N8N}/turni-read`, req.body, res));
-dipendentiProxyRouter.post("/turni-griglia", (req: Request, res: Response) => proxy(`${N8N}/turni-griglia`, req.body, res));
-dipendentiProxyRouter.post("/turni-scrivi", (req: Request, res: Response) => proxy(`${N8N}/turni-scrivi`, req.body, res));
-dipendentiProxyRouter.post("/legenda-read", (req: Request, res: Response) => proxy(`${N8N}/legenda-read`, req.body, res));
-dipendentiProxyRouter.post("/legenda-scrivi", (req: Request, res: Response) => proxy(`${N8N}/legenda-scrivi`, req.body, res));
-
-// Strutture
-dipendentiProxyRouter.post("/strutture", (req: Request, res: Response) => proxy(`${N8N}/strutture`, req.body, res));
-dipendentiProxyRouter.post("/gp-strutture", (req: Request, res: Response) => proxy(`${N8N}/gp-strutture`, req.body, res));
-dipendentiProxyRouter.post("/struttura-salva", (req: Request, res: Response) => proxy(`${N8N}/struttura-salva`, req.body, res));
-
-// Profilo
-dipendentiProxyRouter.post("/profilo", (req: Request, res: Response) => proxy(`${N8N}/profilo`, req.body, res));
-
-// Ferie
-dipendentiProxyRouter.post("/ferie-saldo", (req: Request, res: Response) => proxy(`${N8N}/ferie-saldo`, req.body, res));
-dipendentiProxyRouter.post("/ferie-richiesta", (req: Request, res: Response) => proxy(`${N8N}/ferie-richiesta`, req.body, res));
-dipendentiProxyRouter.post("/ferie-lettura", (req: Request, res: Response) => proxy(`${N8N}/ferie-lettura`, req.body, res));
-dipendentiProxyRouter.post("/ferie-update", (req: Request, res: Response) => proxy(`${N8N}/ferie-update`, req.body, res));
-
-// Comunicazioni (condivise dipendente + GP)
-dipendentiProxyRouter.post("/comunicazioni-lista", (req: Request, res: Response) => proxy(`${N8N}/comunicazioni-lista`, req.body, res));
-dipendentiProxyRouter.post("/comunicazione-crea", (req: Request, res: Response) => proxy(`${N8N}/comunicazione-crea`, req.body, res));
-dipendentiProxyRouter.post("/comunicazione-letta", (req: Request, res: Response) => proxy(`${N8N}/comunicazione-letta`, req.body, res));
-dipendentiProxyRouter.post("/comunicazione-letture", (req: Request, res: Response) => proxy(`${N8N}/comunicazione-letture`, req.body, res));
-
-// Documenti (condivisi dipendente + GP)
-dipendentiProxyRouter.post("/documenti-lista", (req: Request, res: Response) => proxy(`${N8N}/documenti-lista`, req.body, res));
-dipendentiProxyRouter.post("/documento-carica", (req: Request, res: Response) => proxy(`${N8N}/documento-carica`, req.body, res));
-dipendentiProxyRouter.post("/documento-elimina", (req: Request, res: Response) => proxy(`${N8N}/documento-elimina`, req.body, res));
-
-// Segnalazione
-dipendentiProxyRouter.post("/segnalazione", (req: Request, res: Response) => proxy(`${N8N}/segnalazione`, req.body, res));
-dipendentiProxyRouter.post("/app-ticket", (req: Request, res: Response) => proxy(`${N8N}/app-ticket`, req.body, res));
-dipendentiProxyRouter.post("/dipendente-salva", (req: Request, res: Response) => proxy(`${N8N}/dipendente-salva`, req.body, res));
-
-// Contatti e ciclo (Make)
-dipendentiProxyRouter.post("/contatti", (_req: Request, res: Response) => proxy(MAKE_CONTATTI, { action: "get_contatti" }, res));
-dipendentiProxyRouter.post("/ciclo", (req: Request, res: Response) => proxy(MAKE_CICLO, req.body, res));
-
-// GP
-dipendentiProxyRouter.post("/gp-dipendenti", (req: Request, res: Response) => proxy(`${N8N}/gp-dipendenti`, req.body, res));
-dipendentiProxyRouter.post("/gp-timbrature", (req: Request, res: Response) => proxy(`${N8N}/gp-timbrature`, req.body, res));
-dipendentiProxyRouter.post("/gp-ferie", (req: Request, res: Response) => proxy(`${N8N}/gp-ferie`, req.body, res));
-
-// Privacy/marketing (Make, non n8n - action-based payload)
-dipendentiProxyRouter.post("/posts", (_req: Request, res: Response) => proxy(MAKE_DATI, { action: "get_posts" }, res));
-dipendentiProxyRouter.post("/incaricati", (_req: Request, res: Response) => proxy(MAKE_PRIVACY, { action: "get_incaricati" }, res));
-dipendentiProxyRouter.post("/azione-nomina", (req: Request, res: Response) => proxy(MAKE_AZIONE, req.body, res));
+// --- Solo Gestione personale ---
+for (const path of [
+  "timbratura-update", "turni-griglia", "turni-scrivi", "legenda-read", "legenda-scrivi",
+  "gp-strutture", "struttura-salva", "ferie-update", "comunicazione-crea", "comunicazione-letture",
+  "documento-carica", "gp-timbrature", "gp-ferie"
+]) {
+  dipendentiProxyRouter.post(`/${path}`, soloGP, (req, res) => proxy(`${N8N}/${path}`, corpo(req), req, res));
+}

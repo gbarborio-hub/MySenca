@@ -8,6 +8,10 @@ on:
   push:
     branches: [mvc-rewrite]
 
+# Il token del workflow può solo leggere il repository.
+permissions:
+  contents: read
+
 jobs:
   audit:
     runs-on: ubuntu-latest

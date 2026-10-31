@@ -118,7 +118,7 @@ export const DocumentiModel = {
   async caricaFirmato(pageId: string, input: { fileBase64: string; fileName: string; contentType?: string }): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
     const allegatoProps = await buildAllegatoProps(input);
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_DOCUMENTI, pageId, {
       properties: {
         "Stato firma": { select: { name: "In attesa di verifica" } },
         "Data caricamento": { date: { start: today } },
@@ -131,9 +131,9 @@ export const DocumentiModel = {
   // "scarta" elimina l'allegato e segnala al dipendente di ricaricare.
   async verificaFirma(pageId: string, esito: "approva" | "scarta"): Promise<void> {
     if (esito === "approva") {
-      await notion.updatePage(pageId, { properties: { "Stato firma": { select: { name: "Firmato" } } } });
+      await notion.updatePageInDb(DB_DOCUMENTI, pageId, { properties: { "Stato firma": { select: { name: "Firmato" } } } });
     } else {
-      await notion.updatePage(pageId, {
+      await notion.updatePageInDb(DB_DOCUMENTI, pageId, {
         properties: {
           "Stato firma": { select: { name: "Respinto" } },
           "Allegato": { files: [] },
@@ -144,6 +144,6 @@ export const DocumentiModel = {
   },
 
   async delete(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { in_trash: true } as any);
+    await notion.updatePageInDb(DB_DOCUMENTI, pageId, { in_trash: true } as any);
   }
 };

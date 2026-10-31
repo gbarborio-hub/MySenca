@@ -87,24 +87,24 @@ export const ResponsabiliModel = {
     if (input.email !== undefined) props["Email"] = { email: input.email };
     if (input.statoInvio) props["Stato invio"] = { select: { name: input.statoInvio } };
     if (input.dataInvio) props["Data invio"] = { date: { start: input.dataInvio } };
-    await notion.updatePage(pageId, { properties: props });
+    await notion.updatePageInDb(DB_RESPONSABILI, pageId, { properties: props });
   },
   async delete(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { in_trash: true } as any);
+    await notion.updatePageInDb(DB_RESPONSABILI, pageId, { in_trash: true } as any);
   },
   async caricaDocumento(pageId: string, slot: Slot, input: { fileBase64?: string; fileName?: string; contentType?: string; richiedeFirma: boolean }): Promise<void> {
     const fileProps = await buildFileProps(slot, input);
-    await notion.updatePage(pageId, { properties: { ...fileProps, [slotRichProp(slot)]: { checkbox: input.richiedeFirma }, [slotStatoProp(slot)]: { select: input.richiedeFirma ? { name: "Da firmare" } : null } } });
+    await notion.updatePageInDb(DB_RESPONSABILI, pageId, { properties: { ...fileProps, [slotRichProp(slot)]: { checkbox: input.richiedeFirma }, [slotStatoProp(slot)]: { select: input.richiedeFirma ? { name: "Da firmare" } : null } } });
   },
   async caricaFirmato(pageId: string, slot: Slot, input: { fileBase64: string; fileName: string; contentType?: string }): Promise<void> {
     const fileProps = await buildFileProps(slot, input);
-    await notion.updatePage(pageId, { properties: { ...fileProps, [slotStatoProp(slot)]: { select: { name: "In attesa di verifica" } } } });
+    await notion.updatePageInDb(DB_RESPONSABILI, pageId, { properties: { ...fileProps, [slotStatoProp(slot)]: { select: { name: "In attesa di verifica" } } } });
   },
   async verificaFirma(pageId: string, slot: Slot, esito: "approva" | "scarta"): Promise<void> {
     if (esito === "approva") {
-      await notion.updatePage(pageId, { properties: { [slotStatoProp(slot)]: { select: { name: "Firmato" } } } });
+      await notion.updatePageInDb(DB_RESPONSABILI, pageId, { properties: { [slotStatoProp(slot)]: { select: { name: "Firmato" } } } });
     } else {
-      await notion.updatePage(pageId, { properties: { [slotStatoProp(slot)]: { select: { name: "Respinto" } }, [slotFileProp(slot)]: { files: [] } } });
+      await notion.updatePageInDb(DB_RESPONSABILI, pageId, { properties: { [slotStatoProp(slot)]: { select: { name: "Respinto" } }, [slotFileProp(slot)]: { files: [] } } });
     }
   }
 };

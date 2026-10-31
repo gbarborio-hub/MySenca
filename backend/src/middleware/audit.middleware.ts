@@ -65,6 +65,21 @@ function buildDettaglio(req: Request): string {
 
 const SKIP_PATHS = ["/api/health", "/api/audit"];
 
+// Il "ruolo attivo" inviato dal frontend vale solo se è davvero uno dei ruoli
+// dell'utente; altrimenti si registra il ruolo del token. Prima un Dipendente
+// poteva comparire nel registro come "Admin" aggiungendo un header.
+export function ruoloAttivoVerificato(req: Request): string {
+  const richiesto = String(req.headers["x-ruolo-attivo"] || "").slice(0, 64);
+  const ruoli = req.user?.ruoli || [];
+  return ruoli.includes(richiesto) ? richiesto : (req.user?.ruolo || "");
+}
+
+// req.ip rispetta "trust proxy" (1 hop): non è falsificabile con un X-Forwarded-For
+// inventato dal client, a differenza del primo valore dell'header.
+export function ipClient(req: Request): string {
+  return (req.ip || req.socket?.remoteAddress || "").slice(0, 64);
+}
+
 export function auditMiddleware() {
   return function (req: Request, _res: Response, next: NextFunction) {
     if (SKIP_PATHS.some(p => req.path.startsWith(p))) return next();
@@ -75,12 +90,11 @@ export function auditMiddleware() {
     // token — in ogni caso è solo per rendere leggibile il log, mai per decidere
     // l'accesso.
     const utente = req.user?.username || "";
-    const ruolo = (req.headers["x-ruolo-attivo"] as string) || req.user?.ruolo || "";
+    const ruolo = ruoloAttivoVerificato(req);
 
     if (!utente) return next();
 
-    const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
-              || req.socket?.remoteAddress || "";
+    const ip = ipClient(req);
 
     AuditService.log({
       utente, ruolo,

@@ -95,11 +95,13 @@ app.use(helmet({
   }
 }));
 app.use(cors(corsOptions));
-app.use(express.json({ limit: "20mb" }));
 
 // Rate limiting per IP su tutte le API, con un limite più stretto sul login/TOTP.
+// Applicato PRIMA di leggere il corpo JSON (fino a 20 MB), così chi supera il
+// limite non fa nemmeno lavorare il parser.
 app.use("/api", apiLimiter);
 app.use("/api/auth", authLimiter);
+app.use(express.json({ limit: "20mb" }));
 
 // Disabilita la cache condizionale (ETag/304) per tutte le API — sono risposte
 // dinamiche, non risorse statiche. Senza questo, il browser può ricevere un 304

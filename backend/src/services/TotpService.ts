@@ -29,7 +29,9 @@ function base32Decode(input: string): Buffer {
   let bits = "";
   for (const char of clean) {
     const idx = BASE32_ALPHABET.indexOf(char);
-    if (idx === -1) continue;
+    // Un carattere non Base32 significa segreto corrotto (o la stringa d'errore di
+    // una decifratura fallita): va rifiutato, non ignorato in silenzio.
+    if (idx === -1) throw new Error("Segreto TOTP non valido.");
     bits += idx.toString(2).padStart(5, "0");
   }
   const bytes: number[] = [];
@@ -52,6 +54,24 @@ function hotp(secretBuffer: Buffer, counter: number): string {
   return String(binCode % 10 ** DIGITS).padStart(DIGITS, "0");
 }
 
+// Ultimo contatore TOTP accettato per utente (in memoria: dopo un riavvio si
+// riparte, ma un codice dura al massimo ~90 secondi, quindi il rischio è minimo).
+const ultimoContatore = new Map<string, number>();
+
+function matchCounter(secretBase32: string, token: string): number | null {
+  const clean = (token || "").trim();
+  if (!/^\d{6}$/.test(clean)) return null;
+  if (!secretBase32 || !/^[A-Z2-7]+=*$/i.test(secretBase32)) return null;
+  let secretBuffer: Buffer;
+  try { secretBuffer = base32Decode(secretBase32); } catch { return null; }
+  if (secretBuffer.length < 10) return null;
+  const counter = Math.floor(Date.now() / 1000 / STEP_SECONDS);
+  for (const drift of [0, -1, 1]) {
+    if (hotp(secretBuffer, counter + drift) === clean) return counter + drift;
+  }
+  return null;
+}
+
 export const TotpService = {
   // Genera un nuovo segreto casuale a 160 bit, codificato in Base32
   // (standard per la compatibilità con Google Authenticator/Authy/Microsoft Authenticator).
@@ -70,14 +90,19 @@ export const TotpService = {
   // Verifica un codice a 6 cifre, tollerando ±1 finestra temporale (30s) per
   // compensare piccoli disallineamenti di orologio tra telefono e server.
   verifyToken(secretBase32: string, token: string): boolean {
-    const clean = (token || "").trim();
-    if (!/^\d{6}$/.test(clean)) return false;
-    const secretBuffer = base32Decode(secretBase32);
-    const counter = Math.floor(Date.now() / 1000 / STEP_SECONDS);
-    for (const drift of [0, -1, 1]) {
-      if (hotp(secretBuffer, counter + drift) === clean) return true;
-    }
-    return false;
+    return matchCounter(secretBase32, token) !== null;
+  },
+
+  // Come verifyToken, ma ogni codice vale UNA volta sola per utente: rifiuta un
+  // contatore uguale o precedente all'ultimo accettato (anti-replay).
+  verifyTokenOnce(username: string, secretBase32: string, token: string): boolean {
+    const c = matchCounter(secretBase32, token);
+    if (c === null) return false;
+    const key = username.trim().toLowerCase();
+    const last = ultimoContatore.get(key);
+    if (last !== undefined && c <= last) return false;
+    ultimoContatore.set(key, c);
+    return true;
   },
 
   // Genera l'immagine QR (come data URL PNG) da mostrare nella schermata di attivazione.

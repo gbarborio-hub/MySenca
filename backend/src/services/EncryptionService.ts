@@ -71,3 +71,21 @@ export function decryptIfPresent(value: string | undefined | null): string {
   if (!value) return "";
   return decrypt(value);
 }
+
+/**
+ * Decifratura "rigorosa" per i segreti (es. TOTP): se il valore non è cifrato o la
+ * decifratura fallisce, lancia un errore invece di restituire un testo sostitutivo.
+ * Così un errore di chiave non diventa mai un segreto prevedibile.
+ */
+export function decryptStrict(value: string): string {
+  if (!value || !value.startsWith(PREFIX)) throw new Error("Valore cifrato mancante o non valido.");
+  const key = getKey();
+  const parts = value.slice(PREFIX.length).split(":");
+  if (parts.length !== 3) throw new Error("Formato cifrato non valido.");
+  const [ivHex, tagHex, cipherHex] = parts;
+  const tag = Buffer.from(tagHex, "hex");
+  if (tag.length !== 16) throw new Error("Tag di autenticazione non valido.");
+  const decipher = crypto.createDecipheriv(ALGORITHM, key, Buffer.from(ivHex, "hex"), { authTagLength: 16 });
+  decipher.setAuthTag(tag);
+  return decipher.update(Buffer.from(cipherHex, "hex")).toString("utf8") + decipher.final("utf8");
+}

@@ -5,10 +5,9 @@ import { PasswordService } from "./PasswordService.js";
 import { AuditService } from "./AuditService.js";
 import { TotpService } from "./TotpService.js";
 import { TokenService } from "./TokenService.js";
-import { decrypt } from "./EncryptionService.js";
+import { decryptStrict } from "./EncryptionService.js";
+import { LoginThrottleService } from "./LoginThrottleService.js";
 import type { AuthResult } from "../types/domain.js";
-
-const MAX_TENTATIVI = 3;
 
 async function buildSuccessResult(utente: any, username: string, remember: boolean): Promise<AuthResult> {
   const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
@@ -18,17 +17,40 @@ async function buildSuccessResult(utente: any, username: string, remember: boole
   return { ok: true, username: utente.username, ruolo: utente.ruolo, ruoli, nome: nomeCompleto, createdTime: utente.createdTime, token };
 }
 
+// Messaggio unico per tutti i casi di accesso negato: non rivela se l'utente
+// esiste, se è bloccato o disattivato, né se ha il TOTP attivo.
+const ERRORE_GENERICO = "Credenziali non valide.";
+const ERRORE_SOSPESO = "Troppi tentativi falliti. Riprova tra qualche minuto.";
+
 export const AuthService = {
   async login(usernameRaw: string, password: string, remember: boolean, ip?: string): Promise<AuthResult> {
-    const username = usernameRaw.trim().toLowerCase();
+    const username = String(usernameRaw || "").trim().toLowerCase();
     if (!username || !password) return { ok: false, error: "Credenziali mancanti." };
 
-    const utente = await UtentiModel.findByUsername(username);
-    if (!utente) {
-      AuditService.log({ utente: username, ruolo: "", azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Username non trovato", ip: ip || "" });
-      return { ok: false, error: "Credenziali non valide." };
+    if (LoginThrottleService.bloccatoPer(username) > 0) {
+      AuditService.log({ utente: username, ruolo: "", azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Tentativo durante sospensione temporanea", ip: ip || "" });
+      return { ok: false, error: ERRORE_SOSPESO };
     }
 
+    const utente = await UtentiModel.findByUsername(username);
+    if (!utente || !utente.hashPassword || !utente.salt) {
+      // Calcolo fittizio: stessi tempi di risposta di un utente esistente.
+      await PasswordService.verify(password, "0".repeat(64), "0".repeat(32)).catch(() => false);
+      LoginThrottleService.registraErrore(username);
+      AuditService.log({ utente: username, ruolo: "", azione: "AUTH_FAIL", risorsa: "auth", dettaglio: utente ? "Utenza senza credenziali configurate" : "Username non trovato", ip: ip || "" });
+      return { ok: false, error: ERRORE_GENERICO };
+    }
+
+    const match = await PasswordService.verify(password, utente.hashPassword, utente.salt);
+    if (!match) {
+      const sospeso = LoginThrottleService.registraErrore(username);
+      UtentiModel.setTentativiFalliti(utente.pageId, utente.tentativiFalliti + 1, false).catch(() => {});
+      AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: `Password errata${sospeso ? " — sospensione temporanea" : ""}`, ip: ip || "" });
+      return { ok: false, error: sospeso ? ERRORE_SOSPESO : ERRORE_GENERICO };
+    }
+
+    // Password corretta: solo ora si può dire se l'utenza è bloccata/disattivata
+    // (chi conosce la password è il titolare, non serve nasconderglielo).
     if (utente.bloccato) {
       AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Utenza bloccata", ip: ip || "" });
       return { ok: false, error: "Utenza bloccata. Contatta un amministratore." };
@@ -37,46 +59,54 @@ export const AuthService = {
       AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Utenza disattivata", ip: ip || "" });
       return { ok: false, error: "Utenza disattivata." };
     }
-    if (!utente.hashPassword || !utente.salt) {
-      return { ok: false, error: "Errore di configurazione utenza. Contatta un amministratore." };
-    }
 
-    const match = await PasswordService.verify(password, utente.hashPassword, utente.salt);
-    if (!match) {
-      const nuovi = utente.tentativiFalliti + 1;
-      const daBloccare = nuovi >= MAX_TENTATIVI;
-      UtentiModel.setTentativiFalliti(utente.pageId, nuovi, daBloccare).catch(() => {});
-      AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: `Tentativo ${nuovi}/${MAX_TENTATIVI}${daBloccare ? " — account bloccato" : ""}`, ip: ip || "" });
-      return { ok: false, error: "Credenziali non valide." };
-    }
+    LoginThrottleService.azzera(username);
+    if (utente.tentativiFalliti) UtentiModel.resetTentativiFalliti(utente.pageId).catch(() => {});
 
-    UtentiModel.resetTentativiFalliti(utente.pageId).catch(() => {});
-
-    // Password corretta ma TOTP attivo: non completare il login, il frontend
-    // dovrà chiamare /auth/totp-verify con il codice a 6 cifre per proseguire.
-    // Nessun log LOGIN qui — l'accesso non è ancora concluso.
+    // TOTP attivo: niente sessione. Si emette un token "MFA in attesa" (5 minuti,
+    // uso singolo) che /auth/totp-verify esigerà: così il secondo fattore si
+    // aggiunge alla password invece di sostituirla.
     if (utente.totpAbilitato) {
-      return { ok: true, requiresTotp: true, username: utente.username };
+      return { ok: true, requiresTotp: true, username: utente.username, mfaToken: TokenService.signPending(utente.username) };
     }
 
     AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: "Login diretto (TOTP non attivo)", ip: ip || "" });
     return buildSuccessResult(utente, username, remember);
   },
 
-  async verifyTotp(usernameRaw: string, token: string, remember: boolean, ip?: string): Promise<AuthResult> {
-    const username = usernameRaw.trim().toLowerCase();
+  async verifyTotp(mfaToken: string, token: string, remember: boolean, ip?: string): Promise<AuthResult> {
+    const username = TokenService.consumePending(String(mfaToken || ""));
+    if (!username) {
+      return { ok: false, error: "Sessione di accesso scaduta. Inserisci di nuovo username e password." };
+    }
+
+    if (LoginThrottleService.bloccatoPer(username) > 0) {
+      return { ok: false, error: ERRORE_SOSPESO };
+    }
+
     const utente = await UtentiModel.findByUsername(username);
-    if (!utente || !utente.totpAbilitato || !utente.totpSecret) {
-      return { ok: false, error: "Autenticazione a due fattori non configurata per questo utente." };
+    if (!utente || utente.bloccato || !utente.attivo || !utente.totpAbilitato || !utente.totpSecret) {
+      return { ok: false, error: "Accesso non consentito. Contatta un amministratore." };
     }
 
-    const secret = decrypt(utente.totpSecret);
-    const valido = TotpService.verifyToken(secret, token);
-    if (!valido) {
-      AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Codice TOTP errato", ip: ip || "" });
-      return { ok: false, error: "Codice non valido. Riprova." };
+    let secret: string;
+    try {
+      secret = decryptStrict(utente.totpSecret);
+    } catch {
+      // Chiave di cifratura errata o dato corrotto: MAI usare un valore sostitutivo.
+      console.error(`[AuthService] Impossibile decifrare il segreto TOTP di ${username}`);
+      AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: "Segreto TOTP non decifrabile", ip: ip || "" });
+      return { ok: false, error: "Errore di configurazione del secondo fattore. Contatta un amministratore." };
     }
 
+    if (!TotpService.verifyTokenOnce(username, secret, token)) {
+      const sospeso = LoginThrottleService.registraErrore(username);
+      AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "AUTH_FAIL", risorsa: "auth", dettaglio: `Codice TOTP errato o già usato${sospeso ? " — sospensione temporanea" : ""}`, ip: ip || "" });
+      // Il token MFA è già stato consumato: dopo un errore si riparte dalla password.
+      return { ok: false, error: sospeso ? ERRORE_SOSPESO : "Codice non valido. Inserisci di nuovo username e password." };
+    }
+
+    LoginThrottleService.azzera(username);
     const ruoli = Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi]));
     AuditService.log({ utente: username, ruolo: utente.ruolo, azione: "LOGIN", risorsa: "auth", dettaglio: `Login con TOTP. Ruoli: ${ruoli.join(", ")}`, ip: ip || "" });
     return buildSuccessResult(utente, username, remember);

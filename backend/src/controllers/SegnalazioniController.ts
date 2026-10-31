@@ -14,7 +14,8 @@ export const SegnalazioniController = {
       return;
     }
     try {
-      const pageId = await SegnalazioniModel.create(body);
+      // Chi segnala è l'utente del token, non uno username scelto dal client.
+      const pageId = await SegnalazioniModel.create({ ...body, username: req.user?.username || body.username });
       res.json({ ok: true, pageId });
     } catch (e: any) {
       res.status(502).json({ ok: false, error: e?.message || "Errore nell'invio della segnalazione." });

@@ -63,13 +63,13 @@ export const DipendentiModel = {
   },
 
   async setUsername(pageId: string, username: string): Promise<void> {
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_DIPENDENTI, pageId, {
       properties: { "Username": { rich_text: [{ text: { content: username } }] } }
     });
   },
 
   async clearUsername(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Username": { rich_text: [] } } });
+    await notion.updatePageInDb(DB_DIPENDENTI, pageId, { properties: { "Username": { rich_text: [] } } });
   },
 
   async create(input: DipendenteUpdateInput): Promise<string> {
@@ -94,11 +94,11 @@ export const DipendentiModel = {
   // Segna la data di invio dell'informativa privacy per questo dipendente. Usato sia
   // dall'invio automatico all'onboarding sia dagli invii massivi/mirati manuali.
   async marcaInformativaInviata(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Informativa privacy inviata": { date: { start: new Date().toISOString() } } } });
+    await notion.updatePageInDb(DB_DIPENDENTI, pageId, { properties: { "Informativa privacy inviata": { date: { start: new Date().toISOString() } } } });
   },
 
   async update(pageId: string, input: DipendenteUpdateInput): Promise<void> {
-    await notion.updatePage(pageId, { properties: buildProperties(input) });
+    await notion.updatePageInDb(DB_DIPENDENTI, pageId, { properties: buildProperties(input) });
   }
 };
 

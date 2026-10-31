@@ -16,30 +16,45 @@ import { UtentiModel } from "../models/UtentiModel.js";
 
 const CACHE_TTL_MS = 30_000; // 30 secondi: propagazione rapida senza martellare Notion
 
-interface CacheEntry {
+export interface StatoSessione {
   valida: boolean;
+  ruoli: string[];   // ruoli ATTUALI su Notion, non quelli scritti nel token
+  ruolo: string;
+  // true se Notion non era raggiungibile e non c'era nulla in cache
+  nonVerificabile?: boolean;
+}
+
+interface CacheEntry extends StatoSessione {
   scadenza: number;
 }
 
 const cache = new Map<string, CacheEntry>();
 
 export const SessionValidityService = {
-  async isValida(username: string): Promise<boolean> {
+  // Oltre ad attivo/bloccato restituisce anche i ruoli correnti: l'autorizzazione
+  // usa questi, così togliere un ruolo a qualcuno ha effetto entro 30 secondi
+  // anche sui token già emessi (prima valeva fino alla scadenza, fino a 30 giorni).
+  async stato(username: string): Promise<StatoSessione> {
     const now = Date.now();
     const cached = cache.get(username);
-    if (cached && cached.scadenza > now) return cached.valida;
+    if (cached && cached.scadenza > now) return cached;
 
     try {
       const utente = await UtentiModel.findByUsername(username);
       const valida = !!utente && utente.attivo && !utente.bloccato;
-      cache.set(username, { valida, scadenza: now + CACHE_TTL_MS });
-      return valida;
+      const ruoli = utente ? Array.from(new Set([utente.ruolo, ...utente.ruoliAggiuntivi])) : [];
+      const entry: CacheEntry = { valida, ruoli, ruolo: utente?.ruolo || "", scadenza: now + CACHE_TTL_MS };
+      cache.set(username, entry);
+      return entry;
     } catch {
-      // Notion irraggiungibile: non blocchiamo l'operatività per un problema di
-      // rete — se c'era un valore in cache (anche scaduto) lo riusiamo, altrimenti
-      // lasciamo passare (fail-open sull'infrastruttura, non sulla sicurezza: il
-      // token resta comunque firmato e verificato crittograficamente).
-      return cached?.valida ?? true;
+      // Notion irraggiungibile: si riusa l'ultimo stato noto (anche scaduto); se non
+      // ce n'è nessuno si NEGA l'accesso invece di lasciar passare tutti.
+      if (cached) return cached;
+      return { valida: false, ruoli: [], ruolo: "", nonVerificabile: true };
     }
+  },
+
+  async isValida(username: string): Promise<boolean> {
+    return (await this.stato(username)).valida;
   }
 };

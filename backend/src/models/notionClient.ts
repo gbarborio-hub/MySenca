@@ -20,13 +20,34 @@ async function notionFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+function normId(v: unknown): string { return String(v || "").replace(/-/g, "").toLowerCase(); }
+// Un pageId deve essere un UUID: impedisce anche di iniettare altri segmenti nel percorso.
+function assertPageId(pageId: string): string {
+  if (!UUID_RE.test(String(pageId || ""))) throw new Error("Identificativo non valido.");
+  return String(pageId);
+}
+
 export const notion = {
   queryDatabase: <T>(databaseId: string, body: unknown) =>
     notionFetch<T>(`databases/${databaseId}/query`, { method: "POST", body: JSON.stringify(body) }),
   createPage: <T>(body: unknown) =>
     notionFetch<T>(`pages`, { method: "POST", body: JSON.stringify(body) }),
   updatePage: <T>(pageId: string, body: unknown) =>
-    notionFetch<T>(`pages/${pageId}`, { method: "PATCH", body: JSON.stringify(body) }),
+    notionFetch<T>(`pages/${assertPageId(pageId)}`, { method: "PATCH", body: JSON.stringify(body) }),
+
+  // Modifica una pagina SOLO se appartiene al database indicato. L'integrazione
+  // Notion ha accesso a tutti i database: senza questo controllo un pageId preso da
+  // un'altra sezione (es. una scheda Dipendenti passata a /api/amministratori/elimina)
+  // veniva modificato o cestinato da chi non aveva i permessi su quella sezione.
+  async updatePageInDb<T>(databaseId: string, pageId: string, body: unknown): Promise<T> {
+    const id = assertPageId(pageId);
+    const page: any = await notionFetch(`pages/${id}`, { method: "GET" });
+    if (normId(page?.parent?.database_id) !== normId(databaseId)) {
+      throw new Error("Elemento non trovato in questa sezione.");
+    }
+    return notionFetch<T>(`pages/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+  },
 
   // Upload binario in due fasi: 1) crea uno slot di upload, 2) invia i byte.
   // Restituisce il fileUploadId da usare nella proprietà "file" della pagina

@@ -47,7 +47,7 @@ export const IncaricatiModel = {
   },
 
   async setDocumentoFirmato(pageId: string, firmato: boolean): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Documento firmato": { checkbox: firmato } } });
+    await notion.updatePageInDb(DB_INCARICATI, pageId, { properties: { "Documento firmato": { checkbox: firmato } } });
   },
 
   async create(input: IncaricatoCreateInput): Promise<string> {
@@ -77,7 +77,7 @@ export const IncaricatiModel = {
   // Segna la data di invio del modulo incaricato al trattamento. Usato sia
   // dall'invio automatico alla creazione sia dagli invii massivi/mirati manuali.
   async marcaModuloInviato(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Modulo inviato": { date: { start: new Date().toISOString() } } } });
+    await notion.updatePageInDb(DB_INCARICATI, pageId, { properties: { "Modulo inviato": { date: { start: new Date().toISOString() } } } });
   },
 
   async createMany(inputs: IncaricatoCreateInput[]): Promise<{ ok: number; failed: { input: IncaricatoCreateInput; error: string }[] }> {

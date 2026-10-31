@@ -2,6 +2,7 @@
 import type { Request, Response } from "express";
 import { AuditModel } from "../models/AuditModel.js";
 import { AuditService } from "../services/AuditService.js";
+import { ruoloAttivoVerificato, ipClient } from "../middleware/audit.middleware.js";
 
 export const AuditController = {
   async list(req: Request, res: Response) {
@@ -33,15 +34,14 @@ export const AuditController = {
   async event(req: Request, res: Response) {
     try {
       const utente = req.user?.username || "";
-      const ruolo = (req.headers["x-ruolo-attivo"] as string) || req.user?.ruolo || "";
+      const ruolo = ruoloAttivoVerificato(req);
       const { azione, dettaglio } = req.body || {};
       if (!utente || !azione) {
         res.status(400).json({ ok: false, error: "Dati mancanti." });
         return;
       }
-      const ip = req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()
-                || req.socket?.remoteAddress || "";
-      AuditService.log({ utente, ruolo, azione, risorsa: "client-event", dettaglio: dettaglio || "", ip });
+      const ip = ipClient(req);
+      AuditService.log({ utente, ruolo, azione: String(azione).slice(0, 64) as any, risorsa: "client-event", dettaglio: String(dettaglio || "").slice(0, 500), ip });
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: e?.message || "Errore registrazione evento." });

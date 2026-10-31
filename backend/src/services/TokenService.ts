@@ -36,9 +36,35 @@ export interface TokenPayload {
   ruoli: string[];
 }
 
+// Token "MFA in attesa": emesso SOLO dopo una password corretta per un utente con
+// TOTP attivo, dura pochi minuti e serve esclusivamente a completare il secondo
+// passaggio (/api/auth/totp-verify). Non è un token di sessione: authMiddleware lo
+// rifiuta perché ha typ "mfa". Il jti lo rende usabile una sola volta.
+const DURATA_MFA = "5m";
+const mfaUsati = new Map<string, number>(); // jti -> scadenza (ms)
+
 export const TokenService = {
   sign(payload: TokenPayload, remember: boolean): string {
-    return jwt.sign(payload, SECRET, { expiresIn: remember ? DURATA_LUNGA : DURATA_BREVE });
+    return jwt.sign({ ...payload, typ: "session" }, SECRET, { expiresIn: remember ? DURATA_LUNGA : DURATA_BREVE });
+  },
+
+  signPending(username: string): string {
+    return jwt.sign({ username, typ: "mfa", jti: crypto.randomBytes(16).toString("hex") }, SECRET, { expiresIn: DURATA_MFA });
+  },
+
+  // Verifica e CONSUMA il token MFA (uso singolo). Ritorna lo username o null.
+  consumePending(token: string): string | null {
+    try {
+      const d = jwt.verify(token, SECRET) as Record<string, unknown>;
+      if (typeof d === "string" || d.typ !== "mfa" || typeof d.username !== "string" || typeof d.jti !== "string") return null;
+      const now = Date.now();
+      for (const [k, exp] of mfaUsati) if (exp < now) mfaUsati.delete(k);
+      if (mfaUsati.has(d.jti)) return null;
+      mfaUsati.set(d.jti, now + 10 * 60 * 1000);
+      return d.username;
+    } catch {
+      return null;
+    }
   },
 
   // Verifica firma + scadenza. Ritorna null per qualunque motivo di invalidità
@@ -48,7 +74,9 @@ export const TokenService = {
     try {
       const decoded = jwt.verify(token, SECRET);
       if (typeof decoded === "string") return null;
-      const { username, ruolo, ruoli } = decoded as Record<string, unknown>;
+      const { username, ruolo, ruoli, typ } = decoded as Record<string, unknown>;
+      // Un token "MFA in attesa" non è una sessione.
+      if (typ === "mfa") return null;
       if (!username || typeof username !== "string" || !ruolo || typeof ruolo !== "string") return null;
       return { username, ruolo, ruoli: Array.isArray(ruoli) ? (ruoli as string[]) : [] };
     } catch {

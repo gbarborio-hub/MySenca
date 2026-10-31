@@ -17,6 +17,9 @@ export default function LoginView({ onSuccess, sessionMsg }: Props) {
   // Step TOTP: attivato solo se il backend segnala requiresTotp dopo password corretta
   const [awaitingTotp, setAwaitingTotp] = useState(false);
   const [totpCode, setTotpCode] = useState("");
+  // Token "MFA in attesa" ricevuto dopo la password corretta: senza, il backend
+  // non accetta il codice (il TOTP si aggiunge alla password, non la sostituisce).
+  const [mfaToken, setMfaToken] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,7 +28,8 @@ export default function LoginView({ onSuccess, sessionMsg }: Props) {
     try {
       const res = await AuthApi.login(username, password, remember);
       setBusy(false);
-      if (res.requiresTotp) {
+      if (res.requiresTotp && res.mfaToken) {
+        setMfaToken(res.mfaToken);
         setAwaitingTotp(true);
         return;
       }
@@ -45,17 +49,26 @@ export default function LoginView({ onSuccess, sessionMsg }: Props) {
     setError(null);
     setBusy(true);
     try {
-      const res = await AuthApi.verifyTotp(username, totpCode, remember);
+      const res = await AuthApi.verifyTotp(mfaToken, totpCode, remember);
       setBusy(false);
       if (res.ok && res.ruoli && res.token) {
         onSuccess(res.username || username, res.nome || username, res.ruoli, remember, res.token, res.createdTime);
       } else {
-        setError(res.error || "Codice non valido.");
+        tornaAllaPassword(res.error || "Codice non valido.");
       }
     } catch (err: any) {
       setBusy(false);
-      setError(err?.message || "Codice non valido.");
+      tornaAllaPassword(err?.message || "Codice non valido.");
     }
+  }
+
+  // Il token MFA vale un solo tentativo: dopo un errore si reinserisce la password.
+  function tornaAllaPassword(msg: string) {
+    setMfaToken("");
+    setTotpCode("");
+    setPassword("");
+    setAwaitingTotp(false);
+    setError(msg);
   }
 
   if (awaitingTotp) {

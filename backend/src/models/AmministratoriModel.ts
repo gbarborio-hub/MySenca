@@ -74,7 +74,7 @@ export const AmministratoriModel = {
   // Segna la data di invio della nomina. Usato sia dall'invio automatico alla
   // creazione sia dagli invii massivi/mirati manuali.
   async marcaNominaInviata(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Data nomina": { date: { start: new Date().toISOString() } } } });
+    await notion.updatePageInDb(DB_AMMINISTRATORI, pageId, { properties: { "Data nomina": { date: { start: new Date().toISOString() } } } });
   },
 
   async update(pageId: string, input: Partial<AmministratoreCreateInput> & { nominaFirmata?: boolean }): Promise<void> {
@@ -86,10 +86,10 @@ export const AmministratoriModel = {
     if (input.societaEsterna !== undefined) props["Societa esterna"] = { rich_text: [{ text: { content: input.societaEsterna } }] };
     if (input.note !== undefined) props["Note"] = { rich_text: [{ text: { content: input.note } }] };
     if (typeof input.nominaFirmata === "boolean") props["Nomina firmata"] = { checkbox: input.nominaFirmata };
-    await notion.updatePage(pageId, { properties: props });
+    await notion.updatePageInDb(DB_AMMINISTRATORI, pageId, { properties: props });
   },
 
   async delete(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { in_trash: true } as any);
+    await notion.updatePageInDb(DB_AMMINISTRATORI, pageId, { in_trash: true } as any);
   }
 };

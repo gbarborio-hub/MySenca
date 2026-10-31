@@ -1,6 +1,14 @@
 // Copyright (c) 2026 Giovanni Arborio Mella. All rights reserved.
 import type { Request, Response } from "express";
 import { SecurityAuditModel, type SecurityReport } from "../models/SecurityAuditModel.js";
+import crypto from "crypto";
+
+// Confronto a tempo costante (un !== rivela, misurando i tempi, quanti caratteri iniziali sono giusti).
+function confrontoSicuro(a: string, b: string): boolean {
+  const ha = crypto.createHash("sha256").update(a).digest();
+  const hb = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
 
 export const SecurityAuditController = {
   // Chiamato da GitHub Actions, non da un utente loggato — non ha un token di
@@ -9,7 +17,7 @@ export const SecurityAuditController = {
   async ingest(req: Request, res: Response) {
     const secret = process.env.SECURITY_AUDIT_SECRET;
     const fornito = req.headers["x-audit-secret"];
-    if (!secret || fornito !== secret) {
+    if (!secret || typeof fornito !== "string" || !confrontoSicuro(fornito, secret)) {
       res.status(401).json({ ok: false, error: "Non autorizzato." });
       return;
     }

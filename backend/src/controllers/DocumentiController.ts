@@ -1,6 +1,16 @@
 import type { Request, Response } from "express";
 import { DocumentiModel } from "../models/DocumentiModel.js";
 
+// Etichetta del ruolo di chi carica, coerente con i ruoli reali dell'utente.
+function ruoloCaricamento(req: Request, richiesto: unknown): "GP" | "Privacy" {
+  const ruoli = req.user?.ruoli || [];
+  const haGP = ruoli.includes("Gestione personale");
+  const haPrivacy = ruoli.includes("Privacy");
+  if (richiesto === "Privacy" && haPrivacy) return "Privacy";
+  if (richiesto === "GP" && haGP) return "GP";
+  return haGP ? "GP" : (haPrivacy ? "Privacy" : "GP");
+}
+
 export const DocumentiController = {
   async listByUsername(req: Request, res: Response) {
     const username = String(req.query.username || req.body?.username || "");
@@ -20,7 +30,10 @@ export const DocumentiController = {
     try {
       const pageId = await DocumentiModel.create({
         username, dipendente, titolo, tipo, note, linkAllegato, fileBase64, fileName, contentType,
-        caricatoDa: caricatoDa || "", caricatoDaRuolo: caricatoDaRuolo || "GP", richiedeFirma: !!richiedeFirma
+        // Chi carica è l'utente del token, non un campo scelto dal client.
+        caricatoDa: req.user?.username || String(caricatoDa || ""),
+        caricatoDaRuolo: ruoloCaricamento(req, caricatoDaRuolo),
+        richiedeFirma: !!richiedeFirma
       });
       res.json({ ok: true, pageId });
     } catch (e: any) {
@@ -42,14 +55,22 @@ export const DocumentiController = {
   async verificaFirma(req: Request, res: Response) {
     const { pageId, esito } = req.body || {};
     if (!pageId || (esito !== "approva" && esito !== "scarta")) { res.status(400).json({ ok: false, error: "Parametri non validi." }); return; }
-    await DocumentiModel.verificaFirma(pageId, esito);
-    res.json({ ok: true });
+    try {
+      await DocumentiModel.verificaFirma(pageId, esito);
+      res.json({ ok: true });
+    } catch {
+      res.status(404).json({ ok: false, error: "Documento non trovato." });
+    }
   },
 
   async delete(req: Request, res: Response) {
     const { pageId } = req.body || {};
     if (!pageId) { res.status(400).json({ ok: false, error: "pageId mancante." }); return; }
-    await DocumentiModel.delete(pageId);
-    res.json({ ok: true });
+    try {
+      await DocumentiModel.delete(pageId);
+      res.json({ ok: true });
+    } catch {
+      res.status(404).json({ ok: false, error: "Documento non trovato." });
+    }
   }
 };

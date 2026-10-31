@@ -57,10 +57,10 @@ export const TicketModel = {
   },
 
   async updateStato(pageId: string, stato: "Nuovo" | "In lavorazione" | "Risolto"): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Stato": { select: { name: stato } } } });
+    await notion.updatePageInDb(DB_TICKET, pageId, { properties: { "Stato": { select: { name: stato } } } });
   },
 
   async setNote(pageId: string, note: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Note": { rich_text: [{ text: { content: encryptIfPresent(note) } }] } } });
+    await notion.updatePageInDb(DB_TICKET, pageId, { properties: { "Note": { rich_text: [{ text: { content: encryptIfPresent(note) } }] } } });
   }
 };

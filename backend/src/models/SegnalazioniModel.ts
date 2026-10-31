@@ -105,7 +105,7 @@ export const SegnalazioniModel = {
   },
 
   async updateStato(pageId: string, stato: "Aperto" | "In gestione" | "Chiuso"): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Stato": { select: { name: stato } } } });
+    await notion.updatePageInDb(DB_SEGNALAZIONI, pageId, { properties: { "Stato": { select: { name: stato } } } });
   },
 
   async aggiornaGestione(pageId: string, input: {
@@ -118,6 +118,6 @@ export const SegnalazioniModel = {
     if (input.note !== undefined) props["Note"] = rtEnc(input.note);
     if (typeof input.notificaGarante === "boolean") props["Notifica Garante"] = { checkbox: input.notificaGarante };
     if (input.dataNotificaGarante) props["Data notifica Garante"] = { date: { start: input.dataNotificaGarante } };
-    await notion.updatePage(pageId, { properties: props });
+    await notion.updatePageInDb(DB_SEGNALAZIONI, pageId, { properties: props });
   }
 };

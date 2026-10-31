@@ -67,33 +67,33 @@ export const UtentiModel = {
   async setTentativiFalliti(pageId: string, tentativi: number, bloccare: boolean): Promise<void> {
     const properties: any = { "Tentativi falliti": { number: tentativi } };
     if (bloccare) properties["Bloccato"] = { checkbox: true };
-    await notion.updatePage(pageId, { properties });
+    await notion.updatePageInDb(DB_UTENTI, pageId, { properties });
   },
 
   async resetTentativiFalliti(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "Tentativi falliti": { number: 0 } } });
+    await notion.updatePageInDb(DB_UTENTI, pageId, { properties: { "Tentativi falliti": { number: 0 } } });
   },
 
   async riattiva(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_UTENTI, pageId, {
       properties: { "Bloccato": { checkbox: false }, "Tentativi falliti": { number: 0 } }
     });
   },
 
   async archivia(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, { archived: true, properties: { "Attivo": { checkbox: false } } } as any);
+    await notion.updatePageInDb(DB_UTENTI, pageId, { archived: true, properties: { "Attivo": { checkbox: false } } } as any);
   },
 
   async aggiornaRuoli(pageId: string, ruolo?: Ruolo, ruoliAggiuntivi?: Ruolo[]): Promise<void> {
     const properties: any = {};
     if (ruolo) properties["Ruolo"] = { select: { name: ruolo } };
     if (ruoliAggiuntivi) properties["Ruoli aggiuntivi"] = { multi_select: ruoliAggiuntivi.map(n => ({ name: n })) };
-    if (Object.keys(properties).length) await notion.updatePage(pageId, { properties });
+    if (Object.keys(properties).length) await notion.updatePageInDb(DB_UTENTI, pageId, { properties });
   },
 
   async aggiornaPassword(pageId: string, hash: string, salt: string): Promise<void> {
     const today = new Date().toISOString().slice(0, 10);
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_UTENTI, pageId, {
       properties: {
         "Hash password": { rich_text: [{ text: { content: hash } }] },
         "Salt": { rich_text: [{ text: { content: salt } }] },
@@ -105,17 +105,17 @@ export const UtentiModel = {
   // TOTP — il segreto arriva già cifrato (AES-256-GCM) da AuthService/TotpService,
   // questo model si limita a scrivere/leggere il valore così com'è.
   async setTotpSecret(pageId: string, encryptedSecret: string): Promise<void> {
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_UTENTI, pageId, {
       properties: { "TOTP Secret": { rich_text: [{ text: { content: encryptedSecret } }] } }
     });
   },
 
   async setTotpAbilitato(pageId: string, abilitato: boolean): Promise<void> {
-    await notion.updatePage(pageId, { properties: { "TOTP Attivo": { checkbox: abilitato } } });
+    await notion.updatePageInDb(DB_UTENTI, pageId, { properties: { "TOTP Attivo": { checkbox: abilitato } } });
   },
 
   async disableTotp(pageId: string): Promise<void> {
-    await notion.updatePage(pageId, {
+    await notion.updatePageInDb(DB_UTENTI, pageId, {
       properties: {
         "TOTP Attivo": { checkbox: false },
         "TOTP Secret": { rich_text: [{ text: { content: "" } }] }

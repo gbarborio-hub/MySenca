@@ -20,12 +20,19 @@ function fmtTs(ts: string | null): string {
   return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+// Un valore che inizia con = + - @ (o tab/a capo) verrebbe eseguito come formula da
+// Excel/LibreOffice: lo username di un login fallito lo sceglie chiunque.
+function csvSicuro(v: unknown): string {
+  const s = String(v ?? "");
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+
 function exportCSV(records: AuditRecord[]) {
   const header = ["Timestamp","Utente","Ruolo","Azione","Risorsa","Dettaglio","IP","Hash record"];
   const rows = records.map(r => [
     fmtTs(r.timestamp), r.utente, r.ruolo, r.azione,
     r.risorsa, r.dettaglio, r.ip, r.hashRecord
-  ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+  ].map(v => `"${csvSicuro(v).replace(/"/g, '""')}"`).join(","));
   const csv = [header.join(","), ...rows].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
